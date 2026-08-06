@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zoffec
+      POSTGRES_PASSWORD: zoffec_dev_local
+      POSTGRES_DB: zoffec_cms
+    ports:
+      - "5432:5432"
+    volumes:
+      - zoffec_pg_data:/var/lib/postgresql/data
+
+volumes:
+  zoffec_pg_data:

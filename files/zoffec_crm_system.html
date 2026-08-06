@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--bg4:#252d3d;
+--text:#e8eaf0;--text2:#9ba3b5;--text3:#6b7485;
+--border:#2a3347;--border2:#3a4560;
+--accent:#4f8ef7;--accent2:#3a7af0;
+--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--info:#06b6d4;
+--purple:#a855f7;--orange:#f97316;
+}
+body.light{
+--bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;--bg4:#e2e8f0;
+--text:#0f172a;--text2:#475569;--text3:#94a3b8;
+--border:#e2e8f0;--border2:#cbd5e1;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;font-size:14px;line-height:1.5}
+.sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;position:fixed;left:0;top:0;overflow-y:auto;z-index:100}
+.logo{padding:20px 16px 16px;border-bottom:1px solid var(--border)}
+.logo-name{font-size:15px;font-weight:600;color:var(--text);line-height:1.2}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;display:inline-block;margin-right:6px}
+.nav-section{padding:12px 0}
+.nav-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:0 16px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--bg3);color:var(--accent);border-left-color:var(--accent)}
+.nav-item i{font-size:16px;width:18px}
+.nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:16px;font-weight:600;flex:1}
+.topbar-search{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;width:220px;outline:none}
+.topbar-search:focus{border-color:var(--accent)}
+.topbar-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text2);cursor:pointer;font-size:15px;transition:all .15s;display:flex;align-items:center}
+.topbar-btn:hover{background:var(--bg4);color:var(--text)}
+.role-badge{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text2)}
+.content{padding:24px;flex:1;overflow-auto}
+.page{display:none}
+.page.active{display:block}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.section-title{font-size:18px;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;border:none;font-weight:500;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{background:var(--bg3);color:var(--text)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.stat-label{font-size:12px;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.stat-value{font-size:26px;font-weight:600;line-height:1}
+.stat-change{font-size:11px;margin-top:6px}
+.stat-up{color:var(--success)}
+.stat-down{color:var(--danger)}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px}
+.card-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;border-bottom:1px solid var(--border)}
+td{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2)}
+tr:hover td{background:var(--bg3)}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-new{background:#1e3a5f;color:#60a5fa}
+.badge-contacted{background:#2d3748;color:#a0aec0}
+.badge-qualified{background:#1a3a2a;color:#4ade80}
+.badge-proposal{background:#2d1f4f;color:#c084fc}
+.badge-negotiation{background:#3d2a00;color:#fbbf24}
+.badge-won{background:#14532d;color:#4ade80}
+.badge-lost{background:#450a0a;color:#f87171}
+.badge-active{background:#166534;color:#86efac}
+.badge-inactive{background:#374151;color:#9ca3af}
+.badge-pending{background:#3d2a00;color:#fbbf24}
+.badge-paid{background:#14532d;color:#4ade80}
+.badge-overdue{background:#450a0a;color:#f87171}
+.badge-partial{background:#1e3a5f;color:#60a5fa}
+.badge-inprogress{background:#1e3a5f;color:#60a5fa}
+.badge-notstarted{background:#374151;color:#9ca3af}
+.badge-completed{background:#14532d;color:#4ade80}
+.badge-onhold{background:#3d2a00;color:#fbbf24}
+.badge-awaiting{background:#2d1f4f;color:#c084fc}
+.filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.filter-select{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px;cursor:pointer;outline:none}
+.filter-input{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px;outline:none;width:200px}
+.filter-input:focus,.filter-select:focus{border-color:var(--accent)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal-header{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:15px;font-weight:600}
+.modal-body{padding:20px}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+.form-label{font-size:12px;font-weight:500;color:var(--text2)}
+.form-input,.form-select,.form-textarea{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 11px;color:var(--text);font-size:13px;outline:none;font-family:inherit;width:100%}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent)}
+.form-textarea{resize:vertical;min-height:70px}
+.timeline{display:flex;flex-direction:column;gap:12px}
+.timeline-item{display:flex;gap:12px;align-items:flex-start}
+.timeline-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0}
+.timeline-dot.won{background:var(--success)}
+.timeline-dot.lost{background:var(--danger)}
+.timeline-dot.note{background:var(--warning)}
+.timeline-text{font-size:13px;color:var(--text2)}
+.timeline-time{font-size:11px;color:var(--text3);margin-top:2px}
+.progress-bar{height:6px;background:var(--bg4);border-radius:10px;overflow:hidden}
+.progress-fill{height:100%;border-radius:10px;background:var(--accent);transition:width .3s}
+.avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.av-blue{background:#1e3a5f;color:#60a5fa}
+.av-green{background:#14532d;color:#4ade80}
+.av-purple{background:#2d1f4f;color:#c084fc}
+.av-amber{background:#3d2a00;color:#fbbf24}
+.notif{display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:8px}
+.notif-icon{font-size:18px;margin-top:1px}
+.notif-title{font-size:13px;font-weight:500}
+.notif-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.chart-wrap{position:relative;width:100%;height:220px}
+.followup-item{padding:12px;border-left:3px solid var(--accent);background:var(--bg3);border-radius:0 8px 8px 0;margin-bottom:8px}
+.followup-company{font-size:13px;font-weight:500}
+.followup-detail{font-size:12px;color:var(--text3);margin-top:2px}
+.tab-bar{display:flex;gap:4px;margin-bottom:20px;background:var(--bg3);padding:4px;border-radius:10px;width:fit-content}
+.tab{padding:6px 16px;border-radius:7px;font-size:13px;cursor:pointer;color:var(--text2);transition:all .15s}
+.tab.active{background:var(--bg2);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.report-stat{background:var(--bg3);border-radius:10px;padding:14px 16px;text-align:center}
+.report-stat-val{font-size:22px;font-weight:700}
+.report-stat-label{font-size:12px;color:var(--text3);margin-top:4px}
+.color-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.pagination{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:14px}
+.page-btn{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2)}
+.page-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.empty{text-align:center;padding:40px;color:var(--text3)}
+.empty i{font-size:36px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<h2 class="sr-only" style="position:absolute;left:-9999px">Zoffec Infotech CRM — dashboard with leads, clients, projects, invoices, and reports</h2>
+
+<div class="sidebar">
+  <div class="logo">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <div style="width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center">
+        <i class="ti ti-shield-lock" style="color:#fff;font-size:15px"></i>
+      </div>
+      <div>
+        <div class="logo-name">Zoffec CRM</div>
+        <div class="logo-sub">Infotech Pvt. Ltd.</div>
+      </div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <div class="nav-item active" onclick="showPage('dashboard',this)"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
+    <div class="nav-item" onclick="showPage('leads',this)"><i class="ti ti-users"></i> Lead Management <span class="nav-badge" id="lead-badge">12</span></div>
+    <div class="nav-item" onclick="showPage('clients',this)"><i class="ti ti-building"></i> Clients</div>
+    <div class="nav-item" onclick="showPage('projects',this)"><i class="ti ti-briefcase"></i> Projects</div>
+    <div class="nav-label">Finance</div>
+    <div class="nav-item" onclick="showPage('invoices',this)"><i class="ti ti-file-invoice"></i> Invoices</div>
+    <div class="nav-item" onclick="showPage('followups',this)"><i class="ti ti-calendar"></i> Follow-ups <span class="nav-badge" id="followup-badge">5</span></div>
+    <div class="nav-label">Insights</div>
+    <div class="nav-item" onclick="showPage('reports',this)"><i class="ti ti-chart-bar"></i> Reports</div>
+    <div class="nav-item" onclick="showPage('notifications',this)"><i class="ti ti-bell"></i> Notifications <span class="nav-badge">3</span></div>
+  </div>
+  <div style="margin-top:auto;padding:14px 16px;border-top:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="avatar av-blue">AD</div>
+      <div>
+        <div style="font-size:13px;font-weight:500">Admin User</div>
+        <div style="font-size:11px;color:var(--text3)">admin@zoffec.com</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Dashboard</div>
+    <input class="topbar-search" placeholder="Search leads, clients, projects..." id="global-search" oninput="globalSearch(this.value)">
+    <button class="topbar-btn" onclick="toggleTheme()" title="Toggle theme"><i class="ti ti-sun" id="theme-icon"></i></button>
+    <button class="topbar-btn" onclick="showPage('notifications',null)"><i class="ti ti-bell"></i></button>
+    <div class="role-badge"><i class="ti ti-shield" style="font-size:12px;margin-right:4px"></i>Admin</div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-users" style="color:var(--accent)"></i> Total Leads</div>
+          <div class="stat-value" style="color:var(--accent)">47</div>
+          <div class="stat-change stat-up"><i class="ti ti-arrow-up" style="font-size:11px"></i> 8 this month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-building" style="color:var(--success)"></i> Active Clients</div>
+          <div class="stat-value" style="color:var(--success)">18</div>
+          <div class="stat-change stat-up"><i class="ti ti-arrow-up" style="font-size:11px"></i> 3 new</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-file-text" style="color:var(--purple)"></i> Proposals Sent</div>
+          <div class="stat-value" style="color:var(--purple)">24</div>
+          <div class="stat-change stat-up"><i class="ti ti-arrow-up" style="font-size:11px"></i> 6 pending response</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-briefcase" style="color:var(--info)"></i> Projects Active</div>
+          <div class="stat-value" style="color:var(--info)">11</div>
+          <div class="stat-change stat-up"><i class="ti ti-arrow-up" style="font-size:11px"></i> 2 due this week</div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-alert-circle" style="color:var(--warning)"></i> Pending Payments</div>
+          <div class="stat-value" style="color:var(--warning)">₹12.4L</div>
+          <div class="stat-change stat-down"><i class="ti ti-arrow-down" style="font-size:11px"></i> 4 invoices overdue</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-currency-rupee" style="color:var(--success)"></i> Revenue This Month</div>
+          <div class="stat-value" style="color:var(--success)">₹28.7L</div>
+          <div class="stat-change stat-up"><i class="ti ti-arrow-up" style="font-size:11px"></i> +22% vs last month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-calendar" style="color:var(--orange)"></i> Follow-ups Today</div>
+          <div class="stat-value" style="color:var(--orange)">7</div>
+          <div class="stat-change stat-down"><i class="ti ti-alert-circle" style="font-size:11px"></i> 3 overdue</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-target" style="color:var(--accent)"></i> Conversion Rate</div>
+          <div class="stat-value" style="color:var(--accent)">38%</div>
+          <div class="stat-change stat-up"><i class="ti ti-arrow-up" style="font-size:11px"></i> +5% vs last month</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Monthly Revenue (₹ Lakhs)<button class="btn btn-ghost btn-sm" onclick="sendPrompt('Export revenue chart data to Excel')"><i class="ti ti-download"></i></button></div>
+          <div class="chart-wrap"><canvas id="revenueChart" role="img" aria-label="Monthly revenue bar chart for Zoffec CRM">Monthly revenue data for the past 6 months.</canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Lead Status Breakdown</div>
+          <div class="chart-wrap"><canvas id="leadChart" role="img" aria-label="Pie chart showing lead status distribution">Lead status distribution across stages.</canvas></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Upcoming Follow-ups <button class="btn btn-primary btn-sm" onclick="showPage('followups',null)">View All</button></div>
+          <div id="dash-followups"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Recent Activity</div>
+          <div class="timeline" id="dash-activity"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">Service-wise Pipeline <span style="font-size:12px;color:var(--text3);font-weight:400">Revenue in ₹ Lakhs</span></div>
+        <div class="chart-wrap" style="height:180px"><canvas id="serviceChart" role="img" aria-label="Bar chart of service-wise revenue pipeline">Service-wise revenue data.</canvas></div>
+      </div>
+    </div>
+
+    <!-- LEADS -->
+    <div class="page" id="page-leads">
+      <div class="section-header">
+        <div class="section-title">Lead Management</div>
+        <button class="btn btn-primary" onclick="openLeadModal()"><i class="ti ti-plus"></i> Add Lead</button>
+      </div>
+      <div class="filter-bar">
+        <input class="filter-input" placeholder="Search company / contact..." id="lead-search" oninput="filterLeads()">
+        <select class="filter-select" id="lead-status-filter" onchange="filterLeads()">
+          <option value="">All Status</option>
+          <option>New</option><option>Contacted</option><option>Qualified</option>
+          <option>Proposal Sent</option><option>Negotiation</option><option>Won</option><option>Lost</option>
+        </select>
+        <select class="filter-select" id="lead-service-filter" onchange="filterLeads()">
+          <option value="">All Services</option>
+          <option>SEBI CSCRF</option><option>Accessibility Audit</option><option>DPDP Compliance</option>
+          <option>VAPT</option><option>Cyber Security</option><option>MSOC</option>
+        </select>
+        <select class="filter-select" id="lead-source-filter" onchange="filterLeads()">
+          <option value="">All Sources</option>
+          <option>Website</option><option>Referral</option><option>LinkedIn</option><option>Cold Call</option><option>Event</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th><th>Contact</th><th>Service</th><th>Source</th><th>Status</th><th>Follow-up</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="leads-table"></tbody>
+        </table>
+        <div class="pagination" style="padding:14px 16px" id="lead-pagination"></div>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="page" id="page-clients">
+      <div class="section-header">
+        <div class="section-title">Client Management</div>
+        <button class="btn btn-primary" onclick="openClientModal()"><i class="ti ti-plus"></i> Add Client</button>
+      </div>
+      <div class="filter-bar">
+        <input class="filter-input" placeholder="Search client..." id="client-search" oninput="filterClients()">
+        <select class="filter-select" id="client-status-filter" onchange="filterClients()">
+          <option value="">All Status</option><option>Active</option><option>Inactive</option>
+        </select>
+        <select class="filter-select" id="client-service-filter" onchange="filterClients()">
+          <option value="">All Services</option>
+          <option>SEBI CSCRF</option><option>Accessibility Audit</option><option>DPDP Compliance</option>
+          <option>VAPT</option><option>Cyber Security</option><option>MSOC</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead>
+            <tr><th>Company</th><th>SPOC</th><th>Service</th><th>Contract Value</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="clients-table"></tbody>
+        </table>
+        <div class="pagination" style="padding:14px 16px" id="client-pagination"></div>
+      </div>
+    </div>
+
+    <!-- PROJECTS -->
+    <div class="page" id="page-projects">
+      <div class="section-header">
+        <div class="section-title">Project Management</div>
+        <button class="btn btn-primary" onclick="openProjectModal()"><i class="ti ti-plus"></i> Add Project</button>
+      </div>
+      <div class="filter-bar">
+        <input class="filter-input" placeholder="Search project..." id="proj-search" oninput="filterProjects()">
+        <select class="filter-select" id="proj-status-filter" onchange="filterProjects()">
+          <option value="">All Status</option>
+          <option>Not Started</option><option>In Progress</option><option>Awaiting Client</option><option>Completed</option><option>On Hold</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead>
+            <tr><th>Project</th><th>Client</th><th>Service</th><th>Assigned To</th><th>Due Date</th><th>Progress</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="projects-table"></tbody>
+        </table>
+        <div class="pagination" style="padding:14px 16px" id="project-pagination"></div>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div class="page" id="page-invoices">
+      <div class="section-header">
+        <div class="section-title">Invoice Management</div>
+        <button class="btn btn-primary" onclick="openInvoiceModal()"><i class="ti ti-plus"></i> Create Invoice</button>
+      </div>
+      <div class="filter-bar">
+        <input class="filter-input" placeholder="Search invoice / client..." id="inv-search" oninput="filterInvoices()">
+        <select class="filter-select" id="inv-status-filter" onchange="filterInvoices()">
+          <option value="">All Status</option>
+          <option>Pending</option><option>Partial</option><option>Paid</option><option>Overdue</option>
+        </select>
+      </div>
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--success)">₹42.8L</div><div class="report-stat-label">Total Invoiced</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--success)">₹30.2L</div><div class="report-stat-label">Amount Received</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--warning)">₹12.6L</div><div class="report-stat-label">Outstanding</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--danger)">4</div><div class="report-stat-label">Overdue Invoices</div></div>
+      </div>
+      <div class="card" style="padding:0">
+        <table>
+          <thead>
+            <tr><th>Invoice #</th><th>Client</th><th>Date</th><th>Due</th><th>Amount</th><th>GST</th><th>Total</th><th>Received</th><th>Balance</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="invoices-table"></tbody>
+        </table>
+        <div class="pagination" style="padding:14px 16px" id="invoice-pagination"></div>
+      </div>
+    </div>
+
+    <!-- FOLLOW-UPS -->
+    <div class="page" id="page-followups">
+      <div class="section-header">
+        <div class="section-title">Follow-up Management</div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab active" onclick="setFollowTab('today',this)">Today</div>
+        <div class="tab" onclick="setFollowTab('upcoming',this)">Upcoming</div>
+        <div class="tab" onclick="setFollowTab('overdue',this)">Overdue</div>
+        <div class="tab" onclick="setFollowTab('all',this)">All</div>
+      </div>
+      <div class="grid2">
+        <div>
+          <div id="followup-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Message Templates</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px"><i class="ti ti-mail"></i> Email Template — Proposal Follow-up</div>
+              <div style="font-size:12px;color:var(--text2);line-height:1.6">Dear [Name], I wanted to follow up on the proposal we sent for [Service]. Please let us know if you have any questions. We'd love to schedule a call at your convenience.</div>
+              <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="sendPrompt('Generate a personalized email follow-up for VAPT proposal sent to Infosys BPM')"><i class="ti ti-copy"></i> Customize with AI ↗</button>
+            </div>
+            <div style="padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:600;color:var(--success);margin-bottom:6px"><i class="ti ti-brand-whatsapp"></i> WhatsApp Template — Quick Check-in</div>
+              <div style="font-size:12px;color:var(--text2);line-height:1.6">Hi [Name] 👋 Just checking in regarding our [Service] proposal. Would you be available for a 15-min call this week? 🙏</div>
+              <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="sendPrompt('Generate WhatsApp follow-up message for SEBI CSCRF compliance inquiry')"><i class="ti ti-copy"></i> Customize with AI ↗</button>
+            </div>
+            <div style="padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:600;color:var(--warning);margin-bottom:6px"><i class="ti ti-alert-circle"></i> Payment Reminder Template</div>
+              <div style="font-size:12px;color:var(--text2);line-height:1.6">Dear [Name], This is a gentle reminder that Invoice [#] of ₹[Amount] is due on [Date]. Kindly arrange the payment at your earliest convenience.</div>
+              <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="sendPrompt('Generate payment reminder for overdue invoice from HDFC Securities')"><i class="ti ti-copy"></i> Customize with AI ↗</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="page" id="page-reports">
+      <div class="section-header">
+        <div class="section-title">Reports & Analytics</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="sendPrompt('Export monthly sales report to Excel for June 2025')"><i class="ti ti-file-spreadsheet"></i> Export Excel ↗</button>
+          <button class="btn btn-ghost" onclick="sendPrompt('Generate PDF report of all pending payments')"><i class="ti ti-file-type-pdf"></i> Export PDF ↗</button>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab active" onclick="setReportTab('conversion',this)">Lead Conversion</div>
+        <div class="tab" onclick="setReportTab('revenue',this)">Revenue</div>
+        <div class="tab" onclick="setReportTab('payment',this)">Payment Pending</div>
+        <div class="tab" onclick="setReportTab('service',this)">Service-wise</div>
+      </div>
+      <div id="report-content"></div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="page" id="page-notifications">
+      <div class="section-header">
+        <div class="section-title">Notifications</div>
+        <button class="btn btn-ghost btn-sm">Mark all read</button>
+      </div>
+      <div id="notif-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- LEAD MODAL -->
+<div class="modal-overlay" id="lead-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="lead-modal-title">Add New Lead</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('lead-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Company Name *</label><input class="form-input" id="l-company" placeholder="e.g. Infosys Ltd."></div>
+        <div class="form-group"><label class="form-label">Contact Person *</label><input class="form-input" id="l-contact" placeholder="Full name"></div>
+        <div class="form-group"><label class="form-label">Designation</label><input class="form-input" id="l-designation" placeholder="e.g. CTO"></div>
+        <div class="form-group"><label class="form-label">Email *</label><input class="form-input" id="l-email" type="email" placeholder="email@company.com"></div>
+        <div class="form-group"><label class="form-label">Mobile</label><input class="form-input" id="l-mobile" placeholder="+91 98765 43210"></div>
+        <div class="form-group"><label class="form-label">Website</label><input class="form-input" id="l-website" placeholder="https://company.com"></div>
+        <div class="form-group"><label class="form-label">Industry</label>
+          <select class="form-select" id="l-industry">
+            <option>Banking & Finance</option><option>IT / Software</option><option>Healthcare</option>
+            <option>Government</option><option>Manufacturing</option><option>E-commerce</option><option>Telecom</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Lead Source</label>
+          <select class="form-select" id="l-source">
+            <option>Website</option><option>Referral</option><option>LinkedIn</option><option>Cold Call</option><option>Event</option><option>Email Campaign</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Service Interested In</label>
+          <select class="form-select" id="l-service">
+            <option>SEBI CSCRF</option><option>Accessibility Audit</option><option>DPDP Compliance</option>
+            <option>VAPT</option><option>Cyber Security</option><option>MSOC</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Lead Status</label>
+          <select class="form-select" id="l-status">
+            <option>New</option><option>Contacted</option><option>Qualified</option>
+            <option>Proposal Sent</option><option>Negotiation</option><option>Won</option><option>Lost</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Follow-up Date</label><input class="form-input" id="l-followup" type="date"></div>
+        <div class="form-group"><label class="form-label">Assigned To</label>
+          <select class="form-select" id="l-assigned">
+            <option>Riya Sharma</option><option>Amit Patel</option><option>Neha Kulkarni</option>
+          </select>
+        </div>
+        <div class="form-group full"><label class="form-label">Notes</label><textarea class="form-textarea" id="l-notes" placeholder="Any additional information..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('lead-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLead()"><i class="ti ti-check"></i> Save Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT MODAL -->
+<div class="modal-overlay" id="client-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="client-modal-title">Add New Client</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('client-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Company Name *</label><input class="form-input" id="c-company" placeholder="Company name"></div>
+        <div class="form-group"><label class="form-label">SPOC Name *</label><input class="form-input" id="c-spoc" placeholder="Single point of contact"></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="c-email" type="email"></div>
+        <div class="form-group"><label class="form-label">Mobile</label><input class="form-input" id="c-mobile"></div>
+        <div class="form-group"><label class="form-label">Service Purchased</label>
+          <select class="form-select" id="c-service">
+            <option>SEBI CSCRF</option><option>Accessibility Audit</option><option>DPDP Compliance</option>
+            <option>VAPT</option><option>Cyber Security</option><option>MSOC</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Contract Value (₹)</label><input class="form-input" id="c-value" type="number" placeholder="500000"></div>
+        <div class="form-group"><label class="form-label">Start Date</label><input class="form-input" id="c-start" type="date"></div>
+        <div class="form-group"><label class="form-label">End Date</label><input class="form-input" id="c-end" type="date"></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-select" id="c-status"><option>Active</option><option>Inactive</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('client-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClient()"><i class="ti ti-check"></i> Save Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECT MODAL -->
+<div class="modal-overlay" id="project-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New Project</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('project-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Project Name *</label><input class="form-input" id="p-name" placeholder="Project name"></div>
+        <div class="form-group"><label class="form-label">Client Name *</label><input class="form-input" id="p-client" placeholder="Client name"></div>
+        <div class="form-group"><label class="form-label">Service Type</label>
+          <select class="form-select" id="p-service">
+            <option>SEBI CSCRF</option><option>Accessibility Audit</option><option>DPDP Compliance</option>
+            <option>VAPT</option><option>Cyber Security</option><option>MSOC</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Assigned To</label>
+          <select class="form-select" id="p-assigned">
+            <option>Riya Sharma</option><option>Amit Patel</option><option>Neha Kulkarni</option><option>Dev Mehta</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Start Date</label><input class="form-input" id="p-start" type="date"></div>
+        <div class="form-group"><label class="form-label">Due Date</label><input class="form-input" id="p-due" type="date"></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-select" id="p-status">
+            <option>Not Started</option><option>In Progress</option><option>Awaiting Client</option><option>Completed</option><option>On Hold</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Progress (%)</label><input class="form-input" id="p-progress" type="number" min="0" max="100" value="0"></div>
+        <div class="form-group full"><label class="form-label">Remarks</label><textarea class="form-textarea" id="p-remarks"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('project-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProject()"><i class="ti ti-check"></i> Save Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVOICE MODAL -->
+<div class="modal-overlay" id="invoice-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Create Invoice</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('invoice-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Invoice Number</label><input class="form-input" id="i-num" placeholder="ZI-2025-001"></div>
+        <div class="form-group"><label class="form-label">Client Name *</label><input class="form-input" id="i-client" placeholder="Client name"></div>
+        <div class="form-group"><label class="form-label">Invoice Date</label><input class="form-input" id="i-date" type="date"></div>
+        <div class="form-group"><label class="form-label">Due Date</label><input class="form-input" id="i-due" type="date"></div>
+        <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" id="i-amount" type="number" placeholder="100000" oninput="calcInvoice()"></div>
+        <div class="form-group"><label class="form-label">GST (%)</label><input class="form-input" id="i-gst" type="number" value="18" oninput="calcInvoice()"></div>
+        <div class="form-group"><label class="form-label">Total Amount (₹)</label><input class="form-input" id="i-total" readonly></div>
+        <div class="form-group"><label class="form-label">Amount Received (₹)</label><input class="form-input" id="i-received" type="number" value="0" oninput="calcInvoice()"></div>
+        <div class="form-group"><label class="form-label">Balance (₹)</label><input class="form-input" id="i-balance" readonly></div>
+        <div class="form-group"><label class="form-label">Payment Status</label>
+          <select class="form-select" id="i-status">
+            <option>Pending</option><option>Partial</option><option>Paid</option><option>Overdue</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('invoice-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveInvoice()"><i class="ti ti-check"></i> Save Invoice</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let isDark = true;
+let editingLeadIdx = -1, editingClientIdx = -1, editingProjectIdx = -1, editingInvoiceIdx = -1;
+let leadPage = 1, clientPage = 1, projPage = 1, invPage = 1;
+const PER = 8;
+
+let leads = [
+  {company:'HDFC Securities',contact:'Rajiv Mehta',designation:'CISO',email:'rajiv@hdfcsec.com',mobile:'+91 98001 11234',website:'hdfcsec.com',industry:'Banking & Finance',source:'LinkedIn',service:'SEBI CSCRF',status:'Proposal Sent',followup:'2025-06-28',assigned:'Riya Sharma',notes:'Very interested, need detailed pricing'},
+  {company:'Infosys BPM',contact:'Priya Singh',designation:'VP IT',email:'priya@infosys.com',mobile:'+91 97002 22345',website:'infosysbpm.com',industry:'IT / Software',source:'Referral',service:'VAPT',status:'Negotiation',followup:'2025-06-26',assigned:'Amit Patel',notes:'Need 3 year AMC pricing'},
+  {company:'Apollo Hospitals',contact:'Dr. Anil Kumar',designation:'CTO',email:'anil@apollo.com',mobile:'+91 96003 33456',website:'apollo.com',industry:'Healthcare',source:'Event',service:'DPDP Compliance',status:'Qualified',followup:'2025-06-30',assigned:'Riya Sharma',notes:'DPDP act compliance for patient data'},
+  {company:'Zepto Retail',contact:'Meera Joshi',designation:'Head IT',email:'meera@zepto.in',mobile:'+91 95004 44567',website:'zepto.in',industry:'E-commerce',source:'Website',service:'Accessibility Audit',status:'New',followup:'2025-07-02',assigned:'Neha Kulkarni',notes:'Website accessibility for differently abled'},
+  {company:'MTNL',contact:'Suresh Rao',designation:'DGM IT',email:'suresh@mtnl.in',mobile:'+91 94005 55678',website:'mtnl.in',industry:'Telecom',source:'Cold Call',service:'Cyber Security',status:'Contacted',followup:'2025-07-05',assigned:'Amit Patel',notes:'Government tender process'},
+  {company:'Cipla Ltd',contact:'Kavita Nair',designation:'Director IT',email:'kavita@cipla.com',mobile:'+91 93006 66789',website:'cipla.com',industry:'Healthcare',source:'Referral',service:'MSOC',status:'Won',followup:'2025-07-10',assigned:'Riya Sharma',notes:'Contract signed, onboarding pending'},
+  {company:'Bank of Baroda',contact:'Mohan Thakur',designation:'GM IT',email:'mohan@bankofbaroda.com',mobile:'+91 92007 77890',website:'bankofbaroda.com',industry:'Banking & Finance',source:'LinkedIn',service:'SEBI CSCRF',status:'Qualified',followup:'2025-07-08',assigned:'Neha Kulkarni',notes:'RBI compliance requirement'},
+  {company:'Flipkart',contact:'Asha Verma',designation:'CISO',email:'asha@flipkart.com',mobile:'+91 91008 88901',website:'flipkart.com',industry:'E-commerce',source:'Website',service:'VAPT',status:'New',followup:'2025-07-12',assigned:'Amit Patel',notes:'Penetration testing for mobile app'},
+  {company:'IRCTC',contact:'Deepak Pandey',designation:'CTO',email:'deepak@irctc.co.in',mobile:'+91 90009 99012',website:'irctc.co.in',industry:'Government',source:'Event',service:'Cyber Security',status:'Proposal Sent',followup:'2025-07-15',assigned:'Riya Sharma',notes:'National critical infrastructure'},
+  {company:'Nykaa',contact:'Simran Kapoor',designation:'VP Tech',email:'simran@nykaa.com',mobile:'+91 89010 10123',website:'nykaa.com',industry:'E-commerce',source:'Website',service:'DPDP Compliance',status:'Contacted',followup:'2025-07-18',assigned:'Neha Kulkarni',notes:'Customer data privacy compliance'},
+  {company:'Tech Mahindra',contact:'Sanjay Desai',designation:'Practice Head',email:'sanjay@techmahindra.com',mobile:'+91 88011 11234',website:'techmahindra.com',industry:'IT / Software',source:'Referral',service:'MSOC',status:'Lost',followup:'',assigned:'Amit Patel',notes:'Budget constraints cited'},
+  {company:'Tata Steel',contact:'Rohit Chandra',designation:'GM Security',email:'rohit@tatasteel.com',mobile:'+91 87012 22345',website:'tatasteel.com',industry:'Manufacturing',source:'LinkedIn',service:'VAPT',status:'Negotiation',followup:'2025-07-20',assigned:'Riya Sharma',notes:'OT/IT security assessment needed'}
+];
+
+let clients = [
+  {company:'ICICI Prudential',spoc:'Ananya Reddy',email:'ananya@icicipru.com',mobile:'+91 99001 11111',service:'SEBI CSCRF',value:1200000,start:'2025-01-15',end:'2026-01-14',status:'Active'},
+  {company:'Wipro Technologies',spoc:'Harish Menon',email:'harish@wipro.com',mobile:'+91 98002 22222',service:'VAPT',value:850000,start:'2025-02-01',end:'2025-08-31',status:'Active'},
+  {company:'Sun Pharma',spoc:'Divya Iyer',email:'divya@sunpharma.com',mobile:'+91 97003 33333',service:'DPDP Compliance',value:680000,start:'2025-03-10',end:'2026-03-09',status:'Active'},
+  {company:'Indian Oil Corp',spoc:'Manish Gupta',email:'manish@iocl.com',mobile:'+91 96004 44444',service:'Cyber Security',value:1500000,start:'2024-10-01',end:'2025-09-30',status:'Active'},
+  {company:'Reliance Retail',spoc:'Sunita Jain',email:'sunita@ril.com',mobile:'+91 95005 55555',service:'Accessibility Audit',value:450000,start:'2025-04-01',end:'2025-09-30',status:'Active'},
+  {company:'HCL Technologies',spoc:'Vikram Shah',email:'vikram@hcl.com',mobile:'+91 94006 66666',service:'MSOC',value:2400000,start:'2024-07-01',end:'2025-06-30',status:'Inactive'},
+  {company:'Tata Consultancy',spoc:'Neeraj Bhatt',email:'neeraj@tcs.com',mobile:'+91 93007 77777',service:'VAPT',value:960000,start:'2025-01-20',end:'2025-07-19',status:'Active'},
+  {company:'L&T Infotech',spoc:'Pooja Shetty',email:'pooja@lti.com',mobile:'+91 92008 88888',service:'SEBI CSCRF',value:780000,start:'2025-05-01',end:'2026-04-30',status:'Active'},
+];
+
+let projects = [
+  {name:'SEBI CSCRF Gap Assessment',client:'ICICI Prudential',service:'SEBI CSCRF',assigned:'Dev Mehta',start:'2025-05-01',due:'2025-07-15',status:'In Progress',progress:65,remarks:'Phase 2 underway'},
+  {name:'Network Penetration Testing',client:'Wipro Technologies',service:'VAPT',assigned:'Amit Patel',start:'2025-05-15',due:'2025-06-30',status:'Awaiting Client',progress:80,remarks:'Awaiting test environment access'},
+  {name:'DPDP Compliance Audit',client:'Sun Pharma',service:'DPDP Compliance',assigned:'Neha Kulkarni',start:'2025-04-01',due:'2025-07-01',status:'In Progress',progress:50,remarks:'Policy drafting phase'},
+  {name:'Cyber Security Roadmap',client:'Indian Oil Corp',service:'Cyber Security',assigned:'Riya Sharma',start:'2025-03-01',due:'2025-05-31',status:'Completed',progress:100,remarks:'Final report delivered'},
+  {name:'Website Accessibility Audit',client:'Reliance Retail',service:'Accessibility Audit',assigned:'Dev Mehta',start:'2025-04-15',due:'2025-06-15',status:'Completed',progress:100,remarks:'WCAG 2.1 AA compliant'},
+  {name:'VAPT Mobile Application',client:'Tata Consultancy',service:'VAPT',assigned:'Amit Patel',start:'2025-06-01',due:'2025-07-31',status:'In Progress',progress:30,remarks:'Recon phase ongoing'},
+  {name:'SEBI Compliance Remediation',client:'L&T Infotech',service:'SEBI CSCRF',assigned:'Riya Sharma',start:'2025-05-20',due:'2025-08-20',status:'Not Started',progress:0,remarks:'SOW under review'},
+  {name:'Incident Response Playbook',client:'Indian Oil Corp',service:'Cyber Security',assigned:'Neha Kulkarni',start:'2025-06-10',due:'2025-08-10',status:'In Progress',progress:15,remarks:'Framework selection done'},
+];
+
+let invoices = [
+  {num:'ZI-2025-001',client:'ICICI Prudential',date:'2025-05-01',due:'2025-05-31',amount:400000,gst:18,received:400000,status:'Paid'},
+  {num:'ZI-2025-002',client:'Wipro Technologies',date:'2025-05-15',due:'2025-06-15',amount:280000,gst:18,received:150000,status:'Partial'},
+  {num:'ZI-2025-003',client:'Sun Pharma',date:'2025-06-01',due:'2025-06-30',amount:225000,gst:18,received:0,status:'Pending'},
+  {num:'ZI-2025-004',client:'Indian Oil Corp',date:'2025-04-01',due:'2025-04-30',amount:500000,gst:18,received:0,status:'Overdue'},
+  {num:'ZI-2025-005',client:'Reliance Retail',date:'2025-05-20',due:'2025-06-20',amount:150000,gst:18,received:150000,status:'Paid'},
+  {num:'ZI-2025-006',client:'Tata Consultancy',date:'2025-06-05',due:'2025-07-05',amount:320000,gst:18,received:0,status:'Pending'},
+  {num:'ZI-2025-007',client:'L&T Infotech',date:'2025-06-10',due:'2025-07-10',amount:260000,gst:18,received:130000,status:'Partial'},
+  {num:'ZI-2025-008',client:'ICICI Prudential',date:'2025-03-01',due:'2025-03-31',amount:800000,gst:18,received:0,status:'Overdue'},
+];
+
+let followups = [
+  {company:'HDFC Securities',contact:'Rajiv Mehta',service:'SEBI CSCRF',date:'2025-06-25',type:'Proposal Follow-up',assigned:'Riya Sharma',tag:'today'},
+  {company:'Infosys BPM',contact:'Priya Singh',service:'VAPT',date:'2025-06-25',type:'Negotiation Call',assigned:'Amit Patel',tag:'today'},
+  {company:'Apollo Hospitals',contact:'Dr. Anil Kumar',service:'DPDP Compliance',date:'2025-06-26',type:'Demo Presentation',assigned:'Riya Sharma',tag:'upcoming'},
+  {company:'Bank of Baroda',contact:'Mohan Thakur',service:'SEBI CSCRF',date:'2025-06-28',type:'Price Discussion',assigned:'Neha Kulkarni',tag:'upcoming'},
+  {company:'IRCTC',contact:'Deepak Pandey',service:'Cyber Security',date:'2025-06-20',type:'Proposal Review',assigned:'Riya Sharma',tag:'overdue'},
+  {company:'Zepto Retail',contact:'Meera Joshi',service:'Accessibility Audit',date:'2025-06-22',type:'Initial Discussion',assigned:'Neha Kulkarni',tag:'overdue'},
+  {company:'Nykaa',contact:'Simran Kapoor',service:'DPDP Compliance',date:'2025-07-02',type:'Kick-off Call',assigned:'Amit Patel',tag:'upcoming'},
+];
+
+let currentFollowTab = 'today';
+let currentReportTab = 'conversion';
+let filteredLeads = [...leads];
+let filteredClients = [...clients];
+let filteredProjects = [...projects];
+let filteredInvoices = [...invoices];
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  else {
+    document.querySelectorAll('.nav-item').forEach(n=>{
+      if(n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+id+"'")) n.classList.add('active');
+    });
+  }
+  const titles={dashboard:'Dashboard',leads:'Lead Management',clients:'Client Management',projects:'Project Management',invoices:'Invoice Management',followups:'Follow-up Management',reports:'Reports & Analytics',notifications:'Notifications'};
+  document.getElementById('page-title').textContent = titles[id]||id;
+  if(id==='leads') renderLeads();
+  if(id==='clients') renderClients();
+  if(id==='projects') renderProjects();
+  if(id==='invoices') renderInvoices();
+  if(id==='followups') renderFollowups();
+  if(id==='reports') renderReports();
+  if(id==='notifications') renderNotifications();
+}
+
+function toggleTheme(){
+  isDark=!isDark;
+  document.body.classList.toggle('light',!isDark);
+  document.getElementById('theme-icon').className=isDark?'ti ti-sun':'ti ti-moon';
+}
+
+function statusBadge(s){
+  const map={
+    'New':'badge-new','Contacted':'badge-contacted','Qualified':'badge-qualified',
+    'Proposal Sent':'badge-proposal','Negotiation':'badge-negotiation','Won':'badge-won','Lost':'badge-lost',
+    'Active':'badge-active','Inactive':'badge-inactive',
+    'Pending':'badge-pending','Paid':'badge-paid','Overdue':'badge-overdue','Partial':'badge-partial',
+    'In Progress':'badge-inprogress','Not Started':'badge-notstarted','Completed':'badge-completed',
+    'On Hold':'badge-onhold','Awaiting Client':'badge-awaiting'
+  };
+  return `<span class="badge ${map[s]||'badge-notstarted'}">${s}</span>`;
+}
+
+function renderLeads(){
+  const tb=document.getElementById('leads-table');
+  const start=(leadPage-1)*PER;
+  const rows=filteredLeads.slice(start,start+PER);
+  tb.innerHTML=rows.length?rows.map((l,i)=>`
+    <tr>
+      <td><div style="font-weight:500;color:var(--text)">${l.company}</div><div style="font-size:11px;color:var(--text3)">${l.industry}</div></td>
+      <td><div>${l.contact}</div><div style="font-size:11px;color:var(--text3)">${l.designation}</div></td>
+      <td><span style="font-size:12px">${l.service}</span></td>
+      <td style="font-size:12px">${l.source}</td>
+      <td>${statusBadge(l.status)}</td>
+      <td style="font-size:12px">${l.followup||'—'}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="editLead(${leads.indexOf(l)})" title="Edit"><i class="ti ti-edit"></i></button>
+          ${l.status!=='Won'?`<button class="btn btn-ghost btn-sm" onclick="convertLead(${leads.indexOf(l)})" title="Convert to Client" style="color:var(--success)"><i class="ti ti-arrow-right"></i></button>`:''}
+          <button class="btn btn-ghost btn-sm" onclick="deleteLead(${leads.indexOf(l)})" title="Delete" style="color:var(--danger)"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>`).join(''):`<tr><td colspan="7"><div class="empty"><i class="ti ti-search"></i><div>No leads found</div></div></td></tr>`;
+  renderPagination('lead-pagination',filteredLeads.length,leadPage,p=>{leadPage=p;renderLeads()});
+}
+
+function filterLeads(){
+  const s=document.getElementById('lead-search').value.toLowerCase();
+  const st=document.getElementById('lead-status-filter').value;
+  const sv=document.getElementById('lead-service-filter').value;
+  const so=document.getElementById('lead-source-filter').value;
+  filteredLeads=leads.filter(l=>
+    (!s||l.company.toLowerCase().includes(s)||l.contact.toLowerCase().includes(s))&&
+    (!st||l.status===st)&&(!sv||l.service===sv)&&(!so||l.source===so)
+  );
+  leadPage=1;renderLeads();
+}
+
+function renderClients(){
+  const tb=document.getElementById('clients-table');
+  const start=(clientPage-1)*PER;
+  const rows=filteredClients.slice(start,start+PER);
+  tb.innerHTML=rows.length?rows.map((c,i)=>`
+    <tr>
+      <td><div style="font-weight:500;color:var(--text)">${c.company}</div></td>
+      <td>${c.spoc}<div style="font-size:11px;color:var(--text3)">${c.email}</div></td>
+      <td style="font-size:12px">${c.service}</td>
+      <td style="font-weight:500;color:var(--success)">₹${(c.value/100000).toFixed(1)}L</td>
+      <td style="font-size:12px">${c.start}</td>
+      <td style="font-size:12px">${c.end}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="editClient(${clients.indexOf(c)})"><i class="ti ti-edit"></i></button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteClient(${clients.indexOf(c)})" style="color:var(--danger)"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>`).join(''):`<tr><td colspan="8"><div class="empty"><i class="ti ti-building"></i><div>No clients found</div></div></td></tr>`;
+  renderPagination('client-pagination',filteredClients.length,clientPage,p=>{clientPage=p;renderClients()});
+}
+
+function filterClients(){
+  const s=document.getElementById('client-search').value.toLowerCase();
+  const st=document.getElementById('client-status-filter').value;
+  const sv=document.getElementById('client-service-filter').value;
+  filteredClients=clients.filter(c=>
+    (!s||c.company.toLowerCase().includes(s)||c.spoc.toLowerCase().includes(s))&&
+    (!st||c.status===st)&&(!sv||c.service===sv)
+  );
+  clientPage=1;renderClients();
+}
+
+function renderProjects(){
+  const tb=document.getElementById('projects-table');
+  const start=(projPage-1)*PER;
+  const rows=filteredProjects.slice(start,start+PER);
+  tb.innerHTML=rows.length?rows.map((p,i)=>`
+    <tr>
+      <td><div style="font-weight:500;color:var(--text)">${p.name}</div><div style="font-size:11px;color:var(--text3)">${p.remarks}</div></td>
+      <td>${p.client}</td>
+      <td style="font-size:12px">${p.service}</td>
+      <td>${p.assigned}</td>
+      <td style="font-size:12px">${p.due}</td>
+      <td style="min-width:100px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${p.progress}%;background:${p.progress===100?'var(--success)':p.progress>50?'var(--accent)':'var(--warning)'}"></div></div>
+          <span style="font-size:11px;color:var(--text3)">${p.progress}%</span>
+        </div>
+      </td>
+      <td>${statusBadge(p.status)}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="editProject(${projects.indexOf(p)})"><i class="ti ti-edit"></i></button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteProject(${projects.indexOf(p)})" style="color:var(--danger)"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>`).join(''):`<tr><td colspan="8"><div class="empty"><i class="ti ti-briefcase"></i><div>No projects found</div></div></td></tr>`;
+  renderPagination('project-pagination',filteredProjects.length,projPage,p=>{projPage=p;renderProjects()});
+}
+
+function filterProjects(){
+  const s=document.getElementById('proj-search').value.toLowerCase();
+  const st=document.getElementById('proj-status-filter').value;
+  filteredProjects=projects.filter(p=>
+    (!s||p.name.toLowerCase().includes(s)||p.client.toLowerCase().includes(s))&&
+    (!st||p.status===st)
+  );
+  projPage=1;renderProjects();
+}
+
+function renderInvoices(){
+  const tb=document.getElementById('invoices-table');
+  const start=(invPage-1)*PER;
+  const rows=filteredInvoices.slice(start,start+PER);
+  tb.innerHTML=rows.length?rows.map(inv=>{
+    const total=Math.round(inv.amount*(1+inv.gst/100));
+    const bal=total-inv.received;
+    return `<tr>
+      <td style="font-weight:500;color:var(--accent)">${inv.num}</td>
+      <td>${inv.client}</td>
+      <td style="font-size:12px">${inv.date}</td>
+      <td style="font-size:12px;color:${inv.status==='Overdue'?'var(--danger)':'var(--text2)'}">${inv.due}</td>
+      <td>₹${(inv.amount/1000).toFixed(0)}K</td>
+      <td>${inv.gst}%</td>
+      <td style="font-weight:500">₹${(total/1000).toFixed(0)}K</td>
+      <td style="color:var(--success)">₹${(inv.received/1000).toFixed(0)}K</td>
+      <td style="color:${bal>0?'var(--warning)':'var(--success)'}">₹${(bal/1000).toFixed(0)}K</td>
+      <td>${statusBadge(inv.status)}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm" onclick="sendPrompt('Generate PDF invoice for ${inv.num} for client ${inv.client}')" title="Generate PDF"><i class="ti ti-file-type-pdf"></i></button>
+          <button class="btn btn-ghost btn-sm" onclick="editInvoice(invoices.indexOf(invoices.find(x=>x.num===${JSON.stringify(inv.num)})))" title="Edit"><i class="ti ti-edit"></i></button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteInvoice(invoices.indexOf(invoices.find(x=>x.num===${JSON.stringify(inv.num)})))" style="color:var(--danger)"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="11"><div class="empty"><i class="ti ti-file-invoice"></i><div>No invoices found</div></div></td></tr>`;
+  renderPagination('invoice-pagination',filteredInvoices.length,invPage,p=>{invPage=p;renderInvoices()});
+}
+
+function filterInvoices(){
+  const s=document.getElementById('inv-search').value.toLowerCase();
+  const st=document.getElementById('inv-status-filter').value;
+  filteredInvoices=invoices.filter(inv=>
+    (!s||inv.num.toLowerCase().includes(s)||inv.client.toLowerCase().includes(s))&&
+    (!st||inv.status===st)
+  );
+  invPage=1;renderInvoices();
+}
+
+function renderFollowups(){
+  const list=document.getElementById('followup-list');
+  const filtered=currentFollowTab==='all'?followups:followups.filter(f=>f.tag===currentFollowTab);
+  const colors={today:'var(--accent)',upcoming:'var(--success)',overdue:'var(--danger)'};
+  list.innerHTML=filtered.length?filtered.map(f=>`
+    <div class="followup-item" style="border-left-color:${colors[f.tag]||'var(--accent)'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="followup-company">${f.company}</div>
+          <div class="followup-detail">${f.contact} — ${f.type}</div>
+          <div class="followup-detail">${f.service} | ${f.date}</div>
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0;margin-left:10px">
+          <button class="btn btn-ghost btn-sm" onclick="sendPrompt('Draft follow-up email for ${f.contact} at ${f.company} regarding ${f.service}')" title="Email"><i class="ti ti-mail"></i></button>
+          <button class="btn btn-ghost btn-sm" title="WhatsApp" style="color:var(--success)"><i class="ti ti-brand-whatsapp"></i></button>
+          <button class="btn btn-ghost btn-sm" title="Mark done" style="color:var(--success)"><i class="ti ti-check"></i></button>
+        </div>
+      </div>
+    </div>`).join(''):`<div class="empty"><i class="ti ti-calendar"></i><div>No follow-ups in this category</div></div>`;
+}
+
+function setFollowTab(tab, el){
+  currentFollowTab=tab;
+  document.querySelectorAll('.tab-bar .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderFollowups();
+}
+
+function renderReports(){
+  const el=document.getElementById('report-content');
+  if(currentReportTab==='conversion'){
+    const won=leads.filter(l=>l.status==='Won').length;
+    const total=leads.length;
+    const rate=Math.round(won/total*100);
+    el.innerHTML=`
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--accent)">${total}</div><div class="report-stat-label">Total Leads</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--success)">${won}</div><div class="report-stat-label">Leads Won</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--danger)">${leads.filter(l=>l.status==='Lost').length}</div><div class="report-stat-label">Leads Lost</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--purple)">${rate}%</div><div class="report-stat-label">Conversion Rate</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Lead Funnel by Stage</div>
+        <div class="chart-wrap" style="height:240px"><canvas id="funnelChart" role="img" aria-label="Lead funnel bar chart by stage">Lead stages from New to Won.</canvas></div>
+      </div>`;
+    setTimeout(()=>{
+      const stages=['New','Contacted','Qualified','Proposal Sent','Negotiation','Won','Lost'];
+      const counts=stages.map(s=>leads.filter(l=>l.status===s).length);
+      const colors=['#4f8ef7','#06b6d4','#22c55e','#a855f7','#f59e0b','#22c55e','#ef4444'];
+      new Chart(document.getElementById('funnelChart'),{type:'bar',data:{labels:stages,datasets:[{label:'Leads',data:counts,backgroundColor:colors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}}}});
+    },50);
+  } else if(currentReportTab==='revenue'){
+    el.innerHTML=`
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--success)">₹28.7L</div><div class="report-stat-label">This Month</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--accent)">₹42.8L</div><div class="report-stat-label">Total Invoiced (FY)</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--warning)">₹12.4L</div><div class="report-stat-label">Outstanding</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--purple)">₹1.82Cr</div><div class="report-stat-label">Target FY25</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Monthly Revenue Trend</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="revTrend" role="img" aria-label="Line chart monthly revenue trend">Monthly revenue for Jan to Jun 2025.</canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Client-wise Revenue</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="clientRev" role="img" aria-label="Horizontal bar chart of client revenue">Revenue by client.</canvas></div>
+        </div>
+      </div>`;
+    setTimeout(()=>{
+      new Chart(document.getElementById('revTrend'),{type:'line',data:{labels:['Jan','Feb','Mar','Apr','May','Jun'],datasets:[{label:'Revenue (₹L)',data:[18,22,16,28,24,29],borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,0.1)',fill:true,tension:0.4,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'₹'+v+'L'},grid:{color:'rgba(255,255,255,0.05)'}}}}});
+      new Chart(document.getElementById('clientRev'),{type:'bar',data:{labels:['ICICI Pru','Indian Oil','TCS','Wipro','L&T'],datasets:[{label:'₹L',data:[12,15,9.6,8.5,7.8],backgroundColor:'#a855f7',borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{callback:v=>'₹'+v+'L'}}}}});
+    },50);
+  } else if(currentReportTab==='payment'){
+    const overdue=invoices.filter(i=>i.status==='Overdue');
+    const pending=invoices.filter(i=>i.status==='Pending'||i.status==='Partial');
+    el.innerHTML=`
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--danger)">${overdue.length}</div><div class="report-stat-label">Overdue Invoices</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--warning)">${pending.length}</div><div class="report-stat-label">Pending Invoices</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--danger)">₹${(overdue.reduce((a,i)=>a+Math.round(i.amount*(1+i.gst/100))-i.received,0)/100000).toFixed(1)}L</div><div class="report-stat-label">Overdue Amount</div></div>
+        <div class="report-stat"><div class="report-stat-val" style="color:var(--success)">${invoices.filter(i=>i.status==='Paid').length}</div><div class="report-stat-label">Paid Invoices</div></div>
+      </div>
+      <div class="card" style="padding:0">
+        <div style="padding:14px 16px;font-size:14px;font-weight:600;border-bottom:1px solid var(--border)">Outstanding Invoice Report</div>
+        <table>
+          <thead><tr><th>Invoice</th><th>Client</th><th>Due Date</th><th>Total</th><th>Received</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>${[...overdue,...pending].map(inv=>{
+            const total=Math.round(inv.amount*(1+inv.gst/100));
+            const bal=total-inv.received;
+            return `<tr>
+              <td style="color:var(--accent)">${inv.num}</td>
+              <td>${inv.client}</td>
+              <td style="color:${inv.status==='Overdue'?'var(--danger)':'var(--text2)'}">${inv.due}</td>
+              <td>₹${(total/1000).toFixed(0)}K</td>
+              <td style="color:var(--success)">₹${(inv.received/1000).toFixed(0)}K</td>
+              <td style="color:var(--warning);font-weight:500">₹${(bal/1000).toFixed(0)}K</td>
+              <td>${statusBadge(inv.status)}</td>
+              <td><button class="btn btn-ghost btn-sm" onclick="sendPrompt('Draft payment reminder email for invoice ${inv.num} to ${inv.client}')"><i class="ti ti-bell"></i> Remind ↗</button></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  } else if(currentReportTab==='service'){
+    el.innerHTML=`
+      <div class="card">
+        <div class="card-title">Service-wise Revenue & Lead Distribution</div>
+        <div class="grid2" style="margin-bottom:0">
+          <div class="chart-wrap" style="height:240px"><canvas id="svcRevChart" role="img" aria-label="Doughnut chart of service revenue share">Service revenue share.</canvas></div>
+          <div class="chart-wrap" style="height:240px"><canvas id="svcLeadChart" role="img" aria-label="Bar chart of leads by service">Leads by service type.</canvas></div>
+        </div>
+      </div>`;
+    setTimeout(()=>{
+      const services=['SEBI CSCRF','Accessibility Audit','DPDP Compliance','VAPT','Cyber Security','MSOC'];
+      const revData=[28,8,12,18,22,15];
+      const leadData=services.map(s=>leads.filter(l=>l.service===s).length);
+      const colors=['#4f8ef7','#22c55e','#a855f7','#f59e0b','#ef4444','#06b6d4'];
+      new Chart(document.getElementById('svcRevChart'),{type:'doughnut',data:{labels:services,datasets:[{data:revData,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},color:'#9ba3b5',boxWidth:10}}}}});
+      new Chart(document.getElementById('svcLeadChart'),{type:'bar',data:{labels:services.map(s=>s.split(' ').slice(0,2).join(' ')),datasets:[{label:'Leads',data:leadData,backgroundColor:colors,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}}}}});
+    },50);
+  }
+}
+
+function setReportTab(tab, el){
+  currentReportTab=tab;
+  document.querySelectorAll('.tab-bar .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderReports();
+}
+
+function renderNotifications(){
+  const notifs=[
+    {icon:'ti-calendar',color:'var(--accent)',title:'Follow-up due today',sub:'HDFC Securities — SEBI CSCRF proposal follow-up'},
+    {icon:'ti-alert-circle',color:'var(--danger)',title:'Invoice overdue',sub:'ZI-2025-004 — Indian Oil Corp — ₹5.9L pending'},
+    {icon:'ti-briefcase',color:'var(--warning)',title:'Project deadline approaching',sub:'Network Penetration Testing — Wipro — Due Jun 30'},
+    {icon:'ti-file-text',color:'var(--purple)',title:'Proposal expiry alert',sub:'Infosys BPM VAPT proposal expires in 3 days'},
+    {icon:'ti-currency-rupee',color:'var(--success)',title:'Payment received',sub:'Reliance Retail — ₹1.77L received for ZI-2025-005'},
+    {icon:'ti-user-plus',color:'var(--info)',title:'New lead added',sub:'Zepto Retail — Accessibility Audit inquiry'},
+  ];
+  const el=document.getElementById('notif-list');
+  el.innerHTML=notifs.map((n,i)=>`
+    <div class="notif">
+      <div class="notif-icon" style="color:${n.color}"><i class="ti ${n.icon}"></i></div>
+      <div><div class="notif-title">${n.title}</div><div class="notif-sub">${n.sub}</div></div>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto;flex-shrink:0"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+}
+
+function renderPagination(id, total, current, cb){
+  const pages=Math.ceil(total/PER);
+  const el=document.getElementById(id);
+  if(pages<=1){el.innerHTML='';return;}
+  let html=`<span style="font-size:12px;color:var(--text3);margin-right:8px">${total} records</span>`;
+  for(let i=1;i<=pages;i++) html+=`<button class="page-btn${i===current?' active':''}" onclick="(${cb})(${i})">${i}</button>`;
+  el.innerHTML=html;
+}
+
+function openLeadModal(){ editingLeadIdx=-1; document.getElementById('lead-modal-title').textContent='Add New Lead'; clearLeadForm(); document.getElementById('lead-modal').classList.add('open'); }
+function openClientModal(){ editingClientIdx=-1; document.getElementById('client-modal-title').textContent='Add New Client'; clearClientForm(); document.getElementById('client-modal').classList.add('open'); }
+function openProjectModal(){ document.getElementById('project-modal').classList.add('open'); }
+function openInvoiceModal(){ editingInvoiceIdx=-1; clearInvoiceForm(); document.getElementById('invoice-modal').classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function clearLeadForm(){ ['l-company','l-contact','l-designation','l-email','l-mobile','l-website','l-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('l-followup').value=''; }
+function clearClientForm(){ ['c-company','c-spoc','c-email','c-mobile'].forEach(id=>document.getElementById(id).value=''); ['c-value'].forEach(id=>document.getElementById(id).value=''); }
+function clearInvoiceForm(){ ['i-num','i-client','i-date','i-due','i-amount','i-received','i-total','i-balance'].forEach(id=>document.getElementById(id).value=''); document.getElementById('i-gst').value=18; }
+
+function saveLead(){
+  const l={
+    company:document.getElementById('l-company').value||'New Lead',
+    contact:document.getElementById('l-contact').value||'',
+    designation:document.getElementById('l-designation').value||'',
+    email:document.getElementById('l-email').value||'',
+    mobile:document.getElementById('l-mobile').value||'',
+    website:document.getElementById('l-website').value||'',
+    industry:document.getElementById('l-industry').value,
+    source:document.getElementById('l-source').value,
+    service:document.getElementById('l-service').value,
+    status:document.getElementById('l-status').value,
+    followup:document.getElementById('l-followup').value,
+    assigned:document.getElementById('l-assigned').value,
+    notes:document.getElementById('l-notes').value
+  };
+  if(editingLeadIdx>=0) leads[editingLeadIdx]=l; else leads.unshift(l);
+  filteredLeads=[...leads];
+  document.getElementById('lead-badge').textContent=leads.filter(l=>l.status==='New').length;
+  closeModal('lead-modal'); renderLeads();
+}
+
+function editLead(idx){
+  editingLeadIdx=idx; const l=leads[idx];
+  document.getElementById('lead-modal-title').textContent='Edit Lead';
+  document.getElementById('l-company').value=l.company;
+  document.getElementById('l-contact').value=l.contact;
+  document.getElementById('l-designation').value=l.designation;
+  document.getElementById('l-email').value=l.email;
+  document.getElementById('l-mobile').value=l.mobile;
+  document.getElementById('l-website').value=l.website||'';
+  document.getElementById('l-notes').value=l.notes||'';
+  document.getElementById('l-followup').value=l.followup||'';
+  ['l-industry','l-source','l-service','l-status','l-assigned'].forEach(id=>{
+    const key=id.split('-')[1];
+    const map={industry:'industry',source:'source',service:'service',status:'status',assigned:'assigned'};
+    const sel=document.getElementById(id);
+    Array.from(sel.options).forEach(o=>{if(o.value===l[map[key]]||o.text===l[map[key]])o.selected=true});
+  });
+  document.getElementById('lead-modal').classList.add('open');
+}
+
+function deleteLead(idx){ if(confirm('Delete this lead?')){leads.splice(idx,1);filteredLeads=[...leads];renderLeads();} }
+
+function convertLead(idx){
+  const l=leads[idx];
+  clients.unshift({company:l.company,spoc:l.contact,email:l.email,mobile:l.mobile,service:l.service,value:0,start:new Date().toISOString().split('T')[0],end:'',status:'Active'});
+  leads[idx].status='Won';
+  filteredLeads=[...leads]; filteredClients=[...clients];
+  alert(`"${l.company}" converted to client successfully!`);
+  renderLeads();
+}
+
+function saveClient(){
+  const c={
+    company:document.getElementById('c-company').value||'New Client',
+    spoc:document.getElementById('c-spoc').value||'',
+    email:document.getElementById('c-email').value||'',
+    mobile:document.getElementById('c-mobile').value||'',
+    service:document.getElementById('c-service').value,
+    value:parseFloat(document.getElementById('c-value').value)||0,
+    start:document.getElementById('c-start').value||'',
+    end:document.getElementById('c-end').value||'',
+    status:document.getElementById('c-status').value
+  };
+  if(editingClientIdx>=0) clients[editingClientIdx]=c; else clients.unshift(c);
+  filteredClients=[...clients];
+  closeModal('client-modal'); renderClients();
+}
+
+function editClient(idx){
+  editingClientIdx=idx; const c=clients[idx];
+  document.getElementById('client-modal-title').textContent='Edit Client';
+  document.getElementById('c-company').value=c.company;
+  document.getElementById('c-spoc').value=c.spoc;
+  document.getElementById('c-email').value=c.email;
+  document.getElementById('c-mobile').value=c.mobile;
+  document.getElementById('c-value').value=c.value;
+  document.getElementById('c-start').value=c.start;
+  document.getElementById('c-end').value=c.end;
+  document.getElementById('client-modal').classList.add('open');
+}
+function deleteClient(idx){ if(confirm('Delete client?')){clients.splice(idx,1);filteredClients=[...clients];renderClients();} }
+
+function saveProject(){
+  const p={
+    name:document.getElementById('p-name').value||'New Project',
+    client:document.getElementById('p-client').value||'',
+    service:document.getElementById('p-service').value,
+    assigned:document.getElementById('p-assigned').value,
+    start:document.getElementById('p-start').value||'',
+    due:document.getElementById('p-due').value||'',
+    status:document.getElementById('p-status').value,
+    progress:parseInt(document.getElementById('p-progress').value)||0,
+    remarks:document.getElementById('p-remarks').value
+  };
+  projects.unshift(p); filteredProjects=[...projects];
+  closeModal('project-modal'); renderProjects();
+}
+function editProject(idx){
+  const p=projects[idx];
+  document.getElementById('p-name').value=p.name;
+  document.getElementById('p-client').value=p.client;
+  document.getElementById('p-remarks').value=p.remarks;
+  document.getElementById('p-start').value=p.start;
+  document.getElementById('p-due').value=p.due;
+  document.getElementById('p-progress').value=p.progress;
+  document.getElementById('project-modal').classList.add('open');
+}
+function deleteProject(idx){ if(confirm('Delete project?')){projects.splice(idx,1);filteredProjects=[...projects];renderProjects();} }
+
+function calcInvoice(){
+  const amt=parseFloat(document.getElementById('i-amount').value)||0;
+  const gst=parseFloat(document.getElementById('i-gst').value)||18;
+  const total=Math.round(amt*(1+gst/100));
+  const rec=parseFloat(document.getElementById('i-received').value)||0;
+  document.getElementById('i-total').value=total;
+  document.getElementById('i-balance').value=total-rec;
+}
+
+function saveInvoice(){
+  const inv={
+    num:document.getElementById('i-num').value||'ZI-'+Date.now(),
+    client:document.getElementById('i-client').value||'',
+    date:document.getElementById('i-date').value||'',
+    due:document.getElementById('i-due').value||'',
+    amount:parseFloat(document.getElementById('i-amount').value)||0,
+    gst:parseFloat(document.getElementById('i-gst').value)||18,
+    received:parseFloat(document.getElementById('i-received').value)||0,
+    status:document.getElementById('i-status').value
+  };
+  invoices.unshift(inv); filteredInvoices=[...invoices];
+  closeModal('invoice-modal'); renderInvoices();
+}
+function editInvoice(idx){
+  if(idx<0||idx>=invoices.length)return;
+  editingInvoiceIdx=idx; const inv=invoices[idx];
+  document.getElementById('i-num').value=inv.num;
+  document.getElementById('i-client').value=inv.client;
+  document.getElementById('i-date').value=inv.date;
+  document.getElementById('i-due').value=inv.due;
+  document.getElementById('i-amount').value=inv.amount;
+  document.getElementById('i-gst').value=inv.gst;
+  document.getElementById('i-received').value=inv.received;
+  calcInvoice();
+  document.getElementById('invoice-modal').classList.add('open');
+}
+function deleteInvoice(idx){ if(idx<0||idx>=invoices.length)return; if(confirm('Delete invoice?')){invoices.splice(idx,1);filteredInvoices=[...invoices];renderInvoices();} }
+
+function globalSearch(val){
+  if(!val) return;
+  const v=val.toLowerCase();
+  const matchedLead=leads.find(l=>l.company.toLowerCase().includes(v)||l.contact.toLowerCase().includes(v));
+  if(matchedLead){ filteredLeads=leads.filter(l=>l.company.toLowerCase().includes(v)||l.contact.toLowerCase().includes(v)); showPage('leads',null); }
+}
+
+function initCharts(){
+  const revenue=[18,22,16,28,24,29];
+  new Chart(document.getElementById('revenueChart'),{
+    type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May','Jun'],datasets:[{label:'Revenue (₹L)',data:revenue,backgroundColor:'#4f8ef7',borderRadius:5,barThickness:32}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'₹'+v+'L'},grid:{color:'rgba(255,255,255,0.05)'}},x:{grid:{display:false}}}}
+  });
+  const statusCounts={New:0,Contacted:0,Qualified:0,'Proposal Sent':0,Negotiation:0,Won:0,Lost:0};
+  leads.forEach(l=>statusCounts[l.status]=(statusCounts[l.status]||0)+1);
+  new Chart(document.getElementById('leadChart'),{
+    type:'doughnut',data:{labels:Object.keys(statusCounts),datasets:[{data:Object.values(statusCounts),backgroundColor:['#4f8ef7','#06b6d4','#22c55e','#a855f7','#f59e0b','#22c55e','#ef4444'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},color:'#9ba3b5',boxWidth:10}}}}
+  });
+  const services=['SEBI CSCRF','Accessibility','DPDP','VAPT','Cyber Sec','MSOC'];
+  new Chart(document.getElementById('serviceChart'),{
+    type:'bar',data:{labels:services,datasets:[{label:'Pipeline',data:[28,8,12,18,22,15],backgroundColor:'#a855f7',borderRadius:4,barThickness:28},{label:'Closed',data:[12,4,6,8,10,8],backgroundColor:'#22c55e',borderRadius:4,barThickness:28}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},color:'#9ba3b5',boxWidth:10}}},scales:{y:{ticks:{callback:v=>'₹'+v+'L'},grid:{color:'rgba(255,255,255,0.05)'}},x:{grid:{display:false}}}}
+  });
+}
+
+function initDashboard(){
+  const dash=document.getElementById('dash-followups');
+  const upcoming=followups.filter(f=>f.tag==='today'||f.tag==='overdue').slice(0,4);
+  dash.innerHTML=upcoming.map(f=>`
+    <div class="followup-item" style="border-left-color:${f.tag==='overdue'?'var(--danger)':'var(--accent)'}">
+      <div class="followup-company">${f.company} <span style="font-size:11px;color:${f.tag==='overdue'?'var(--danger)':'var(--text3)'}">${f.tag==='overdue'?'Overdue':f.date}</span></div>
+      <div class="followup-detail">${f.contact} — ${f.type} — ${f.service}</div>
+    </div>`).join('');
+  const actEl=document.getElementById('dash-activity');
+  const activities=[
+    {text:'New lead added: Tata Steel (VAPT)',time:'2 hours ago',dot:''},
+    {text:'Proposal sent to IRCTC for Cyber Security',time:'4 hours ago',dot:''},
+    {text:'Invoice ZI-2025-005 paid by Reliance Retail',time:'Yesterday',dot:'won'},
+    {text:'Project completed: Website Accessibility Audit',time:'2 days ago',dot:'won'},
+    {text:'Lead Lost: Tech Mahindra (MSOC)',time:'3 days ago',dot:'lost'},
+    {text:'Follow-up call done with Apollo Hospitals',time:'3 days ago',dot:'note'},
+  ];
+  actEl.innerHTML=activities.map(a=>`<div class="timeline-item"><div class="timeline-dot ${a.dot}"></div><div><div class="timeline-text">${a.text}</div><div class="timeline-time">${a.time}</div></div></div>`).join('');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')});
+});
+
+initDashboard();
+setTimeout(initCharts, 100);
+</script>
+</body>
+</html>

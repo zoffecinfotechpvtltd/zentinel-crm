@@ -1,0 +1,76 @@
+import { useState } from "react";
+import { useFetch } from "../lib/useFetch";
+import { api, ApiError } from "../lib/api";
+import { Modal } from "../components/Modal";
+
+type Template = { id: string; name: string; channel: string; subject: string | null; body: string; category: string };
+
+const CATEGORIES = ["proposal_followup", "payment_reminder", "checkin"];
+
+export function MessageTemplates() {
+  const { data, reload } = useFetch<Template[]>("/message-templates");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", channel: "email", subject: "", body: "", category: "proposal_followup" });
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    setError(null);
+    try {
+      await api.post("/message-templates", { ...form, subject: form.subject || undefined });
+      setModalOpen(false);
+      setForm({ name: "", channel: "email", subject: "", body: "", category: "proposal_followup" });
+      reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save template");
+    }
+  }
+
+  return (
+    <div>
+      <div className="section-header">
+        <div className="section-title">Message Templates</div>
+        <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ Add Template</button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {data?.map((t) => (
+          <div key={t.id} className="card">
+            <div className="card-title">{t.name} <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 400 }}>{t.channel} · {t.category}</span></div>
+            {t.subject && <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 6 }}>Subject: {t.subject}</div>}
+            <div style={{ fontSize: 13, color: "var(--text2)" }}>{t.body}</div>
+          </div>
+        ))}
+      </div>
+
+      {modalOpen && (
+        <Modal title="Add Template" onClose={() => setModalOpen(false)} footer={<>
+          <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
+          <button className="btn btn-primary" onClick={save}>Save</button>
+        </>}>
+          {error && <div className="banner banner-error">{error}</div>}
+          <div className="form-grid">
+            <div className="form-group full"><label className="form-label">Name *</label><input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="form-group">
+              <label className="form-label">Channel</label>
+              <select className="form-select" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>
+                <option value="email">Email</option><option value="whatsapp">WhatsApp</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Category</label>
+              <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            {form.channel === "email" && (
+              <div className="form-group full"><label className="form-label">Subject</label><input className="form-input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></div>
+            )}
+            <div className="form-group full">
+              <label className="form-label">Body * — use {"{{name}}"}, {"{{service}}"}, {"{{amount}}"}, {"{{date}}"}</label>
+              <textarea className="form-textarea" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

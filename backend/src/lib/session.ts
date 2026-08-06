@@ -1,0 +1,42 @@
+import type { Response } from "express";
+import type { PoolClient } from "pg";
+import { pool } from "../db/pool";
+
+const COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "zoffec_sid";
+const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS) || 12;
+const REMEMBER_TTL_DAYS = Number(process.env.SESSION_REMEMBER_TTL_DAYS) || 30;
+
+export function sessionTtlMs(rememberMe: boolean): number {
+  return rememberMe ? REMEMBER_TTL_DAYS * 24 * 60 * 60 * 1000 : SESSION_TTL_HOURS * 60 * 60 * 1000;
+}
+
+export async function createSession(
+  db: PoolClient | typeof pool,
+  params: { userId: string; rememberMe: boolean; userAgent?: string; ipAddress?: string }
+): Promise<{ id: string; expiresAt: Date }> {
+  const expiresAt = new Date(Date.now() + sessionTtlMs(params.rememberMe));
+  const result = await db.query(
+    `insert into sessions (user_id, expires_at, remember_me, user_agent, ip_address)
+     values ($1, $2, $3, $4, $5)
+     returning id, expires_at`,
+    [params.userId, expiresAt, params.rememberMe, params.userAgent ?? null, params.ipAddress ?? null]
+  );
+  return { id: result.rows[0].id, expiresAt: result.rows[0].expires_at };
+}
+
+export function setSessionCookie(res: Response, sessionId: string, rememberMe: boolean): void {
+  res.cookie(COOKIE_NAME, sessionId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: sessionTtlMs(rememberMe),
+  });
+}
+
+export function clearSessionCookie(res: Response): void {
+  res.clearCookie(COOKIE_NAME);
+}
+
+export function getSessionCookieName(): string {
+  return COOKIE_NAME;
+}
