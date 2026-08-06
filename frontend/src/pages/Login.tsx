@@ -37,7 +37,7 @@ export function Login() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
           <div className="logo-mark">Z</div>
           <div>
-            <div className="logo-name">Zoffec CMS</div>
+            <div className="logo-name">Zoffec Sentinel</div>
             <div className="logo-sub">Epitome of Integrity</div>
           </div>
         </div>

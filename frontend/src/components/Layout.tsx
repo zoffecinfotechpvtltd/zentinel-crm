@@ -69,8 +69,8 @@ export function Layout() {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className="logo-mark">Z</div>
             <div>
-              <div className="logo-name">Zoffec CMS</div>
-              <div className="logo-sub">Infotech Pvt. Ltd.</div>
+              <div className="logo-name">Zoffec Sentinel</div>
+              <div className="logo-sub">Zoffec Infotech Pvt. Ltd.</div>
             </div>
           </div>
         </div>
@@ -99,6 +99,7 @@ export function Layout() {
             <div className="nav-label">Admin</div>
             <NavLink to="/users" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>Users</NavLink>
             <NavLink to="/templates" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>Message Templates</NavLink>
+            <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>Settings</NavLink>
           </div>
         )}
         <div className="nav-footer">

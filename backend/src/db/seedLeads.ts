@@ -1,5 +1,6 @@
 import "dotenv/config";
-import argon2 from "argon2";
+import { hashPassword } from "../lib/password";
+import { generateRandomPassword } from "../lib/tokens";
 import { pool } from "./pool";
 
 // Phase 2 seed: two sales reps + 500+ leads spread across them, for verifying
@@ -40,11 +41,13 @@ async function seedLeads() {
     const repEmails = ["rep1@zoffec.com", "rep2@zoffec.com"];
     const repIds: string[] = [];
     for (const email of repEmails) {
-      const hash = await argon2.hash("RepPass123!");
+      const rawPassword = generateRandomPassword();
+      const hash = await hashPassword(rawPassword);
+      console.log(`Seeded sales rep ${email} / ${rawPassword}`);
       const result = await client.query(
         `insert into users (email, password_hash, name, role)
          values ($1, $2, $3, 'sales')
-         on conflict (email) do update set email = excluded.email
+         on conflict (email) do update set password_hash = excluded.password_hash
          returning id`,
         [email, hash, email === "rep1@zoffec.com" ? "Aman Verma" : "Sneha Iyer"]
       );

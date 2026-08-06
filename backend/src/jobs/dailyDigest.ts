@@ -65,12 +65,18 @@ export async function runDailyDigestJob(): Promise<{ sent: number }> {
 
     if (sections.length === 0) continue;
 
-    await sendMail({
-      to: user.email,
-      subject: "Zoffec CMS — your daily summary",
-      text: `Good morning ${user.name},\n\n${sections.join("\n\n")}\n\nOpen the CMS for full detail.`,
-    });
-    sent++;
+    try {
+      await sendMail({
+        to: user.email,
+        subject: "Zoffec Sentinel — your daily summary",
+        text: `Good morning ${user.name},\n\n${sections.join("\n\n")}\n\nOpen the app for full detail.`,
+      });
+      sent++;
+    } catch (err) {
+      // One user's send failing (bad address, transient SMTP hiccup) shouldn't
+      // stop the rest of the team's digests from going out.
+      console.error(`Daily digest failed to send to ${user.email}:`, err);
+    }
   }
 
   return { sent };

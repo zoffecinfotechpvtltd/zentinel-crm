@@ -1,9 +1,11 @@
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
+
+const SALT_ROUNDS = 12;
 
 export function hashPassword(plain: string): Promise<string> {
-  return argon2.hash(plain);
+  return bcrypt.hash(plain, SALT_ROUNDS);
 }
 
 export function verifyPassword(hash: string, plain: string): Promise<boolean> {
-  return argon2.verify(hash, plain);
+  return bcrypt.compare(plain, hash);
 }

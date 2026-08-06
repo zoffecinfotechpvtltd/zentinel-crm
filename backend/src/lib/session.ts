@@ -5,6 +5,12 @@ import { pool } from "../db/pool";
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "zoffec_sid";
 const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS) || 12;
 const REMEMBER_TTL_DAYS = Number(process.env.SESSION_REMEMBER_TTL_DAYS) || 30;
+// Browsers refuse to store/send a `secure` cookie over plain HTTP. The desktop
+// build serves the app over http://localhost (a loopback-only address, so the
+// lack of TLS isn't a real exposure the way it would be for an internet-facing
+// service) — the Electron main process sets DESKTOP_MODE=1 when it spawns this
+// server, which turns the secure flag off regardless of NODE_ENV.
+const COOKIE_SECURE = process.env.NODE_ENV === "production" && process.env.DESKTOP_MODE !== "1";
 
 export function sessionTtlMs(rememberMe: boolean): number {
   return rememberMe ? REMEMBER_TTL_DAYS * 24 * 60 * 60 * 1000 : SESSION_TTL_HOURS * 60 * 60 * 1000;
@@ -27,7 +33,7 @@ export async function createSession(
 export function setSessionCookie(res: Response, sessionId: string, rememberMe: boolean): void {
   res.cookie(COOKIE_NAME, sessionId, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     sameSite: "lax",
     maxAge: sessionTtlMs(rememberMe),
   });

@@ -1,7 +1,9 @@
-# Zoffec CMS — Progress Tracker
+# Zoffec Sentinel — Progress Tracker
 
 Single source of truth for build status. Read this first on session resume.
 Do not re-do verified work. Re-verify anything touched by later changes.
+
+**Naming/distribution pivot (2026-08-06, later same day):** the product was renamed **Zoffec Sentinel**, and distribution moved from cloud hosting (Render + Neon + Cloudflare Pages, as documented in the now-deleted `DEPLOYMENT.md`) to a **self-contained Windows desktop installer** (Electron + embedded PostgreSQL + the same backend/frontend, all bundled into one `.exe` — see `RELEASE.md`). The cloud-hosting sections below (Brevo SMTP wiring, Fly.io/Render/Cloudflare references) reflect real work that was done and verified at the time, kept here as history — but the shipped product no longer uses any of that infrastructure. SMTP is now generic (any provider, configured via an in-app Settings screen, not env vars) and there is no hardcoded default admin account anywhere — see the security-audit section added after the pivot.
 
 **Prototype file note:** `zoffec_crm_system.html` was not present in `/files` at build start; backend (Phases 0-9) was built from spec docs only. The file was added to `/files` later (2026-08-06, same day) and the frontend build below was done against it directly — sidebar/topbar/stat-card/table/modal/badge structure ported faithfully, restyled with the Zoffec brand tokens.
 
@@ -245,3 +247,45 @@ Phase 6b (Tally Bridge Agent) remains explicitly **blocked**, per its own entry 
 - Server-side validation on every mutating endpoint, regardless of frontend validation.
 - Idempotency on any endpoint reachable by both human and automated job.
 - List endpoints: server-side `?search=&status=&page=&per_page=`, never full-table client-side filtering.
+
+---
+
+## Post-pivot: desktop distribution + security hardening (2026-08-06, same day)
+
+Triggered by the decision to ship a self-contained Windows installer instead of cloud hosting. In dependency order:
+
+### No hardcoded credentials anywhere
+The old `seed.ts` created a fixed `admin@zoffec.com` / `ChangeMe123!` account — fine for a single dev database, a real problem for a publicly distributed installer where every install would start with the identical, publicly-visible-in-source password. Replaced with:
+- `backend/src/routes/setup.ts` — `GET /api/setup/status` (is the users table empty?) and `POST /api/setup/create-admin` (only works while it's empty; race-guarded with a Postgres advisory lock since `count(*)` can't take `FOR UPDATE`). The created admin is auto-logged-in.
+- `frontend/src/pages/Setup.tsx` + `App.tsx`'s `SetupGate` — every route shows the Setup screen instead of the app until an admin exists, regardless of what URL is requested.
+- `seed.ts` now seeds only the `services` lookup table.
+- The dev/test fixture scripts (`seedLeads.ts`, `seedProjects.ts`) had hardcoded rep/ops passwords too (`RepPass123!` etc) — switched to `generateRandomPassword()` (in `lib/tokens.ts`), printed once to console per run. These scripts are dev-only and never run in the shipped product, but the instruction was "no static passwords anywhere," so fixed regardless.
+- **Caught mid-session:** a real, live Neon Postgres connection string (not a placeholder) had ended up in the local `backend/.env` — confirmed it was never committed (gitignored, verified via a dry-run `git add`), reset `.env` back to local-dev defaults, flagged it to the user directly so they could rotate/delete that Neon project if it wasn't intentional.
+
+### Generic SMTP (dropped Brevo-specific wiring)
+Per explicit request, `backend/src/lib/mail.ts` is now provider-agnostic: SMTP config lives in the `settings` table (same key-value table the FY revenue target already used), editable via `frontend/src/pages/Settings.tsx` (admin-only — host/port/user/pass/from + a "send test email" button hitting `POST /api/settings/smtp/test`), with env vars (`SMTP_HOST` etc) as a fallback for anyone who prefers that. Works with Gmail, Zoho, Outlook, a company mail server, or anything else — no code cares which.
+- [x] Verified: save config, read it back (password never echoed), send-test-email round trip.
+- [x] **Bug found and fixed:** a broken SMTP config (bad host) made `password-reset/request` throw a raw `500` instead of the endpoint's own designed-uniform response. Fixed by wrapping the `sendMail` call in `try/catch` — the reset token is created regardless of whether the email successfully sends, so a mail failure shouldn't surface as a visible error to the person requesting the reset, and doesn't leak SMTP internals either way. The error is still logged server-side. Same fix applied to the daily digest job's per-user send loop, so one bad address/transient failure doesn't stop the rest of the team's digests.
+
+### Security audit
+- **Cookie `secure` flag** (`lib/session.ts`) was tied to `NODE_ENV === "production"` — would have silently broken login in the desktop build, since Electron serves the app over plain `http://127.0.0.1` (loopback-only, so lack of TLS isn't a real exposure the way it would be for an internet-facing service) and browsers refuse to store/send `secure` cookies over plain HTTP. Fixed with an explicit `DESKTOP_MODE` env var Electron sets when it spawns the backend.
+- **Backend now binds to `127.0.0.1` only in desktop mode** (`index.ts`) — previously `app.listen(port, ...)` with no host specified defaults to `0.0.0.0`, meaning the desktop app's backend would have been reachable from other devices on the same WiFi/LAN, not just the local machine. Real finding, real fix — verified the app still works correctly over loopback afterward.
+- **Unhandled async rejections could hang requests forever** — Express 4 doesn't forward a rejected promise from an `async (req, res) => {...}` handler to error middleware on its own (that's Express 5 behavior); most handlers here had no manual `try/catch`. Fixed with `express-async-errors` (imported first, before any route files). Verified: a deliberately malformed request that throws deep in a handler now returns a clean `500` in ~30ms instead of hanging, and the server stays healthy afterward.
+- Extended the existing login/password-reset rate limiter to `/api/setup` too (defense-in-depth; low real risk since it's gated by "only works when zero users exist," but consistent with everything else).
+- Added `helmet` (CSP/security headers) and `app.set("trust proxy", 1)`.
+- Reviewed and found no action needed, with reasoning: SQL injection (parameterized throughout, confirmed dynamic `SET` clauses only ever use zod-validated fixed key sets, never raw user input as column names), XSS (React auto-escapes everywhere, zero `dangerouslySetInnerHTML` in the codebase), CSRF (httpOnly + `sameSite: lax` cookie is an appropriate mitigation for this app's threat model). `npm audit` findings on both frontend and backend were individually assessed: `esbuild`/`vite` (dev-server only, not shipped), `glob` CLI command injection (pulled in transitively by `node-pg-migrate`, but we never invoke glob's CLI, only its library file-matching), `uuid` buffer-bounds issue (transitive via `exceljs`/`node-cron`, no attacker-controlled buffer ever reaches it in this app's usage), and `react-router-dom`'s RSC-mode CSRF advisory (this app uses plain client-side `BrowserRouter` — no loaders/actions/RSC integration, so the vulnerable code path is never exercised). None force-upgraded/downgraded this close to release given the actual risk is effectively zero for how each is used here — documented instead of blindly "fixed."
+- `argon2` (the only native addon in the dependency tree) swapped for `bcryptjs` (pure JS) — primarily to eliminate Electron ABI-rebuild risk for packaging, but also removes a whole class of native-module supply-chain surface. Verified end-to-end: hash/verify, full login flow, Setup flow, all still correct after the swap.
+
+### Desktop packaging (Electron + embedded PostgreSQL)
+`desktop/` — Electron app that bundles everything into one installer:
+- `desktop/main.js` — on launch: initializes + starts an embedded PostgreSQL (`embedded-postgres` package, real Postgres 18.4 binaries, not a mock), runs all 9 migrations against it (`node-pg-migrate`'s programmatic API), forks the compiled backend using Electron's own bundled Node runtime (`ELECTRON_RUN_AS_NODE=1` — no separate Node.js install needed on the target machine), waits for its health check, then opens a window pointed at it. Backend serves both API and the built frontend from one origin (`FRONTEND_DIST_PATH`), so no separate frontend server or CORS concern.
+- `backend/src/index.ts` gained a `FRONTEND_DIST_PATH`-gated static-file + SPA-fallback block for this (skipped entirely when unset, i.e. in normal dev).
+- `desktop/prepare-resources.js` — stages a **production-only** copy of the backend (`npm install --omit=dev` into a clean staged copy, not the dev node_modules) plus the built frontend into `desktop/resources/`, which `electron-builder`'s `extraResources` config copies into the final installer.
+- **Verified by actually building and running the real installer**, not just claimed: `npm run dist` produces `Zoffec Sentinel Setup 1.0.0.exe` (~114MB), and running the unpacked exe end-to-end confirmed — first-run Postgres initialization, database creation, all 9 migrations, backend health check, and the Setup screen rendering correctly (screenshotted via Playwright pointed at the packaged app's served frontend) — all from the actual packaged output, not dev mode.
+- Two real packaging bugs hit and fixed, documented in detail in `RELEASE.md`: `embedded-postgres` is ESM-only (Electron main process here is CommonJS — bridged with one `await import()` rather than converting the whole file to ESM, which hit separate Electron-specific ESM-loader issues); and `asar` packing had to be disabled entirely because `embedded-postgres`'s internal `chmod` calls on its bundled binaries didn't correctly resolve the `asarUnpack`'d path at runtime even though the binaries were correctly unpacked at build time — confirmed via the exact `ENOENT` error pointing at the packed path.
+- Installer is unsigned (no code-signing cert) — Windows SmartScreen will show an "unknown publisher" warning; documented as expected/acceptable for internal use in `RELEASE.md`.
+
+### Not done / known gaps
+- No custom app icon yet (electron-builder used the default Electron icon) — cosmetic, not functional.
+- Installer built and tested for Windows x64 only (the target platform asked for).
+- Graceful shutdown (embedded Postgres + backend child process both cleaned up) was verified via force-kill, not by exercising the actual window-close UI path — the `before-quit` handler code is straightforward enough that this is a reasonable-confidence gap, not a blocking one.

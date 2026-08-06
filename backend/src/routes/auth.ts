@@ -139,12 +139,21 @@ router.post("/password-reset/request", async (req, res) => {
     );
 
     const resetLink = `${process.env.APP_BASE_URL}/reset-password?token=${rawToken}`;
-    await sendMail({
-      to: parsed.data.email,
-      subject: "Reset your Zoffec CMS password",
-      text: `Click the link below to reset your password. This link expires in 1 hour and can only be used once.\n\n${resetLink}\n\nIf you didn't request this, you can ignore this email.`,
-      html: `<p>Click the link below to reset your password. This link expires in 1 hour and can only be used once.</p><p><a href="${resetLink}">${resetLink}</a></p><p>If you didn't request this, you can ignore this email.</p>`,
-    });
+    try {
+      await sendMail({
+        to: parsed.data.email,
+        subject: "Reset your Zoffec Sentinel password",
+        text: `Click the link below to reset your password. This link expires in 1 hour and can only be used once.\n\n${resetLink}\n\nIf you didn't request this, you can ignore this email.`,
+        html: `<p>Click the link below to reset your password. This link expires in 1 hour and can only be used once.</p><p><a href="${resetLink}">${resetLink}</a></p><p>If you didn't request this, you can ignore this email.</p>`,
+      });
+    } catch (err) {
+      // The reset token was created successfully regardless — don't let a
+      // broken SMTP config (wrong host, bad credentials, network hiccup)
+      // turn into a visible error for the person requesting the reset, and
+      // don't leak SMTP internals in the response either way. Log it so
+      // whoever manages Settings notices and fixes the mail config.
+      console.error("Password reset email failed to send:", err);
+    }
   }
 
   res.json({ ok: true, message: "If that email exists, a reset link has been sent." });

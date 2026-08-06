@@ -1,5 +1,6 @@
 import "dotenv/config";
-import argon2 from "argon2";
+import { hashPassword } from "../lib/password";
+import { generateRandomPassword } from "../lib/tokens";
 import { pool } from "./pool";
 
 // Phase 4 seed: two Ops users + a batch of clients (if needed) + 200+ projects
@@ -24,11 +25,13 @@ async function seedProjects() {
     const opsEmails = ["ops1@zoffec.com", "ops2@zoffec.com"];
     const opsIds: string[] = [];
     for (const email of opsEmails) {
-      const hash = await argon2.hash("OpsPass123!");
+      const rawPassword = generateRandomPassword();
+      const hash = await hashPassword(rawPassword);
+      console.log(`Seeded ops user ${email} / ${rawPassword}`);
       const result = await client.query(
         `insert into users (email, password_hash, name, role)
          values ($1, $2, $3, 'ops')
-         on conflict (email) do update set email = excluded.email
+         on conflict (email) do update set password_hash = excluded.password_hash
          returning id`,
         [email, hash, email === "ops1@zoffec.com" ? "Karan Rao" : "Ananya Menon"]
       );
