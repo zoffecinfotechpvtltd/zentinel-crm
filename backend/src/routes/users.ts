@@ -5,6 +5,7 @@ import { hashPassword } from "../lib/password";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { generateRawToken, hashToken } from "../lib/tokens";
 import { sendMail } from "../lib/mail";
+import { getAppBaseUrl } from "../lib/appUrl";
 
 const router = Router();
 
@@ -74,12 +75,13 @@ router.post("/", async (req, res) => {
       `insert into password_reset_tokens (user_id, token_hash, expires_at) values ($1, $2, $3)`,
       [newUser.id, tokenHash, new Date(Date.now() + WELCOME_LINK_TTL_MS)]
     );
-    const resetLink = `${process.env.APP_BASE_URL}/reset-password?token=${rawToken}`;
+    const appBaseUrl = getAppBaseUrl();
+    const resetLink = `${appBaseUrl}/reset-password?token=${rawToken}`;
     await sendMail({
       to: email,
       subject: "Your Zoffec Sentinel account is ready",
-      text: `Hi ${name},\n\n${req.user!.name} set up a Zoffec Sentinel account for you (role: ${role}).\n\nSet your own password here (link valid 7 days):\n${resetLink}\n\nOnce set, log in at ${process.env.APP_BASE_URL} with ${email}.`,
-      html: `<p>Hi ${name},</p><p>${req.user!.name} set up a Zoffec Sentinel account for you (role: <strong>${role}</strong>).</p><p><a href="${resetLink}">Set your password</a> (link valid 7 days).</p><p>Once set, log in at <a href="${process.env.APP_BASE_URL}">${process.env.APP_BASE_URL}</a> with ${email}.</p>`,
+      text: `Hi ${name},\n\n${req.user!.name} set up a Zoffec Sentinel account for you (role: ${role}).\n\nSet your own password here (link valid 7 days):\n${resetLink}\n\nOnce set, log in at ${appBaseUrl} with ${email}.`,
+      html: `<p>Hi ${name},</p><p>${req.user!.name} set up a Zoffec Sentinel account for you (role: <strong>${role}</strong>).</p><p><a href="${resetLink}">Set your password</a> (link valid 7 days).</p><p>Once set, log in at <a href="${appBaseUrl}">${appBaseUrl}</a> with ${email}.</p>`,
     });
   } catch (err) {
     console.error("Failed to send welcome email to new user:", err);

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { AuthBrandPanel } from "../components/AuthBrandPanel";
 
 export function Setup({ onDone }: { onDone: () => void }) {
   const { refresh } = useAuth();
@@ -36,39 +37,36 @@ export function Setup({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="login-shell">
-      <div className="login-card">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-          <div className="logo-mark">Z</div>
-          <div>
-            <div className="logo-name">Zoffec Sentinel</div>
-            <div className="logo-sub">Epitome of Integrity</div>
+      <AuthBrandPanel headline="Welcome. Let's set up the account that runs everything." />
+      <div className="login-form-panel">
+        <div className="login-card">
+          <div className="login-card-head">
+            <div className="login-card-title">Create admin account</div>
+            <div className="login-card-sub">First time here — there's no default login; this is the only account that exists until you create your team's users afterward.</div>
           </div>
+          <form onSubmit={onSubmit}>
+            {error && <div className="banner banner-error">{error}</div>}
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Your name</label>
+              <input className="form-input" required value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            </div>
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Password</label>
+              <input className="form-input" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ marginBottom: 18 }}>
+              <label className="form-label">Confirm password</label>
+              <input className="form-input" type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={submitting} style={{ width: "100%", justifyContent: "center" }}>
+              {submitting ? "Creating…" : "Create admin account"}
+            </button>
+          </form>
         </div>
-        <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 20 }}>
-          First time here — create the admin account. There's no default login; this is the only account that exists until you create your team's users afterward.
-        </p>
-        <form onSubmit={onSubmit}>
-          {error && <div className="banner banner-error">{error}</div>}
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">Your name</label>
-            <input className="form-input" required value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          </div>
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">Email</label>
-            <input className="form-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">Password</label>
-            <input className="form-input" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <div className="form-group" style={{ marginBottom: 18 }}>
-            <label className="form-label">Confirm password</label>
-            <input className="form-input" type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-          </div>
-          <button className="btn btn-primary" type="submit" disabled={submitting} style={{ width: "100%", justifyContent: "center" }}>
-            {submitting ? "Creating…" : "Create admin account"}
-          </button>
-        </form>
       </div>
     </div>
   );

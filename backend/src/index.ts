@@ -26,13 +26,14 @@ import dashboardRoutes from "./routes/dashboard";
 import reportRoutes from "./routes/reports";
 import settingsRoutes from "./routes/settings";
 import systemRoutes from "./routes/system";
+import { getAppBaseUrl } from "./lib/appUrl";
 
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 
 app.use(helmet());
-app.use(cors({ origin: process.env.APP_BASE_URL, credentials: true }));
+app.use(cors({ origin: getAppBaseUrl(), credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 

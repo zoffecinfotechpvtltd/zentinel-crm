@@ -87,6 +87,13 @@ body.dark {
 
 * { box-sizing: border-box; }
 
+/* Without this, a browser on a dark-OS-theme system can apply dark-mode
+   heuristics to native form-control internals (autofill suggestion text
+   especially) even though the page itself is light — the classic
+   "invisible white text in a white input" bug. body.dark declares its own
+   color-scheme: dark below, so the toggle still works correctly either way. */
+html { color-scheme: light; }
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -340,6 +347,18 @@ tr.row-selected td { background: var(--accent-soft); }
 .form-label { font-size: 12px; font-weight: 600; color: var(--text2); }
 .form-input, .form-select, .form-textarea { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px; color: var(--text); font-size: 13px; outline: none; font-family: inherit; width: 100%; transition: border-color .12s, box-shadow .12s; }
 .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* Chrome/Edge autofill paints its own background and can carry text-color
+   assumptions from OS dark-mode over an otherwise-light input — forced
+   back to the theme's own colors, with a long transition-delay trick
+   (standard workaround) so the browser's forced autofill background
+   doesn't flash before this takes over. */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
 .form-textarea { resize: vertical; min-height: 70px; }
 .form-error { font-size: 11px; color: var(--danger); }
 
@@ -401,14 +420,38 @@ tr.row-selected td { background: var(--accent-soft); }
 .banner-error { background: var(--danger-soft); color: #b91c1c; border: 1px solid rgba(239,68,68,.25); }
 .banner-info { background: var(--info-soft); color: #0369a1; border: 1px solid rgba(14,165,233,.2); }
 
-.login-shell {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(74, 111, 201, 0.4), transparent 50%),
-    radial-gradient(circle at 85% 88%, rgba(74, 111, 201, 0.16), transparent 55%),
-    var(--primary-navy);
+/* Split-panel auth layout, shared by Login/Setup/Reset — a brand panel
+   permanently on the left (the one place this app spends visual boldness)
+   and a plain white form panel on the right. Signature: a single soft
+   accent-blue glow anchored off the bottom-right corner of the brand
+   panel, echoed faintly as a ring around the logo mark — quiet everywhere
+   else, per the rest of the app's restraint. */
+.login-shell { min-height: 100vh; display: flex; }
+.login-brand {
+  flex: 1 1 42%; min-width: 360px; max-width: 560px; background: var(--primary-navy);
+  display: flex; flex-direction: column; justify-content: space-between; padding: 48px;
+  position: relative; overflow: hidden;
 }
-.login-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 36px; width: 380px; max-width: 92vw; box-shadow: var(--shadow-lg); }
+.login-brand::before {
+  content: ""; position: absolute; width: 640px; height: 640px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(74, 111, 201, 0.35), transparent 65%);
+  bottom: -320px; right: -220px; pointer-events: none;
+}
+.login-brand-mark { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+.login-brand-mark .logo-mark { width: 42px; height: 42px; font-size: 17px; box-shadow: 0 0 0 6px rgba(74, 111, 201, 0.18); }
+.login-brand-name { font-family: "Poppins", sans-serif; font-weight: 650; font-size: 17px; color: #fff; letter-spacing: -0.01em; }
+.login-brand-sub { font-size: 12px; color: #8fa3c7; margin-top: 2px; }
+.login-brand-headline { font-family: "Poppins", sans-serif; font-weight: 650; font-size: 30px; line-height: 1.25; color: #fff; max-width: 380px; letter-spacing: -0.015em; position: relative; z-index: 1; }
+.login-brand-foot { font-size: 12px; color: #6b7fa8; position: relative; z-index: 1; }
+.login-form-panel { flex: 1 1 58%; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 24px; }
+.login-card { background: transparent; padding: 0; width: 380px; max-width: 100%; }
+.login-card-head { margin-bottom: 24px; }
+.login-card-title { font-family: "Poppins", sans-serif; font-weight: 650; font-size: 22px; color: var(--text); letter-spacing: -0.01em; }
+.login-card-sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
+@media (max-width: 860px) {
+  .login-brand { display: none; }
+  .login-form-panel { flex: 1 1 100%; }
+}
 
 /* --------------------------------------------------------------- skeleton */
 

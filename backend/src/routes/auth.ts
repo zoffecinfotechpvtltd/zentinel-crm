@@ -8,6 +8,7 @@ import { generateRawToken, hashToken } from "../lib/tokens";
 import { requireAuth } from "../middleware/auth";
 import { sendMail } from "../lib/mail";
 import { generateSecret, buildOtpauthUri, verifyTotpCode, generateBackupCodes, hashBackupCodes, tryConsumeBackupCode } from "../lib/totp";
+import { getAppBaseUrl } from "../lib/appUrl";
 
 const router = Router();
 
@@ -295,7 +296,7 @@ router.post("/password-reset/request", async (req, res) => {
       [userId, tokenHash, expiresAt]
     );
 
-    const resetLink = `${process.env.APP_BASE_URL}/reset-password?token=${rawToken}`;
+    const resetLink = `${getAppBaseUrl()}/reset-password?token=${rawToken}`;
     try {
       await sendMail({
         to: parsed.data.email,

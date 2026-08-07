@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api, ApiError } from "../lib/api";
+import { AuthBrandPanel } from "../components/AuthBrandPanel";
 
 export function Login() {
   const { login, verifyTwoFactor } = useAuth();
@@ -72,31 +73,30 @@ export function Login() {
   if (forgotMode) {
     return (
       <div className="login-shell">
-        <div className="login-card">
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <div className="logo-mark">Z</div>
-            <div>
-              <div className="logo-name">Zoffec Sentinel</div>
-              <div className="logo-sub">Reset your password</div>
+        <AuthBrandPanel headline="Forgot your password? Happens to the best of us." />
+        <div className="login-form-panel">
+          <div className="login-card">
+            <div className="login-card-head">
+              <div className="login-card-title">Reset your password</div>
             </div>
+            {forgotSent ? (
+              <div className="banner banner-info">If that email has an account, a reset link is on its way. Check your inbox.</div>
+            ) : (
+              <form onSubmit={onSubmitForgot}>
+                <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Enter your account email — we'll send a link to set a new password.</p>
+                <div className="form-group" style={{ marginBottom: 18 }}>
+                  <label className="form-label" htmlFor="forgot-email">Email</label>
+                  <input id="forgot-email" className="form-input" type="email" required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} autoFocus />
+                </div>
+                <button className="btn btn-primary" type="submit" disabled={forgotBusy} style={{ width: "100%", justifyContent: "center" }}>
+                  {forgotBusy ? "Sending…" : "Send reset link"}
+                </button>
+              </form>
+            )}
+            <button type="button" className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(""); }}>
+              Back to sign in
+            </button>
           </div>
-          {forgotSent ? (
-            <div className="banner banner-info">If that email has an account, a reset link is on its way. Check your inbox.</div>
-          ) : (
-            <form onSubmit={onSubmitForgot}>
-              <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Enter your account email — we'll send a link to set a new password.</p>
-              <div className="form-group" style={{ marginBottom: 18 }}>
-                <label className="form-label" htmlFor="forgot-email">Email</label>
-                <input id="forgot-email" className="form-input" type="email" required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} autoFocus />
-              </div>
-              <button className="btn btn-primary" type="submit" disabled={forgotBusy} style={{ width: "100%", justifyContent: "center" }}>
-                {forgotBusy ? "Sending…" : "Send reset link"}
-              </button>
-            </form>
-          )}
-          <button type="button" className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(""); }}>
-            Back to sign in
-          </button>
         </div>
       </div>
     );
@@ -105,30 +105,29 @@ export function Login() {
   if (pendingToken) {
     return (
       <div className="login-shell">
-        <div className="login-card">
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <div className="logo-mark">Z</div>
-            <div>
-              <div className="logo-name">Zoffec Sentinel</div>
-              <div className="logo-sub">Two-step verification</div>
+        <AuthBrandPanel headline="One more step. Confirm it's really you." />
+        <div className="login-form-panel">
+          <div className="login-card">
+            <div className="login-card-head">
+              <div className="login-card-title">Two-step verification</div>
             </div>
+            <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 20 }}>
+              Enter the 6-digit code from your authenticator app, or one of your backup codes.
+            </p>
+            <form onSubmit={onSubmitCode}>
+              {error && <div className="banner banner-error">{error}</div>}
+              <div className="form-group" style={{ marginBottom: 18 }}>
+                <label className="form-label" htmlFor="twofactor-code">Code</label>
+                <input id="twofactor-code" className="form-input mono" style={{ fontSize: 18, letterSpacing: 2, textAlign: "center" }} required value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+              </div>
+              <button className="btn btn-primary" type="submit" disabled={submitting || !code} style={{ width: "100%", justifyContent: "center" }}>
+                {submitting ? "Verifying…" : "Verify"}
+              </button>
+              <button type="button" className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => { setPendingToken(null); setCode(""); setError(null); }}>
+                Back
+              </button>
+            </form>
           </div>
-          <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 20 }}>
-            Enter the 6-digit code from your authenticator app, or one of your backup codes.
-          </p>
-          <form onSubmit={onSubmitCode}>
-            {error && <div className="banner banner-error">{error}</div>}
-            <div className="form-group" style={{ marginBottom: 18 }}>
-              <label className="form-label" htmlFor="twofactor-code">Code</label>
-              <input id="twofactor-code" className="form-input mono" style={{ fontSize: 18, letterSpacing: 2, textAlign: "center" }} required value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
-            </div>
-            <button className="btn btn-primary" type="submit" disabled={submitting || !code} style={{ width: "100%", justifyContent: "center" }}>
-              {submitting ? "Verifying…" : "Verify"}
-            </button>
-            <button type="button" className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => { setPendingToken(null); setCode(""); setError(null); }}>
-              Back
-            </button>
-          </form>
         </div>
       </div>
     );
@@ -136,37 +135,37 @@ export function Login() {
 
   return (
     <div className="login-shell">
-      <div className="login-card">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-          <div className="logo-mark">Z</div>
-          <div>
-            <div className="logo-name">Zoffec Sentinel</div>
-            <div className="logo-sub">Epitome of Integrity</div>
+      <AuthBrandPanel headline="Every lead, client, and invoice — tracked in one place." />
+      <div className="login-form-panel">
+        <div className="login-card">
+          <div className="login-card-head">
+            <div className="login-card-title">Sign in</div>
+            <div className="login-card-sub">Welcome back — enter your details to continue.</div>
           </div>
-        </div>
-        <form onSubmit={onSubmit}>
-          {error && <div className="banner banner-error">{error}</div>}
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">Email</label>
-            <input className="form-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-          </div>
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">Password</label>
-            <input className="form-input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-              <label htmlFor="remember" style={{ fontSize: 12, color: "var(--text2)" }}>Remember me for 30 days</label>
+          <form onSubmit={onSubmit}>
+            {error && <div className="banner banner-error">{error}</div>}
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
             </div>
-            <button type="button" onClick={() => setForgotMode(true)} style={{ background: "none", border: "none", padding: 0, fontSize: 12, color: "var(--accent2)", cursor: "pointer" }}>
-              Forgot password?
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label">Password</label>
+              <input className="form-input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                <label htmlFor="remember" style={{ fontSize: 12, color: "var(--text2)" }}>Remember me for 30 days</label>
+              </div>
+              <button type="button" onClick={() => setForgotMode(true)} style={{ background: "none", border: "none", padding: 0, fontSize: 12, color: "var(--accent2)", cursor: "pointer" }}>
+                Forgot password?
+              </button>
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={submitting} style={{ width: "100%", justifyContent: "center" }}>
+              {submitting ? "Signing in…" : "Sign in"}
             </button>
-          </div>
-          <button className="btn btn-primary" type="submit" disabled={submitting} style={{ width: "100%", justifyContent: "center" }}>
-            {submitting ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
