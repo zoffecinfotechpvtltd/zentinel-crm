@@ -28,6 +28,8 @@
     "asar": false,
     "files": [
       "main.js",
+      "mode-select.html",
+      "mode-select-preload.js",
       "package.json",
       "node_modules/**/*"
     ],

@@ -44,6 +44,19 @@ router.patch("/:id/read", async (req, res) => {
   res.json(result.rows[0]);
 });
 
+router.post("/:id/dismiss", async (req, res) => {
+  const result = await pool.query(
+    `update notifications set archived_at = now(), read_at = coalesce(read_at, now())
+     where id = $1 and user_id = $2 and archived_at is null returning id`,
+    [req.params.id, req.user!.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 router.post("/mark-all-read", async (req, res) => {
   const result = await pool.query(
     `update notifications set read_at = now() where user_id = $1 and read_at is null returning id`,

@@ -10,10 +10,13 @@ export type AuthUser = {
   role: Role;
 };
 
+export type LoginResult = { requiresTwoFactor: false } | { requiresTwoFactor: true; pendingToken: string };
+
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<LoginResult>;
+  verifyTwoFactor: (pendingToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -41,8 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh().finally(() => setLoading(false));
   }, []);
 
-  async function login(email: string, password: string, rememberMe = false) {
-    const me = await api.post<AuthUser>("/auth/login", { email, password, rememberMe });
+  async function login(email: string, password: string, rememberMe = false): Promise<LoginResult> {
+    const result = await api.post<AuthUser | { requires_2fa: true; pending_token: string }>("/auth/login", { email, password, rememberMe });
+    if ("requires_2fa" in result) {
+      return { requiresTwoFactor: true, pendingToken: result.pending_token };
+    }
+    setUser(result);
+    return { requiresTwoFactor: false };
+  }
+
+  async function verifyTwoFactor(pendingToken: string, code: string) {
+    const me = await api.post<AuthUser>("/auth/login/2fa", { pending_token: pendingToken, code });
     setUser(me);
   }
 
@@ -52,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyTwoFactor, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

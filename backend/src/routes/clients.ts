@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 
 const router = Router();
 
@@ -55,7 +56,14 @@ router.get("/", async (req, res) => {
   const whereClause = conditions.join(" and ");
   const countResult = await pool.query(`select count(*) from clients c where ${whereClause}`, values);
   const dataResult = await pool.query(
-    `select c.*, (${STATUS_EXPR}) as status
+    `select c.*, (${STATUS_EXPR}) as status,
+       (select cc.name from client_contacts cc where cc.client_id = c.id and cc.is_primary and cc.deleted_at is null limit 1) as primary_contact_name,
+       (select cc.email from client_contacts cc where cc.client_id = c.id and cc.is_primary and cc.deleted_at is null limit 1) as primary_contact_email,
+       (select cc.mobile from client_contacts cc where cc.client_id = c.id and cc.is_primary and cc.deleted_at is null limit 1) as primary_contact_mobile,
+       (select s.name from contracts ct join services s on s.id = ct.service_id
+          where ct.client_id = c.id and ct.deleted_at is null order by ct.created_at desc limit 1) as primary_service_name,
+       (select coalesce(sum(ct.value), 0) from contracts ct where ct.client_id = c.id and ct.deleted_at is null) as contract_value_total,
+       (select max(ct.end_date) from contracts ct where ct.client_id = c.id and ct.deleted_at is null) as contract_end_date
      from clients c
      where ${whereClause}
      order by c.created_at desc
@@ -176,6 +184,18 @@ router.patch("/:id", requireRole("admin", "sales"), async (req, res) => {
     return;
   }
   res.json(result.rows[0]);
+});
+
+router.delete("/:id", requireRole("admin"), async (req, res) => {
+  const result = await pool.query(
+    `update clients set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2 and deleted_at is null returning id`,
+    [req.user!.id, req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 // --- client_contacts ---
@@ -355,5 +375,7 @@ router.patch("/:id/contracts/:contractId", requireRole("admin", "sales"), async 
   }
   res.json(result.rows[0]);
 });
+
+mountNotesAndAttachments(router, "client");
 
 export default router;

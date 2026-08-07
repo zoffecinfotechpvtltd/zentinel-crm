@@ -1,0 +1,133 @@
+import { useState } from "react";
+import { useFetch } from "../lib/useFetch";
+import { api, API_BASE } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
+import { useToast } from "./Toast";
+import { formatDateTime } from "../lib/format";
+import { IconPaperclip, IconTrash, IconPlus } from "./Icons";
+
+type EntityType = "lead" | "client" | "project" | "invoice";
+type Note = { id: string; body: string; created_at: string; created_by: string | null; author_name: string | null };
+type Attachment = { id: string; filename: string; mime_type: string; size_bytes: number; created_at: string; uploaded_by: string | null; uploader_name: string | null };
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType; entityId: string }) {
+  const { user } = useAuth();
+  const { push } = useToast();
+  const base = `/${entityType}s`;
+  const { data: notes, reload: reloadNotes } = useFetch<Note[]>(`${base}/${entityId}/notes`, [entityId]);
+  const { data: attachments, reload: reloadAttachments } = useFetch<Attachment[]>(`${base}/${entityId}/attachments`, [entityId]);
+
+  const [noteBody, setNoteBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const canManage = (ownerId: string | null) => user?.role === "admin" || (!!ownerId && ownerId === user?.id);
+
+  async function addNote() {
+    if (!noteBody.trim()) return;
+    setSaving(true);
+    try {
+      await api.post(`${base}/${entityId}/notes`, { body: noteBody.trim() });
+      setNoteBody("");
+      reloadNotes();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Couldn't add note", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteNote(id: string) {
+    if (!confirm("Delete this note?")) return;
+    await api.delete(`${base}/${entityId}/notes/${id}`);
+    reloadNotes();
+  }
+
+  async function uploadFile(file: File) {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await api.postForm(`${base}/${entityId}/attachments`, form);
+      push("File attached", "success");
+      reloadAttachments();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Upload failed", "error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function deleteAttachment(id: string) {
+    if (!confirm("Delete this file?")) return;
+    await api.delete(`${base}/${entityId}/attachments/${id}`);
+    reloadAttachments();
+  }
+
+  return (
+    <div className="grid2" style={{ marginTop: 4 }}>
+      <div className="card">
+        <div className="card-title">Notes</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <textarea
+            className="form-textarea"
+            style={{ minHeight: 44, flex: 1 }}
+            placeholder="Add a note…"
+            value={noteBody}
+            onChange={(e) => setNoteBody(e.target.value)}
+          />
+          <button type="button" className="btn btn-ghost btn-sm" onClick={addNote} disabled={saving || !noteBody.trim()}>Add</button>
+        </div>
+        {(notes?.length ?? 0) === 0 && <div className="empty" style={{ padding: 16 }}>No notes yet</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {notes?.map((n) => (
+            <div key={n.id} style={{ padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 13, color: "var(--text2)", whiteSpace: "pre-wrap" }}>{n.body}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--text3)" }}>
+                <span>{n.author_name ?? "Someone"} — {formatDateTime(n.created_at)}</span>
+                {canManage(n.created_by) && (
+                  <button type="button" className="icon-btn" style={{ width: 20, height: 20 }} onClick={() => deleteNote(n.id)} title="Delete"><IconTrash size={11} /></button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">
+          Files
+          <label className="btn btn-ghost btn-sm" style={{ cursor: uploading ? "wait" : "pointer" }}>
+            <IconPlus size={12} /> {uploading ? "Uploading…" : "Attach"}
+            <input type="file" style={{ display: "none" }} disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = ""; }} />
+          </label>
+        </div>
+        {(attachments?.length ?? 0) === 0 && <div className="empty" style={{ padding: 16 }}>No files yet</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {attachments?.map((a) => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)" }}>
+              <IconPaperclip size={14} style={{ color: "var(--text3)", flexShrink: 0 }} />
+              <a
+                href={`${API_BASE}/api${base}/${entityId}/attachments/${a.id}/file`}
+                style={{ fontSize: 13, color: "var(--text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                title={a.filename}
+              >
+                {a.filename}
+              </a>
+              <span style={{ fontSize: 11, color: "var(--text3)", flexShrink: 0 }}>{formatSize(a.size_bytes)}</span>
+              {canManage(a.uploaded_by) && (
+                <button type="button" className="icon-btn" style={{ width: 20, height: 20, flexShrink: 0 }} onClick={() => deleteAttachment(a.id)} title="Delete"><IconTrash size={11} /></button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

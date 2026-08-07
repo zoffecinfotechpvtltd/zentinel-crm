@@ -1,15 +1,24 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { Modal } from "../components/Modal";
 import { Pagination } from "../components/Pagination";
+import { PageHeader } from "../components/PageHeader";
+import { NotesAndFiles } from "../components/NotesAndFiles";
+import { TableSkeleton } from "../components/Skeleton";
+import { useToast } from "../components/Toast";
 import { formatDate, formatMoney, toDateInputValue } from "../lib/format";
+import { IconLeads, IconPlus, IconInbox, IconCheck } from "../components/Icons";
 
 const INDUSTRIES = ["Banking & Finance", "IT/Software", "Healthcare", "Government", "Manufacturing", "E-commerce", "Telecom", "Other"];
 const SOURCES = ["Website", "Referral", "LinkedIn", "Cold Call", "Event", "Email Campaign"];
 const STATUSES = ["New", "Contacted", "Qualified", "Proposal Sent", "Negotiation", "Won", "Lost"];
+const STATUS_RAIL: Record<string, string> = {
+  New: "var(--info)", Contacted: "var(--text3)", Qualified: "var(--success)",
+  "Proposal Sent": "var(--purple)", Negotiation: "var(--warning)", Won: "var(--success)", Lost: "var(--danger)",
+};
 
 type Lead = {
   id: string; company: string; contact_person: string; designation: string | null; email: string;
@@ -27,6 +36,8 @@ const emptyForm = {
 
 export function Leads() {
   const { user } = useAuth();
+  const { push } = useToast();
+  const [view, setView] = useState<"list" | "board">("list");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -38,6 +49,10 @@ export function Leads() {
   if (serviceId) query.set("service_id", serviceId);
 
   const { data, loading, error, reload } = useFetch<ListResponse<Lead>>(`/leads?${query.toString()}`, [page, search, status, serviceId]);
+  const boardQuery = new URLSearchParams({ page: "1", per_page: "300" });
+  if (search) boardQuery.set("search", search);
+  if (serviceId) boardQuery.set("service_id", serviceId);
+  const { data: boardData, reload: reloadBoard } = useFetch<ListResponse<Lead>>(view === "board" ? `/leads?${boardQuery.toString()}` : "", [view, search, serviceId]);
   const { data: services } = useFetch<Service[]>("/services");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,7 +67,65 @@ export function Leads() {
   const [interactionDone, setInteractionDone] = useState(false);
   const [interactionErr, setInteractionErr] = useState<string | null>(null);
 
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
   const canEdit = user?.role === "admin" || user?.role === "sales";
+  const canDelete = user?.role === "admin";
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    setSelected((prev) => {
+      const pageIds = data?.data.map((l) => l.id) ?? [];
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      return allSelected ? new Set() : new Set(pageIds);
+    });
+  }
+
+  async function bulkDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`Delete ${selected.size} selected lead(s)? This can't be undone.`)) return;
+    setBulkBusy(true);
+    try {
+      await Promise.all([...selected].map((id) => api.delete(`/leads/${id}`)));
+      push(`Deleted ${selected.size} lead(s)`, "success");
+      setSelected(new Set());
+      reload();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Some deletes failed", "error");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  function bulkExportCsv() {
+    const rows = (data?.data ?? []).filter((l) => selected.has(l.id));
+    const header = ["Company", "Contact", "Email", "Mobile", "Service", "Source", "Status", "Value", "Next Follow-up"];
+    const csvLines = [header.join(",")];
+    for (const l of rows) {
+      const cells = [
+        l.company, l.contact_person, l.email, l.mobile ?? "", serviceName(l.service_id),
+        l.source ?? "", l.status, l.value_estimate ?? "", l.next_followup_date ?? "",
+      ];
+      csvLines.push(cells.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","));
+    }
+    const blob = new Blob([csvLines.join("\r\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function openAdd() {
     setEditing(null);
@@ -86,11 +159,14 @@ export function Leads() {
     try {
       if (editing) {
         await api.patch(`/leads/${editing.id}`, payload);
+        push("Lead updated", "success");
       } else {
         await api.post("/leads", payload);
+        push("Lead added", "success");
       }
       setModalOpen(false);
       reload();
+      reloadBoard();
     } catch (err) {
       if (err instanceof ApiError && err.body && typeof err.body === "object" && "details" in err.body) {
         const details = (err.body as { details?: { fieldErrors?: Record<string, string[]> } }).details;
@@ -99,6 +175,8 @@ export function Leads() {
           for (const [k, v] of Object.entries(details.fieldErrors)) fe[k] = v[0];
         }
         setFieldErrors(fe);
+      } else {
+        push(err instanceof Error ? err.message : "Failed to save lead", "error");
       }
     } finally {
       setSaving(false);
@@ -109,9 +187,47 @@ export function Leads() {
     if (!confirm(`Convert ${l.company} to a client?`)) return;
     try {
       await api.post(`/leads/${l.id}/convert`, {});
+      push(`${l.company} converted to a client`, "success");
       reload();
+      reloadBoard();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to convert");
+      push(err instanceof Error ? err.message : "Failed to convert", "error");
+    }
+  }
+
+  async function remove(l: Lead) {
+    if (!confirm(`Delete lead "${l.company}"? This can't be undone.`)) return;
+    try {
+      await api.delete(`/leads/${l.id}`);
+      push("Lead deleted", "success");
+      reload();
+      reloadBoard();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Failed to delete", "error");
+    }
+  }
+
+  async function moveStatus(l: Lead, newStatus: string) {
+    if (l.status === newStatus) return;
+    if (newStatus === "Lost") {
+      const reason = prompt(`Reason ${l.company} was lost:`);
+      if (!reason) return;
+      try {
+        await api.patch(`/leads/${l.id}`, { status: newStatus, lost_reason: reason });
+        push(`Marked ${l.company} as Lost`, "info");
+        reload(); reloadBoard();
+      } catch (err) {
+        push(err instanceof Error ? err.message : "Failed to update status", "error");
+      }
+      return;
+    }
+    try {
+      await api.patch(`/leads/${l.id}`, { status: newStatus });
+      push(`${l.company} moved to ${newStatus}`, "success");
+      reload();
+      reloadBoard();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Failed to update status", "error");
     }
   }
 
@@ -133,6 +249,7 @@ export function Leads() {
         no_further_followup: interactionDone || undefined,
       });
       setInteractionLead(null);
+      push("Interaction logged", "success");
       reload();
     } catch (err) {
       setInteractionErr(err instanceof Error ? err.message : "Failed to save");
@@ -141,19 +258,36 @@ export function Leads() {
 
   const serviceName = (id: string | null) => services?.find((s) => s.id === id)?.name ?? "—";
 
+  const columns = useMemo(() => {
+    const byStatus: Record<string, Lead[]> = {};
+    for (const s of STATUSES) byStatus[s] = [];
+    for (const l of boardData?.data ?? []) (byStatus[l.status] ??= []).push(l);
+    return byStatus;
+  }, [boardData]);
+
   return (
     <div>
-      <div className="section-header">
-        <div className="section-title">Lead Management</div>
-        {canEdit && <button className="btn btn-primary" onClick={openAdd}>+ Add Lead</button>}
-      </div>
+      <PageHeader
+        icon={<IconLeads size={19} />}
+        title="Lead Management"
+        subtitle={data ? `${data.total} lead${data.total === 1 ? "" : "s"} in the pipeline` : undefined}
+        actions={<>
+          <div className="view-toggle">
+            <button type="button" className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
+            <button type="button" className={view === "board" ? "active" : ""} onClick={() => setView("board")}>Board</button>
+          </div>
+          {canEdit && <button type="button" className="btn btn-primary" onClick={openAdd}><IconPlus size={14} /> Add Lead</button>}
+        </>}
+      />
 
       <div className="filter-bar">
         <input className="filter-input" placeholder="Search company / contact..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-        <select className="filter-select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-          <option value="">All Status</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        {view === "list" && (
+          <select className="filter-select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+            <option value="">All Status</option>
+            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
         <select className="filter-select" value={serviceId} onChange={(e) => { setServiceId(e.target.value); setPage(1); }}>
           <option value="">All Services</option>
           {services?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -162,49 +296,128 @@ export function Leads() {
 
       {error && <div className="banner banner-error">{error}</div>}
 
-      <div className="card" style={{ padding: 0 }}>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Company</th><th>Contact</th><th>Service</th><th>Value</th><th>Status</th><th>Follow-up</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              {loading && <tr><td colSpan={7}><div className="empty">Loading…</div></td></tr>}
-              {!loading && data?.data.length === 0 && <tr><td colSpan={7}><div className="empty">No leads found</div></td></tr>}
-              {data?.data.map((l) => (
-                <tr key={l.id}>
-                  <td><div style={{ fontWeight: 500, color: "var(--text)" }}>{l.company}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{l.industry}</div></td>
-                  <td><div>{l.contact_person}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{l.designation}</div></td>
-                  <td style={{ fontSize: 12 }}>{serviceName(l.service_id)}</td>
-                  <td className="mono">{l.value_estimate ? formatMoney(l.value_estimate) : "—"}</td>
-                  <td><Badge status={l.status} /></td>
-                  <td style={{ fontSize: 12 }}>{formatDate(l.next_followup_date)}</td>
-                  <td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {canEdit && <button className="btn btn-ghost btn-sm" onClick={() => openEdit(l)}>Edit</button>}
-                      {canEdit && <button className="btn btn-ghost btn-sm" onClick={() => openInteraction(l)}>Log</button>}
-                      {canEdit && l.status !== "Won" && !l.converted_to_client_id && (
-                        <button className="btn btn-ghost btn-sm" style={{ color: "var(--success)" }} onClick={() => convert(l)}>Convert</button>
-                      )}
-                    </div>
-                  </td>
+      {view === "list" && selected.size > 0 && (
+        <div className="banner banner-info" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span>{selected.size} selected</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={bulkExportCsv}>Export CSV</button>
+          {canDelete && <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={bulkDelete} disabled={bulkBusy}>{bulkBusy ? "Deleting…" : "Delete selected"}</button>}
+          <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
+
+      {view === "list" && (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: 32 }}><input type="checkbox" checked={(data?.data.length ?? 0) > 0 && data!.data.every((l) => selected.has(l.id))} onChange={toggleSelectAll} /></th>
+                  <th>Company</th><th>Contact</th><th>Service</th><th>Source</th><th>Status</th><th>Follow-up</th><th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {loading && <TableSkeleton rows={6} cols={8} />}
+                {!loading && data?.data.length === 0 && (
+                  <tr><td colSpan={8}>
+                    <div className="empty">
+                      <div className="empty-icon"><IconInbox size={30} /></div>
+                      No leads match these filters yet.
+                    </div>
+                  </td></tr>
+                )}
+                {data?.data.map((l) => (
+                  <tr key={l.id} className={selected.has(l.id) ? "row-selected" : undefined}>
+                    <td><input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} /></td>
+                    <td><div style={{ fontWeight: 550, color: "var(--text)" }}>{l.company}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{l.industry ?? "—"}</div></td>
+                    <td><div>{l.contact_person}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{l.designation}</div></td>
+                    <td style={{ fontSize: 12 }}>{serviceName(l.service_id)}</td>
+                    <td style={{ fontSize: 12 }}>{l.source ?? "—"}</td>
+                    <td>
+                      {canEdit ? (
+                        <select
+                          className="filter-select"
+                          style={{ padding: "3px 8px", fontSize: 11.5 }}
+                          value={l.status}
+                          onChange={(e) => moveStatus(l, e.target.value)}
+                        >
+                          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      ) : <Badge status={l.status} />}
+                    </td>
+                    <td style={{ fontSize: 12 }}>{formatDate(l.next_followup_date)}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {canEdit && <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(l)}>Edit</button>}
+                        {canEdit && <button type="button" className="btn btn-ghost btn-sm" onClick={() => openInteraction(l)}>Log</button>}
+                        {canEdit && l.status !== "Won" && !l.converted_to_client_id && (
+                          <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--success)" }} onClick={() => convert(l)}>Convert</button>
+                        )}
+                        {canDelete && <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => remove(l)}>Delete</button>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: "0 16px 14px" }}>
+            {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
+          </div>
         </div>
-        <div style={{ padding: "0 16px 14px" }}>
-          {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
+      )}
+
+      {view === "board" && (
+        <div className="kanban-board">
+          {STATUSES.map((s) => (
+            <div className="kanban-col" key={s} style={{ ["--col-accent" as string]: STATUS_RAIL[s] }}>
+              <div className="kanban-col-head">
+                <div className="kanban-col-title">{s}</div>
+                <div className="kanban-col-count">{columns[s]?.length ?? 0}</div>
+              </div>
+              <div
+                className={`kanban-col-body${dragOverCol === s ? " drop-target" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); setDragOverCol(s); }}
+                onDragLeave={() => setDragOverCol((c) => (c === s ? null : c))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverCol(null);
+                  const lead = boardData?.data.find((l) => l.id === dragId);
+                  if (lead) moveStatus(lead, s);
+                  setDragId(null);
+                }}
+              >
+                {(columns[s] ?? []).map((l) => (
+                  <div
+                    key={l.id}
+                    className={`kanban-card${dragId === l.id ? " dragging" : ""}`}
+                    draggable={canEdit}
+                    onDragStart={() => setDragId(l.id)}
+                    onDragEnd={() => setDragId(null)}
+                    onClick={() => canEdit && openEdit(l)}
+                  >
+                    <div className="kanban-card-title">{l.company}</div>
+                    <div className="kanban-card-sub">{l.contact_person}{l.industry ? ` · ${l.industry}` : ""}</div>
+                    <div className="kanban-card-foot">
+                      <span className="mono">{l.value_estimate ? formatMoney(l.value_estimate) : "—"}</span>
+                      <span>{formatDate(l.next_followup_date)}</span>
+                    </div>
+                  </div>
+                ))}
+                {(columns[s] ?? []).length === 0 && <div style={{ fontSize: 11.5, color: "var(--text3)", padding: "8px 2px" }}>Drop here</div>}
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
 
       {modalOpen && (
         <Modal
           title={editing ? "Edit Lead" : "Add New Lead"}
           onClose={() => setModalOpen(false)}
+          wide={!!editing}
           footer={<>
-            <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Lead"}</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Lead"}</button>
           </>}
         >
           <div className="form-grid">
@@ -265,6 +478,7 @@ export function Leads() {
               <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
           </div>
+          {editing && <NotesAndFiles entityType="lead" entityId={editing.id} />}
         </Modal>
       )}
 
@@ -273,8 +487,8 @@ export function Leads() {
           title={`Log Interaction — ${interactionLead.company}`}
           onClose={() => setInteractionLead(null)}
           footer={<>
-            <button className="btn btn-ghost" onClick={() => setInteractionLead(null)}>Cancel</button>
-            <button className="btn btn-primary" onClick={saveInteraction}>Save</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setInteractionLead(null)}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={saveInteraction}><IconCheck size={14} /> Save</button>
           </>}
         >
           {interactionErr && <div className="banner banner-error">{interactionErr}</div>}

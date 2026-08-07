@@ -1,41 +1,63 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { CommandPalette } from "./CommandPalette";
+import {
+  IconDashboard, IconLeads, IconClients, IconProjects, IconInvoices, IconFollowups,
+  IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconSun,
+  IconMoon, IconLogout, IconMenu, IconChevronDown,
+} from "./Icons";
 
-type NavItem = { to: string; label: string; roles?: string[] };
+type NavItem = { to: string; label: string; icon: React.ReactNode; roles?: string[] };
 
 const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Main",
     items: [
-      { to: "/", label: "Dashboard" },
-      { to: "/leads", label: "Leads", roles: ["admin", "sales", "finance"] },
-      { to: "/clients", label: "Clients" },
-      { to: "/projects", label: "Projects", roles: ["admin", "ops", "finance"] },
+      { to: "/", label: "Dashboard", icon: <IconDashboard /> },
+      { to: "/leads", label: "Leads", icon: <IconLeads />, roles: ["admin", "sales", "finance"] },
+      { to: "/clients", label: "Clients", icon: <IconClients /> },
+      { to: "/projects", label: "Projects", icon: <IconProjects />, roles: ["admin", "ops", "finance"] },
     ],
   },
   {
     section: "Finance",
     items: [
-      { to: "/invoices", label: "Invoices", roles: ["admin", "sales", "finance"] },
-      { to: "/followups", label: "Follow-ups", roles: ["admin", "sales"] },
+      { to: "/invoices", label: "Invoices", icon: <IconInvoices />, roles: ["admin", "sales", "finance"] },
+      { to: "/followups", label: "Follow-ups", icon: <IconFollowups />, roles: ["admin", "sales"] },
     ],
   },
   {
     section: "Insights",
     items: [
-      { to: "/reports", label: "Reports" },
-      { to: "/notifications", label: "Notifications" },
+      { to: "/reports", label: "Reports", icon: <IconReports /> },
+      { to: "/notifications", label: "Notifications", icon: <IconBell /> },
     ],
   },
 ];
 
+const THEME_KEY = "zoffec-theme";
+
 export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+    // No explicit choice yet — light is the app's default surface; only
+    // follow the OS into dark if it actually prefers dark.
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
   const [unread, setUnread] = useState(0);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    document.body.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,10 +71,31 @@ export function Layout() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
   function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.body.classList.toggle("light", next === "light");
+    setTheme((t) => {
+      const next = t === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_KEY, next);
+      return next;
+    });
   }
 
   async function handleLogout() {
@@ -64,7 +107,8 @@ export function Layout() {
 
   return (
     <div className="app-shell">
-      <div className="sidebar">
+      {mobileNavOpen && <div className="sidebar-scrim" onClick={() => setMobileNavOpen(false)} />}
+      <div className={`sidebar${mobileNavOpen ? " open" : ""}`}>
         <div className="logo">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className="logo-mark">Z</div>
@@ -85,8 +129,10 @@ export function Layout() {
                   key={item.to}
                   to={item.to}
                   end={item.to === "/"}
+                  onClick={() => setMobileNavOpen(false)}
                   className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
                 >
+                  {item.icon}
                   {item.label}
                   {item.to === "/notifications" && unread > 0 && <span className="nav-badge">{unread}</span>}
                 </NavLink>
@@ -97,33 +143,72 @@ export function Layout() {
         {user?.role === "admin" && (
           <div className="nav-section">
             <div className="nav-label">Admin</div>
-            <NavLink to="/users" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>Users</NavLink>
-            <NavLink to="/templates" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>Message Templates</NavLink>
-            <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>Settings</NavLink>
+            <NavLink to="/users" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconUsers />Users</NavLink>
+            <NavLink to="/templates" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconTemplate />Message Templates</NavLink>
+            <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Settings</NavLink>
+            <NavLink to="/audit-log" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconFollowups />Audit Log</NavLink>
           </div>
         )}
         <div className="nav-footer">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div className="avatar av-blue">{initials}</div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
+              <div style={{ fontSize: 13, fontWeight: 550, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
               <div style={{ fontSize: 11, color: "var(--text3)" }}>{user?.email}</div>
             </div>
           </div>
-          <button className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={handleLogout}>Log out</button>
+          <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={handleLogout}>
+            <IconLogout size={14} /> Log out
+          </button>
         </div>
       </div>
 
       <div className="main">
         <div className="topbar">
-          <div className="topbar-title" />
-          <button className="topbar-btn" onClick={toggleTheme} title="Toggle theme">{theme === "dark" ? "☀" : "☾"}</button>
-          <div className="role-badge">{user?.role}</div>
+          <button type="button" className="icon-btn menu-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu"><IconMenu size={16} /></button>
+          <div className="topbar-spacer" />
+          <div className="topbar-search" onClick={() => setPaletteOpen(true)}>
+            <IconSearch size={14} />
+            <span>Search or jump to…</span>
+            <kbd>Ctrl K</kbd>
+          </div>
+          <button type="button" className="topbar-btn" onClick={toggleTheme} title="Toggle theme">
+            {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
+          </button>
+          <button type="button" className="topbar-btn" onClick={() => navigate("/notifications")} title="Notifications">
+            <IconBell size={16} />
+            {unread > 0 && <span className="nav-badge">{unread}</span>}
+          </button>
+          <div className="dropdown" ref={userMenuRef}>
+            <button type="button" className="topbar-btn" style={{ width: "auto", gap: 6, padding: "0 8px" }} onClick={() => setUserMenuOpen((v) => !v)}>
+              <div className="avatar av-blue" style={{ width: 24, height: 24, fontSize: 10.5 }}>{initials}</div>
+              <IconChevronDown size={13} />
+            </button>
+            {userMenuOpen && (
+              <div className="dropdown-panel" style={{ minWidth: 200 }}>
+                <div className="dropdown-header">
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.name}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text3)" }}>{user?.email}</div>
+                  <div className="role-badge" style={{ marginTop: 8, display: "inline-block" }}>{user?.role}</div>
+                </div>
+                <div className="dropdown-footer" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <NavLink to="/account" className="btn btn-ghost btn-sm" style={{ width: "100%" }} onClick={() => setUserMenuOpen(false)}>
+                    Account &amp; 2FA
+                  </NavLink>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ width: "100%" }} onClick={handleLogout}>
+                    <IconLogout size={14} /> Log out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="content">
           <Outlet />
         </div>
       </div>
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }

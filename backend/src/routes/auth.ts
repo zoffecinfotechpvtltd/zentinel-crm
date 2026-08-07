@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
+import crypto from "node:crypto";
 import { pool } from "../db/pool";
 import { verifyPassword, hashPassword } from "../lib/password";
 import { createSession, setSessionCookie, clearSessionCookie, getSessionCookieName } from "../lib/session";
 import { generateRawToken, hashToken } from "../lib/tokens";
 import { requireAuth } from "../middleware/auth";
 import { sendMail } from "../lib/mail";
+import { generateSecret, buildOtpauthUri, verifyTotpCode, generateBackupCodes, hashBackupCodes, tryConsumeBackupCode } from "../lib/totp";
 
 const router = Router();
 
@@ -13,6 +15,20 @@ const LOCKOUT_THRESHOLD = 8;
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+// Password verified, code not yet entered — bridges the two /login requests
+// without a session cookie existing yet. In-memory is fine (same tradeoff
+// as the 403-burst tracker): a restart just means re-entering the password,
+// not a security gap.
+const PENDING_2FA_TTL_MS = 5 * 60 * 1000;
+const pending2fa = new Map<string, { userId: string; rememberMe: boolean; expiresAt: number }>();
+
+function cleanupExpiredPending2fa(): void {
+  const now = Date.now();
+  for (const [token, entry] of pending2fa) {
+    if (entry.expiresAt < now) pending2fa.delete(token);
+  }
+}
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -29,7 +45,7 @@ router.post("/login", async (req, res) => {
   const { email, password, rememberMe } = parsed.data;
 
   const result = await pool.query(
-    `select id, email, name, role, password_hash, is_active,
+    `select id, email, name, role, password_hash, is_active, totp_enabled,
             failed_login_attempts, last_failed_login_at, locked_until
      from users
      where email = $1 and deleted_at is null`,
@@ -87,6 +103,14 @@ router.post("/login", async (req, res) => {
     [user.id]
   );
 
+  if (user.totp_enabled) {
+    cleanupExpiredPending2fa();
+    const pendingToken = crypto.randomUUID();
+    pending2fa.set(pendingToken, { userId: user.id, rememberMe, expiresAt: Date.now() + PENDING_2FA_TTL_MS });
+    res.json({ requires_2fa: true, pending_token: pendingToken });
+    return;
+  }
+
   const session = await createSession(pool, {
     userId: user.id,
     rememberMe,
@@ -94,6 +118,62 @@ router.post("/login", async (req, res) => {
     ipAddress: req.ip,
   });
   setSessionCookie(res, session.id, rememberMe);
+
+  res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
+});
+
+const login2faSchema = z.object({
+  pending_token: z.string().min(1),
+  code: z.string().min(1),
+});
+
+router.post("/login/2fa", async (req, res) => {
+  const parsed = login2faSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input" });
+    return;
+  }
+  cleanupExpiredPending2fa();
+  const pending = pending2fa.get(parsed.data.pending_token);
+  if (!pending) {
+    res.status(400).json({ error: "invalid_or_expired", message: "That code entry session has expired — please log in again." });
+    return;
+  }
+
+  const result = await pool.query(
+    `select id, email, name, role, is_active, totp_secret, totp_backup_codes from users where id = $1 and deleted_at is null`,
+    [pending.userId]
+  );
+  if (result.rows.length === 0 || !result.rows[0].is_active) {
+    pending2fa.delete(parsed.data.pending_token);
+    res.status(401).json({ error: "invalid_credentials" });
+    return;
+  }
+  const user = result.rows[0];
+
+  let ok = user.totp_secret ? verifyTotpCode(user.totp_secret, parsed.data.code) : false;
+  if (!ok && Array.isArray(user.totp_backup_codes) && user.totp_backup_codes.length > 0) {
+    const remaining = await tryConsumeBackupCode(user.totp_backup_codes, parsed.data.code);
+    if (remaining) {
+      ok = true;
+      await pool.query(`update users set totp_backup_codes = $1 where id = $2`, [JSON.stringify(remaining), user.id]);
+    }
+  }
+
+  if (!ok) {
+    res.status(401).json({ error: "invalid_code", message: "That code isn't right. Check your authenticator app's time is in sync, or try a backup code." });
+    return;
+  }
+
+  pending2fa.delete(parsed.data.pending_token);
+  const session = await createSession(pool, {
+    userId: user.id,
+    rememberMe: pending.rememberMe,
+    userAgent: req.get("user-agent") ?? undefined,
+    ipAddress: req.ip,
+  });
+  setSessionCookie(res, session.id, pending.rememberMe);
+  await pool.query(`update users set last_login_at = now() where id = $1`, [user.id]);
 
   res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
 });
@@ -109,6 +189,83 @@ router.post("/logout", async (req, res) => {
 
 router.get("/me", requireAuth, (req, res) => {
   res.json(req.user);
+});
+
+router.get("/2fa/status", requireAuth, async (req, res) => {
+  const result = await pool.query(`select totp_enabled from users where id = $1`, [req.user!.id]);
+  res.json({ enabled: result.rows[0]?.totp_enabled ?? false });
+});
+
+// Generates (or regenerates, if setup is abandoned and restarted) a secret
+// and stores it un-confirmed — totp_enabled only flips on in /2fa/enable,
+// once the user has proven they can actually generate a matching code.
+router.post("/2fa/setup", requireAuth, async (req, res) => {
+  const secret = generateSecret();
+  await pool.query(`update users set totp_secret = $1, totp_enabled = false where id = $2`, [secret, req.user!.id]);
+  res.json({ secret, otpauth_uri: buildOtpauthUri(secret, req.user!.email) });
+});
+
+const enable2faSchema = z.object({ code: z.string().min(1) });
+
+router.post("/2fa/enable", requireAuth, async (req, res) => {
+  const parsed = enable2faSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input" });
+    return;
+  }
+  const result = await pool.query(`select totp_secret from users where id = $1`, [req.user!.id]);
+  const secret = result.rows[0]?.totp_secret;
+  if (!secret) {
+    res.status(400).json({ error: "no_pending_setup", message: "Start setup first (POST /2fa/setup)." });
+    return;
+  }
+  if (!verifyTotpCode(secret, parsed.data.code)) {
+    res.status(400).json({ error: "invalid_code", message: "That code doesn't match — check the app and try again." });
+    return;
+  }
+
+  const backupCodes = generateBackupCodes();
+  const hashed = await hashBackupCodes(backupCodes);
+  await pool.query(`update users set totp_enabled = true, totp_backup_codes = $1 where id = $2`, [JSON.stringify(hashed), req.user!.id]);
+
+  res.json({ ok: true, backup_codes: backupCodes });
+});
+
+const disable2faSchema = z.object({ password: z.string().min(1) });
+
+router.post("/2fa/disable", requireAuth, async (req, res) => {
+  const parsed = disable2faSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input" });
+    return;
+  }
+  const result = await pool.query(`select password_hash from users where id = $1`, [req.user!.id]);
+  const passwordOk = result.rows[0] && (await verifyPassword(result.rows[0].password_hash, parsed.data.password));
+  if (!passwordOk) {
+    res.status(401).json({ error: "invalid_credentials", message: "Password didn't match." });
+    return;
+  }
+  await pool.query(`update users set totp_enabled = false, totp_secret = null, totp_backup_codes = null where id = $1`, [req.user!.id]);
+  res.json({ ok: true });
+});
+
+router.get("/sessions", requireAuth, async (req, res) => {
+  const currentSessionId = req.cookies?.[getSessionCookieName()];
+  const result = await pool.query(
+    `select id, user_agent, ip_address, created_at, expires_at
+     from sessions where user_id = $1 order by created_at desc`,
+    [req.user!.id]
+  );
+  res.json(result.rows.map((r) => ({ ...r, is_current: r.id === currentSessionId })));
+});
+
+router.post("/sessions/revoke-others", requireAuth, async (req, res) => {
+  const currentSessionId = req.cookies?.[getSessionCookieName()];
+  const result = await pool.query(
+    `delete from sessions where user_id = $1 and id <> $2 returning id`,
+    [req.user!.id, currentSessionId]
+  );
+  res.json({ ok: true, revoked: result.rowCount ?? 0 });
 });
 
 const resetRequestSchema = z.object({ email: z.string().email() });

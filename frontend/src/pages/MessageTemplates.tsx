@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
 import { Modal } from "../components/Modal";
+import { PageHeader } from "../components/PageHeader";
+import { useToast } from "../components/Toast";
+import { IconTemplate, IconPlus } from "../components/Icons";
 
 type Template = { id: string; name: string; channel: string; subject: string | null; body: string; category: string };
 
@@ -9,6 +12,7 @@ const CATEGORIES = ["proposal_followup", "payment_reminder", "checkin"];
 
 export function MessageTemplates() {
   const { data, reload } = useFetch<Template[]>("/message-templates");
+  const { push } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", channel: "email", subject: "", body: "", category: "proposal_followup" });
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +23,7 @@ export function MessageTemplates() {
       await api.post("/message-templates", { ...form, subject: form.subject || undefined });
       setModalOpen(false);
       setForm({ name: "", channel: "email", subject: "", body: "", category: "proposal_followup" });
+      push("Template added", "success");
       reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save template");
@@ -27,10 +32,12 @@ export function MessageTemplates() {
 
   return (
     <div>
-      <div className="section-header">
-        <div className="section-title">Message Templates</div>
-        <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ Add Template</button>
-      </div>
+      <PageHeader
+        icon={<IconTemplate size={19} />}
+        title="Message Templates"
+        subtitle="Reusable email and WhatsApp copy for follow-ups"
+        actions={<button type="button" className="btn btn-primary" onClick={() => setModalOpen(true)}><IconPlus size={14} /> Add Template</button>}
+      />
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {data?.map((t) => (
           <div key={t.id} className="card">
@@ -43,8 +50,8 @@ export function MessageTemplates() {
 
       {modalOpen && (
         <Modal title="Add Template" onClose={() => setModalOpen(false)} footer={<>
-          <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-          <button className="btn btn-primary" onClick={save}>Save</button>
+          <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={save}>Save</button>
         </>}>
           {error && <div className="banner banner-error">{error}</div>}
           <div className="form-grid">

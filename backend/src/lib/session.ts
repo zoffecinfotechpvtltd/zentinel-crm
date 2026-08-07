@@ -11,6 +11,13 @@ const REMEMBER_TTL_DAYS = Number(process.env.SESSION_REMEMBER_TTL_DAYS) || 30;
 // service) — the Electron main process sets DESKTOP_MODE=1 when it spawns this
 // server, which turns the secure flag off regardless of NODE_ENV.
 const COOKIE_SECURE = process.env.NODE_ENV === "production" && process.env.DESKTOP_MODE !== "1";
+// "lax" is correct (and simplest) when the frontend and backend share a
+// registrable domain — e.g. sentinel.ztplsolutions.com talking to
+// api.ztplsolutions.com counts as same-site. Only override to "none" (which
+// requires COOKIE_SECURE, i.e. HTTPS) if the frontend and backend are on
+// genuinely different domains, e.g. a Vercel *.vercel.app default URL
+// talking to a Render *.onrender.com default URL.
+const COOKIE_SAME_SITE = (process.env.COOKIE_SAME_SITE as "lax" | "strict" | "none" | undefined) || "lax";
 
 export function sessionTtlMs(rememberMe: boolean): number {
   return rememberMe ? REMEMBER_TTL_DAYS * 24 * 60 * 60 * 1000 : SESSION_TTL_HOURS * 60 * 60 * 1000;
@@ -34,7 +41,7 @@ export function setSessionCookie(res: Response, sessionId: string, rememberMe: b
   res.cookie(COOKIE_NAME, sessionId, {
     httpOnly: true,
     secure: COOKIE_SECURE,
-    sameSite: "lax",
+    sameSite: COOKIE_SAME_SITE,
     maxAge: sessionTtlMs(rememberMe),
   });
 }

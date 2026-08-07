@@ -1,8 +1,15 @@
 import { useState } from "react";
 import { useFetch } from "../lib/useFetch";
+import { api, API_BASE } from "../lib/api";
+import { useToast } from "../components/Toast";
+import { PageHeader } from "../components/PageHeader";
 import { formatDate } from "../lib/format";
+import { IconFollowups, IconInbox, IconCheck, IconCalendar } from "../components/Icons";
 
-type Lead = { id: string; company: string; contact_person: string; next_followup_date: string | null; status: string };
+type Lead = {
+  id: string; company: string; contact_person: string; email: string; mobile: string | null;
+  next_followup_date: string | null; status: string;
+};
 type ListResponse<T> = { data: T[]; total: number };
 type Template = { id: string; name: string; channel: string; subject: string | null; body: string; category: string };
 
@@ -13,28 +20,77 @@ const TABS = [
   { key: "all", label: "All" },
 ];
 
+const CATEGORY_TONE: Record<string, string> = {
+  payment_reminder: "var(--warning)", proposal_followup: "var(--info)", check_in: "var(--success)",
+};
+
 export function Followups() {
+  const { push } = useToast();
   const [tab, setTab] = useState("today");
-  const { data } = useFetch<ListResponse<Lead>>(`/leads?followup=${tab}&per_page=50`, [tab]);
+  const { data, reload } = useFetch<ListResponse<Lead>>(`/leads?followup=${tab}&per_page=50`, [tab]);
   const { data: templates } = useFetch<Template[]>("/message-templates");
+
+  async function copyTemplate(leadId: string, templateId: string) {
+    try {
+      const rendered = await api.get<{ rendered: string; subject: string | null }>(`/leads/${leadId}/templates/${templateId}/render`);
+      await navigator.clipboard.writeText(rendered.rendered);
+      push("Message copied — paste it wherever you're sending it", "success");
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Couldn't render that template", "error");
+    }
+  }
+
+  async function markDone(l: Lead) {
+    try {
+      await api.post(`/leads/${l.id}/log-interaction`, { note: "Marked done from Follow-ups", no_further_followup: true });
+      push(`${l.company} cleared from follow-ups`, "success");
+      reload();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Couldn't update — Won/Lost leads only", "error");
+    }
+  }
 
   return (
     <div>
-      <div className="section-header">
-        <div className="section-title">Follow-up Management</div>
-      </div>
+      <PageHeader icon={<IconFollowups size={19} />} title="Follow-up Management" subtitle="Today's calls, upcoming check-ins, and anything overdue" />
       <div className="tab-bar">
         {TABS.map((t) => (
-          <button key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>
+          <button type="button" key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>
         ))}
       </div>
       <div className="grid2">
         <div>
-          {data?.data.length === 0 && <div className="empty">Nothing here</div>}
+          {data?.data.length === 0 && (
+            <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing here — you're caught up.</div></div>
+          )}
           {data?.data.map((l) => (
-            <div className="followup-item" key={l.id}>
-              <div className="followup-company">{l.company}</div>
-              <div className="followup-detail">{l.contact_person} — {l.status} — due {formatDate(l.next_followup_date)}</div>
+            <div className="followup-item" key={l.id} style={{ position: "relative" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div>
+                  <div className="followup-company">{l.company}</div>
+                  <div className="followup-detail">{l.contact_person} — {l.status} — due {formatDate(l.next_followup_date)}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  {l.email && <a className="icon-btn" href={`mailto:${l.email}`} title={`Email ${l.contact_person}`}>@</a>}
+                  {l.mobile && <a className="icon-btn" href={`https://wa.me/${l.mobile.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" title={`WhatsApp ${l.contact_person}`}>W</a>}
+                  {l.next_followup_date && <a className="icon-btn" href={`${API_BASE}/api/leads/${l.id}/followup.ics`} title="Add to calendar"><IconCalendar size={14} /></a>}
+                  <button type="button" className="icon-btn" title="Mark done" onClick={() => markDone(l)}><IconCheck size={14} /></button>
+                </div>
+              </div>
+              {templates && templates.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                  {templates.map((t) => (
+                    <button
+                      type="button"
+                      key={t.id}
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => copyTemplate(l.id, t.id)}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -43,8 +99,8 @@ export function Followups() {
           {templates?.length === 0 && <div className="empty">No templates yet — add one from the Message Templates admin screen.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {templates?.map((t) => (
-              <div key={t.id} style={{ padding: 12, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", marginBottom: 6 }}>{t.channel === "email" ? "✉" : "💬"} {t.name}</div>
+              <div key={t.id} style={{ padding: 12, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)", borderLeft: `3px solid ${CATEGORY_TONE[t.category] ?? "var(--accent)"}` }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", marginBottom: 6 }}>{t.channel === "email" ? "Email" : "WhatsApp"} — {t.name}</div>
                 <div style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6 }}>{t.body}</div>
               </div>
             ))}

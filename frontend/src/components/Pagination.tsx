@@ -16,11 +16,11 @@ export function Pagination({
 
   return (
     <div className="pagination">
-      <button className="page-btn" disabled={page <= 1} onClick={() => onChange(page - 1)}>Prev</button>
+      <button type="button" className="page-btn" disabled={page <= 1} onClick={() => onChange(page - 1)}>Prev</button>
       {pages.map((p) => (
-        <button key={p} className={`page-btn${p === page ? " active" : ""}`} onClick={() => onChange(p)}>{p}</button>
+        <button type="button" key={p} className={`page-btn${p === page ? " active" : ""}`} onClick={() => onChange(p)}>{p}</button>
       ))}
-      <button className="page-btn" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>Next</button>
+      <button type="button" className="page-btn" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>Next</button>
     </div>
   );
 }

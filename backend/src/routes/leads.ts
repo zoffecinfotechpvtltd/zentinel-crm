@@ -4,6 +4,8 @@ import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { writeActivityLog } from "../lib/activityLog";
 import { createNotification } from "../lib/notifications";
+import { buildSingleEventIcs } from "../lib/ics";
+import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 
 const router = Router();
 
@@ -15,6 +17,31 @@ const INDUSTRIES = [
 ] as const;
 const SOURCES = ["Website", "Referral", "LinkedIn", "Cold Call", "Event", "Email Campaign"] as const;
 const STATUSES = ["New", "Contacted", "Qualified", "Proposal Sent", "Negotiation", "Won", "Lost"] as const;
+
+// Cycles through active Sales reps in a stable order, remembering the last
+// one assigned in the settings table (same key-value table Settings' SMTP
+// config and the FY revenue target already use). Only kicks in when an
+// Admin creates a lead without picking an owner — a Sales rep creating their
+// own lead defaults to themself, not into the rotation.
+async function getNextRoundRobinSalesRep(): Promise<string | null> {
+  const reps = await pool.query(
+    `select id from users where role = 'sales' and is_active and deleted_at is null order by created_at, id`
+  );
+  if (reps.rows.length === 0) return null;
+
+  const cursorResult = await pool.query(`select value from settings where key = 'lead_round_robin_cursor'`);
+  const lastId: string | undefined = cursorResult.rows[0]?.value?.last_assigned_id;
+  const lastIndex = reps.rows.findIndex((r) => r.id === lastId);
+  const nextIndex = (lastIndex + 1) % reps.rows.length;
+  const nextRep = reps.rows[nextIndex].id;
+
+  await pool.query(
+    `insert into settings (key, value) values ('lead_round_robin_cursor', $1)
+     on conflict (key) do update set value = $1, updated_at = now()`,
+    [JSON.stringify({ last_assigned_id: nextRep })]
+  );
+  return nextRep;
+}
 
 function assertLeadsAccess(role: string, res: import("express").Response): boolean {
   if (role === "ops") {
@@ -138,6 +165,11 @@ router.post("/", requireRole("admin", "sales"), async (req, res) => {
     [f.company, f.email]
   );
 
+  let assignedTo = f.assigned_to ?? null;
+  if (!assignedTo) {
+    assignedTo = req.user!.role === "sales" ? req.user!.id : await getNextRoundRobinSalesRep();
+  }
+
   const result = await pool.query(
     `insert into leads (
        company, contact_person, email, designation, mobile, website,
@@ -148,13 +180,13 @@ router.post("/", requireRole("admin", "sales"), async (req, res) => {
     [
       f.company, f.contact_person, f.email, f.designation ?? null, f.mobile ?? null, f.website ?? null,
       f.industry ?? null, f.source ?? null, f.service_id ?? null, f.value_estimate ?? null,
-      f.assigned_to ?? null, f.next_followup_date ?? null, f.notes ?? null, req.user!.id,
+      assignedTo, f.next_followup_date ?? null, f.notes ?? null, req.user!.id,
     ]
   );
 
-  if (f.assigned_to) {
+  if (assignedTo) {
     await createNotification(pool, {
-      userId: f.assigned_to,
+      userId: assignedTo,
       type: "lead_assigned",
       entityType: "lead",
       entityId: result.rows[0].id,
@@ -487,5 +519,36 @@ router.get("/:id/templates/:templateId/render", async (req, res) => {
     body: fillTemplate(template.body, placeholderValues),
   });
 });
+
+router.get("/:id/followup.ics", async (req, res) => {
+  if (!assertLeadsAccess(req.user!.role, res)) return;
+
+  const leadResult = await pool.query(`select * from leads where id = $1 and deleted_at is null`, [req.params.id]);
+  if (leadResult.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const lead = leadResult.rows[0];
+  if (req.user!.role === "sales" && lead.assigned_to !== req.user!.id) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  if (!lead.next_followup_date) {
+    res.status(400).json({ error: "no_followup_date" });
+    return;
+  }
+
+  const ics = buildSingleEventIcs({
+    uid: lead.id,
+    date: lead.next_followup_date,
+    summary: `Follow up — ${lead.company}`,
+    description: `Contact: ${lead.contact_person}${lead.mobile ? ` (${lead.mobile})` : ""}`,
+  });
+  res.setHeader("Content-Type", "text/calendar");
+  res.setHeader("Content-Disposition", `attachment; filename="followup-${lead.company.replace(/[^a-z0-9]/gi, "-")}.ics"`);
+  res.send(ics);
+});
+
+mountNotesAndAttachments(router, "lead");
 
 export default router;

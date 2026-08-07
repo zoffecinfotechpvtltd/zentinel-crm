@@ -3,6 +3,7 @@ import { runInvoiceOverdueJob } from "./invoiceOverdue";
 import { runFollowupReminderJob } from "./followupReminders";
 import { runArchiveNotificationsJob } from "./archiveNotifications";
 import { runDailyDigestJob } from "./dailyDigest";
+import { runCleanupOldRecordsJob } from "./cleanupOldRecords";
 
 type ScheduledJob = {
   name: string;
@@ -46,6 +47,14 @@ const jobs: ScheduledJob[] = [
     task: async () => {
       const { sent } = await runDailyDigestJob();
       console.log(`Daily digest job: sent ${sent} email(s).`);
+    },
+  },
+  {
+    name: "cleanup-old-records",
+    cronExpr: "0 3 * * 0", // weekly, Sunday 03:00 — low-traffic window
+    task: async () => {
+      const r = await runCleanupOldRecordsJob();
+      console.log(`Cleanup job: ${r.sessions} expired session(s), ${r.resetTokens} old reset token(s), ${r.leads} ancient unconverted lead(s) purged.`);
     },
   },
 ];

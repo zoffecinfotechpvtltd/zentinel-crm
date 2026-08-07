@@ -2,8 +2,13 @@ import "chart.js/auto";
 import { Bar, Doughnut } from "react-chartjs-2";
 import { useFetch } from "../lib/useFetch";
 import { StatCard } from "../components/StatCard";
+import { StatCardSkeleton } from "../components/Skeleton";
+import { PageHeader } from "../components/PageHeader";
 import { formatMoney, formatDateTime, formatDate } from "../lib/format";
 import { Link } from "react-router-dom";
+import { IconDashboard, IconInbox } from "../components/Icons";
+import { useAuth } from "../context/AuthContext";
+import { OnboardingChecklist } from "../components/OnboardingChecklist";
 
 type DashboardData = {
   stats: {
@@ -33,15 +38,29 @@ function describeActivity(a: DashboardData["recent_activity"][number]): string {
 }
 
 export function Dashboard() {
+  const { user } = useAuth();
   const { data, loading } = useFetch<DashboardData>("/dashboard");
   const { data: revenue } = useFetch<RevenueReport>("/reports/revenue");
   const { data: conversion } = useFetch<ConversionReport>("/reports/lead-conversion");
 
-  if (loading || !data) return <div className="empty">Loading…</div>;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  if (loading || !data) {
+    return (
+      <div>
+        <PageHeader icon={<IconDashboard size={19} />} title="Dashboard" />
+        <div className="stat-grid">{Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)}</div>
+        <div className="stat-grid">{Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)}</div>
+      </div>
+    );
+  }
   const s = data.stats;
 
   return (
     <div>
+      <PageHeader icon={<IconDashboard size={19} />} title="Dashboard" subtitle={`${greeting}, ${user?.name?.split(" ")[0] ?? ""} — here's where things stand`} />
+      {user?.role === "admin" && <OnboardingChecklist hasLeads={s.total_leads > 0} hasClients={s.active_clients > 0} />}
       <div className="stat-grid">
         <StatCard label="Total Leads" value={String(s.total_leads)} color="var(--accent)"
           change={s.new_leads_change_pct != null ? `${s.new_leads_change_pct >= 0 ? "+" : ""}${s.new_leads_change_pct.toFixed(0)}% vs last month` : `${s.new_leads_this_month} this month`}
@@ -68,7 +87,7 @@ export function Dashboard() {
               <Bar
                 data={{
                   labels: revenue.monthly_trend.map((m) => new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })),
-                  datasets: [{ label: "Revenue", data: revenue.monthly_trend.map((m) => Number(m.total)), backgroundColor: "#c3202f" }],
+                  datasets: [{ label: "Revenue", data: revenue.monthly_trend.map((m) => Number(m.total)), backgroundColor: "#ff7a00", borderRadius: 4 }],
                 }}
                 options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }}
               />
@@ -82,7 +101,7 @@ export function Dashboard() {
               <Doughnut
                 data={{
                   labels: conversion.funnel.map((f) => f.status),
-                  datasets: [{ data: conversion.funnel.map((f) => Number(f.count)), backgroundColor: ["#3b82f6", "#a0aec0", "#4ade80", "#c084fc", "#fbbf24", "#22c55e", "#ef4444"] }],
+                  datasets: [{ data: conversion.funnel.map((f) => Number(f.count)), backgroundColor: ["#0ea5e9", "#94a3b8", "#22c55e", "#8b5cf6", "#ffb703", "#16a34a", "#ef4444"], borderWidth: 0 }],
                 }}
                 options={{ maintainAspectRatio: false }}
               />
@@ -95,7 +114,7 @@ export function Dashboard() {
         <div className="card">
           <div className="card-title">Upcoming Follow-ups <Link className="btn btn-primary btn-sm" to="/followups">View All</Link></div>
           <div className="followup-list">
-            {data.upcoming_followups.length === 0 && <div className="empty">Nothing due</div>}
+            {data.upcoming_followups.length === 0 && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Nothing due</div>}
             {data.upcoming_followups.map((f) => (
               <div className="followup-item" key={f.id}>
                 <div className="followup-company">{f.company}</div>

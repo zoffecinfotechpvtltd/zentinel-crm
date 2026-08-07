@@ -1,11 +1,17 @@
 import { Router } from "express";
+import multer from "multer";
+import pdfParse from "pdf-parse";
 import { z } from "zod";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { writeActivityLog } from "../lib/activityLog";
 import { buildTallySalesVoucherXml } from "../lib/tallyExport";
+import { parseInvoicePdfText } from "../lib/invoicePdfParse";
+import { computeTotals } from "../lib/invoiceMath";
+import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 
 const router = Router();
+const pdfUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(requireAuth, requireRole("admin", "sales", "finance"));
 
@@ -18,25 +24,6 @@ async function isClientOwnedBySales(clientId: string, userId: string): Promise<b
     [clientId, userId]
   );
   return result.rows.length > 0;
-}
-
-function roundMoney(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-type LineItemInput = { description: string; quantity: number; rate: number; gst_rate: number };
-
-function computeTotals(lines: LineItemInput[]) {
-  let subtotal = 0;
-  let tax = 0;
-  const computed = lines.map((l) => {
-    const lineSubtotal = roundMoney(l.quantity * l.rate);
-    const lineTax = roundMoney(lineSubtotal * (l.gst_rate / 100));
-    subtotal = roundMoney(subtotal + lineSubtotal);
-    tax = roundMoney(tax + lineTax);
-    return { ...l, lineSubtotal, lineTax };
-  });
-  return { subtotal, tax, total: roundMoney(subtotal + tax), lines: computed };
 }
 
 router.get("/", async (req, res) => {
@@ -77,6 +64,108 @@ router.get("/", async (req, res) => {
   );
 
   res.json({ data: dataResult.rows, total: Number(countResult.rows[0].count), page, per_page: perPage });
+});
+
+router.get("/summary", async (req, res) => {
+  const conditions: string[] = ["i.deleted_at is null"];
+  const values: unknown[] = [];
+  let i = 1;
+
+  if (req.user!.role === "sales") {
+    conditions.push(
+      `i.client_id in (select c.id from clients c join leads l on l.id = c.converted_from_lead_id where l.assigned_to = $${i++})`
+    );
+    values.push(req.user!.id);
+  }
+  const whereClause = conditions.join(" and ");
+
+  const result = await pool.query(
+    `select
+       coalesce(sum(i.total) filter (where i.status <> 'Draft' and i.status <> 'Cancelled'), 0) as total_invoiced,
+       coalesce(sum((select coalesce(sum(p.amount), 0) from payments p where p.invoice_id = i.id)), 0) as amount_received,
+       coalesce(sum(${BALANCE_EXPR}) filter (where i.status <> 'Draft' and i.status <> 'Cancelled'), 0) as outstanding,
+       count(*) filter (where i.status = 'Overdue') as overdue_count
+     from invoices i
+     where ${whereClause}`,
+    values
+  );
+  const row = result.rows[0];
+  res.json({
+    total_invoiced: Number(row.total_invoiced),
+    amount_received: Number(row.amount_received),
+    outstanding: Number(row.outstanding),
+    overdue_count: Number(row.overdue_count),
+  });
+});
+
+// Reads a Tally-exported invoice PDF's text layer and returns best-effort
+// extracted fields plus a client match and a duplicate check — nothing is
+// written to the database here. The caller reviews/edits the draft and
+// saves it through the normal POST /invoices path, same as manual entry.
+router.post("/import-pdf", requireRole("admin", "finance"), pdfUpload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "no_file" });
+    return;
+  }
+  if (req.file.mimetype !== "application/pdf") {
+    res.status(400).json({ error: "not_a_pdf" });
+    return;
+  }
+
+  let text: string;
+  try {
+    const parsed = await pdfParse(req.file.buffer);
+    text = parsed.text;
+  } catch {
+    res.status(400).json({ error: "unreadable_pdf", message: "Couldn't read this PDF — it may be a scanned image with no selectable text." });
+    return;
+  }
+
+  const extracted = parseInvoicePdfText(text);
+
+  let matchedClient: { id: string; company: string } | null = null;
+  if (extracted.party_name) {
+    const clientMatch = await pool.query(
+      `select id, company from clients
+       where deleted_at is null and (company ilike $1 or tally_ledger_name ilike $1)
+       order by (tally_ledger_name ilike $1) desc
+       limit 1`,
+      [`%${extracted.party_name}%`]
+    );
+    if (clientMatch.rows.length > 0) matchedClient = clientMatch.rows[0];
+  }
+
+  let duplicate: { id: string; invoice_number: string | null } | null = null;
+  if (extracted.invoice_number) {
+    const byNumber = await pool.query(
+      `select id, invoice_number from invoices where invoice_number = $1 and deleted_at is null`,
+      [extracted.invoice_number]
+    );
+    if (byNumber.rows.length > 0) duplicate = byNumber.rows[0];
+  }
+  if (!duplicate && matchedClient && extracted.total != null && extracted.invoice_date) {
+    const byFingerprint = await pool.query(
+      `select id, invoice_number from invoices
+       where deleted_at is null and client_id = $1 and total = $2 and invoice_date = $3`,
+      [matchedClient.id, extracted.total, extracted.invoice_date]
+    );
+    if (byFingerprint.rows.length > 0) duplicate = byFingerprint.rows[0];
+  }
+
+  res.json({
+    extracted: {
+      invoice_number: extracted.invoice_number,
+      invoice_date: extracted.invoice_date,
+      due_date: extracted.due_date,
+      party_name: extracted.party_name,
+      subtotal: extracted.subtotal,
+      gst_rate: extracted.gst_rate,
+      tax: extracted.tax,
+      total: extracted.total,
+    },
+    matched_client: matchedClient,
+    duplicate,
+  });
 });
 
 async function assertInvoiceReadAccess(req: import("express").Request, invoice: { client_id: string }, res: import("express").Response): Promise<boolean> {
@@ -559,5 +648,7 @@ router.post("/:id/mark-synced", requireRole("admin", "finance"), async (req, res
   }
   res.json(result.rows[0]);
 });
+
+mountNotesAndAttachments(router, "invoice");
 
 export default router;

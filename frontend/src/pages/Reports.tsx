@@ -3,6 +3,8 @@ import { useFetch } from "../lib/useFetch";
 import { API_BASE } from "../lib/api";
 import { formatMoney, formatMoneyExact, formatDate } from "../lib/format";
 import { Badge } from "../components/Badge";
+import { PageHeader } from "../components/PageHeader";
+import { IconReports } from "../components/Icons";
 
 const TABS = [
   { key: "conversion", label: "Lead Conversion" },
@@ -46,11 +48,9 @@ export function Reports() {
 
   return (
     <div>
-      <div className="section-header">
-        <div className="section-title">Reports & Analytics</div>
-      </div>
+      <PageHeader icon={<IconReports size={19} />} title="Reports & Analytics" subtitle="Pipeline, revenue, and payment visibility across the company" />
       <div className="tab-bar">
-        {TABS.map((t) => <button key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
+        {TABS.map((t) => <button type="button" key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
 
       {(tab === "conversion" || tab === "revenue" || tab === "service") && (
@@ -121,7 +121,7 @@ export function Reports() {
             <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Pending</option><option value="Overdue">Overdue only</option><option value="Sent">Sent</option><option value="Partial">Partial</option>
             </select>
-            <button className="btn btn-ghost" onClick={exportPending}>⭳ Export Excel</button>
+            <button type="button" className="btn btn-ghost" onClick={exportPending}>⭳ Export Excel</button>
           </div>
           <div className="card" style={{ padding: 0 }}>
             <div className="table-wrap">

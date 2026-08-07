@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ToastProvider } from "./components/Toast";
 import { RequireAuth, RequireRole } from "./components/RequireAuth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
@@ -16,6 +17,8 @@ import { Notifications } from "./pages/Notifications";
 import { Users } from "./pages/Users";
 import { MessageTemplates } from "./pages/MessageTemplates";
 import { Settings } from "./pages/Settings";
+import { AuditLog } from "./pages/AuditLog";
+import { MyAccount } from "./pages/MyAccount";
 import { api } from "./lib/api";
 
 // Blocks the entire app until we know whether an admin account exists yet.
@@ -40,6 +43,7 @@ function SetupGate({ children }: { children: ReactNode }) {
 function App() {
   return (
     <BrowserRouter>
+      <ToastProvider>
       <AuthProvider>
         <SetupGate>
           <Routes>
@@ -59,6 +63,7 @@ function App() {
               <Route path="/followups" element={<Followups />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/account" element={<MyAccount />} />
               <Route
                 path="/users"
                 element={
@@ -83,10 +88,19 @@ function App() {
                   </RequireRole>
                 }
               />
+              <Route
+                path="/audit-log"
+                element={
+                  <RequireRole roles={["admin"]}>
+                    <AuditLog />
+                  </RequireRole>
+                }
+              />
             </Route>
           </Routes>
         </SetupGate>
       </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

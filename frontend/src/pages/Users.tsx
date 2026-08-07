@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
 import { Modal } from "../components/Modal";
+import { PageHeader } from "../components/PageHeader";
+import { useToast } from "../components/Toast";
+import { IconUsers, IconPlus } from "../components/Icons";
 
 type User = { id: string; email: string; name: string; role: string; is_active: boolean };
 
@@ -9,6 +12,7 @@ const ROLES = ["admin", "sales", "finance", "ops"];
 
 export function Users() {
   const { data, reload } = useFetch<User[]>("/users");
+  const { push } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "", role: "sales" });
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +23,7 @@ export function Users() {
       await api.post("/users", form);
       setModalOpen(false);
       setForm({ email: "", password: "", name: "", role: "sales" });
+      push("User created", "success");
       reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create user");
@@ -27,15 +32,18 @@ export function Users() {
 
   async function toggleActive(u: User) {
     await api.patch(`/users/${u.id}`, { is_active: !u.is_active });
+    push(u.is_active ? `${u.name} deactivated` : `${u.name} reactivated`, "info");
     reload();
   }
 
   return (
     <div>
-      <div className="section-header">
-        <div className="section-title">Users</div>
-        <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ Add User</button>
-      </div>
+      <PageHeader
+        icon={<IconUsers size={19} />}
+        title="Users"
+        subtitle={data ? `${data.length} team member${data.length === 1 ? "" : "s"}` : undefined}
+        actions={<button type="button" className="btn btn-primary" onClick={() => setModalOpen(true)}><IconPlus size={14} /> Add User</button>}
+      />
       <div className="card" style={{ padding: 0 }}>
         <div className="table-wrap">
           <table>
@@ -43,9 +51,9 @@ export function Users() {
             <tbody>
               {data?.map((u) => (
                 <tr key={u.id}>
-                  <td>{u.name}</td><td>{u.email}</td><td style={{ textTransform: "capitalize" }}>{u.role}</td>
+                  <td style={{ fontWeight: 550, color: "var(--text)" }}>{u.name}</td><td>{u.email}</td><td><span className="role-badge">{u.role}</span></td>
                   <td>{u.is_active ? <span style={{ color: "var(--success)" }}>Active</span> : <span style={{ color: "var(--text3)" }}>Deactivated</span>}</td>
-                  <td><button className="btn btn-ghost btn-sm" onClick={() => toggleActive(u)}>{u.is_active ? "Deactivate" : "Reactivate"}</button></td>
+                  <td><button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleActive(u)}>{u.is_active ? "Deactivate" : "Reactivate"}</button></td>
                 </tr>
               ))}
             </tbody>
@@ -55,8 +63,8 @@ export function Users() {
 
       {modalOpen && (
         <Modal title="Add User" onClose={() => setModalOpen(false)} footer={<>
-          <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-          <button className="btn btn-primary" onClick={createUser}>Create</button>
+          <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={createUser}>Create</button>
         </>}>
           {error && <div className="banner banner-error">{error}</div>}
           <div className="form-grid">

@@ -6,7 +6,19 @@ import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
 
-router.use(requireAuth, requireRole("admin"));
+router.use(requireAuth);
+
+// Any authenticated user can see who's available to assign work to (name/role
+// only, no email/status) — needed for the Projects "Assigned To" picker,
+// which isn't admin-only. Everything else on this router stays admin-gated.
+router.get("/assignable", async (_req, res) => {
+  const result = await pool.query(
+    `select id, name, role from users where is_active and deleted_at is null order by name`
+  );
+  res.json(result.rows);
+});
+
+router.use(requireRole("admin"));
 
 router.get("/", async (_req, res) => {
   const result = await pool.query(

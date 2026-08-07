@@ -19,7 +19,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}/api${path}`, {
     credentials: "include",
     headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.body && !(options.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
     },
     ...options,
@@ -42,4 +42,7 @@ export const api = {
   patch: <T>(path: string, data?: unknown) => request<T>(path, { method: "PATCH", body: data !== undefined ? JSON.stringify(data) : undefined }),
   put: <T>(path: string, data?: unknown) => request<T>(path, { method: "PUT", body: data !== undefined ? JSON.stringify(data) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  // Multipart upload — skips the JSON Content-Type header so the browser can
+  // set the correct multipart boundary itself.
+  postForm: <T>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
 };

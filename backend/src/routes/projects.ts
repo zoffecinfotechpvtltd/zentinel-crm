@@ -4,6 +4,8 @@ import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { writeActivityLog } from "../lib/activityLog";
 import { createNotification } from "../lib/notifications";
+import { buildSingleEventIcs } from "../lib/ics";
+import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 
 const router = Router();
 
@@ -45,8 +47,11 @@ router.get("/", async (req, res) => {
 
   const countResult = await pool.query(`select count(*) from projects p where ${whereClause}`, values);
   const dataResult = await pool.query(
-    `select p.*, ${OVERDUE_EXPR} as is_overdue, ${DUE_THIS_WEEK_EXPR} as is_due_this_week
+    `select p.*, ${OVERDUE_EXPR} as is_overdue, ${DUE_THIS_WEEK_EXPR} as is_due_this_week,
+       u.name as assigned_to_name, s.name as service_name
      from projects p
+     left join users u on u.id = p.assigned_to
+     left join services s on s.id = p.service_id
      where ${whereClause}
      order by p.due_date nulls last, p.created_at desc
      limit $${i} offset $${i + 1}`,
@@ -76,6 +81,34 @@ router.get("/:id", async (req, res) => {
   );
 
   res.json({ ...project, client_other_active_projects: siblingsResult.rows });
+});
+
+router.get("/:id/due-date.ics", async (req, res) => {
+  const result = await pool.query(
+    `select p.*, c.company as client_company from projects p
+     left join clients c on c.id = p.client_id
+     where p.id = $1 and p.deleted_at is null`,
+    [req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const project = result.rows[0];
+  if (!project.due_date) {
+    res.status(400).json({ error: "no_due_date" });
+    return;
+  }
+
+  const ics = buildSingleEventIcs({
+    uid: project.id,
+    date: project.due_date,
+    summary: `Due — ${project.name}`,
+    description: project.client_company ? `Client: ${project.client_company}` : undefined,
+  });
+  res.setHeader("Content-Type", "text/calendar");
+  res.setHeader("Content-Disposition", `attachment; filename="due-${project.name.replace(/[^a-z0-9]/gi, "-")}.ics"`);
+  res.send(ics);
 });
 
 const createProjectSchema = z.object({
@@ -259,5 +292,7 @@ router.delete("/:id", requireRole("admin"), async (req, res) => {
   }
   res.json({ ok: true });
 });
+
+mountNotesAndAttachments(router, "project");
 
 export default router;

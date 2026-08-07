@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { pool } from "../db/pool";
 import { getSessionCookieName, setSessionCookie, sessionTtlMs } from "../lib/session";
+import { createNotification } from "../lib/notifications";
 
 export type Role = "admin" | "sales" | "finance" | "ops";
 
@@ -64,6 +65,43 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   next();
 }
 
+// In-memory 403 tracker — flags a burst of forbidden attempts from one
+// account (credential sharing gone wrong, a compromised session probing for
+// access, or a broken frontend build hammering an endpoint it shouldn't).
+// In-memory is fine here: worst case a restart resets the counter, which
+// just means one fewer alert, not a missed block — the requireRole check
+// itself is unaffected either way.
+const FORBIDDEN_THRESHOLD = 5;
+const FORBIDDEN_WINDOW_MS = 5 * 60 * 1000;
+const forbiddenAttempts = new Map<string, { count: number; windowStart: number; alerted: boolean }>();
+
+async function trackForbidden(userId: string, userLabel: string, path: string): Promise<void> {
+  const now = Date.now();
+  const entry = forbiddenAttempts.get(userId);
+  if (!entry || now - entry.windowStart > FORBIDDEN_WINDOW_MS) {
+    forbiddenAttempts.set(userId, { count: 1, windowStart: now, alerted: false });
+    return;
+  }
+  entry.count++;
+  if (entry.count >= FORBIDDEN_THRESHOLD && !entry.alerted) {
+    entry.alerted = true;
+    console.warn(`[security] ${entry.count} forbidden attempts from ${userLabel} in the last 5 minutes (latest: ${path})`);
+    try {
+      const admins = await pool.query(`select id from users where role = 'admin' and is_active and deleted_at is null`);
+      for (const admin of admins.rows) {
+        await createNotification(pool, {
+          userId: admin.id,
+          type: "security_alert",
+          title: "Repeated access-denied attempts",
+          body: `${userLabel} hit ${entry.count} forbidden requests in 5 minutes (latest: ${path}). Worth a look if unexpected.`,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to write security_alert notifications:", err);
+    }
+  }
+}
+
 export function requireRole(...roles: Role[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
@@ -72,6 +110,7 @@ export function requireRole(...roles: Role[]) {
     }
     if (!roles.includes(req.user.role)) {
       res.status(403).json({ error: "forbidden" });
+      void trackForbidden(req.user.id, `${req.user.email} (${req.user.role})`, req.originalUrl);
       return;
     }
     next();
