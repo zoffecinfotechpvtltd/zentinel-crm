@@ -9,7 +9,7 @@ name: Keep backend awake
 #
 # Set BACKEND_URL once, after deploying: repo Settings → Secrets and
 # variables → Actions → Variables → new repository variable named
-# BACKEND_URL, value e.g. https://zoffec-sentinel.onrender.com
+# BACKEND_URL, value e.g. https://zentinel-api.onrender.com
 # (no trailing slash). Nothing to do here if you're not on Render's free
 # tier — a paid/always-on host doesn't need this, the workflow just
 # becomes a harmless no-op ping.
