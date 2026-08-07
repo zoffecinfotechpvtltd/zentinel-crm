@@ -1,47 +1,44 @@
-/* Zoffec Sentinel — theme v3, adapted from the provided Craftivo-style
-   design system (palette / type / component reference). Light is now the
-   default surface (per the reference's "Theme Preview (Light)" mockup);
-   dark stays available via the existing toggle, derived from the same
-   tokens rather than a separate hand-tuned palette.
+/* Zoffec Sentinel — theme v4. Single-family monochrome navy/blue, from a
+   4-swatch client palette (#0E182F, #4A6FC9, #D8E0F3, #0C1427) — no second
+   brand hue this time. Everything else (status badges) stays semantically
+   colored since 7 lead stages genuinely need to be tell-apart-able, but the
+   BRAND surfaces — buttons, active nav, the sidebar, links — never leave
+   this one blue family. That restraint is the fix for what read as clashing
+   before: one hue, used consistently, at different depths.
 
-   Signature carried through from the reference: a solid-orange fill marks
-   "the active thing" everywhere — active nav item, active tab, selected
-   table row, unread rail — against the dark navy sidebar. One accent, used
-   consistently, is the whole visual idea; everything else stays quiet. */
+   Both themes are first-class, not one derived as an afterthought — the
+   light surface is built from the same lavender-blue swatch rather than
+   generic slate, so light and dark visibly belong to the same product. */
 
 :root {
-  /* neutrals — slate scale, matches the reference's neutral ramp */
-  --bg: #f8fafc;
+  /* neutrals — the pale-lavender swatch IS --bg3 (the tint used for
+     hover/fills/table headers); --bg/--bg2 are lighter/whiter steps above
+     it so cards still lift off the page. */
+  --bg: #eef2fa;
   --bg2: #ffffff;
-  --bg3: #f1f5f9;
-  --bg4: #e2e8f0;
-  --bg5: #cbd5e1;
-  --text: #0f172a;
-  --text2: #334155;
-  --text3: #64748b;
-  --border: #e2e8f0;
-  --border2: #cbd5e1;
+  --bg3: #d8e0f3;
+  --bg4: #c3ceea;
+  --bg5: #a9b8de;
+  --text: #0c1427;
+  --text2: #3d4a6b;
+  --text3: #546080;
+  --border: #c9d3ec;
+  --border2: #a9b8de;
 
-  /* brand — blue is the primary action color, red is the second half of the
-     signature gradient (logo, active nav, primary buttons, login backdrop).
-     Everywhere else stays disciplined single-hue, per-status, so the
-     gradient reads as a deliberate signature rather than decoration. */
-  --accent: #2563eb;
-  --accent2: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.12);
-  --red: #dc2626;
-  --red2: #b91c1c;
-  --red-soft: rgba(220, 38, 38, 0.12);
-  --brand-gradient: linear-gradient(135deg, var(--accent), var(--red));
-  --amber: #ffb703;
-  --primary-navy: #0b1330;
-  --primary-navy2: #16214a;
+  /* brand — one blue, three jobs: --accent for large fields (buttons, the
+     active-nav fill), --accent2 for small text/icons that need more
+     contrast sitting directly on a light background (links, active tab). */
+  --accent: #4a6fc9;
+  --accent2: #3a5aa8;
+  --accent-soft: rgba(74, 111, 201, 0.12);
+  --primary-navy: #0c1427;
+  --primary-navy2: #0e182f;
 
-  /* status */
+  /* status — semantic, not brand; stays legible against either theme */
   --success: #22c55e;
   --success-soft: rgba(34, 197, 94, 0.12);
-  --warning: #ffb703;
-  --warning-soft: rgba(255, 183, 3, 0.16);
+  --warning: #f59e0b;
+  --warning-soft: rgba(245, 158, 11, 0.14);
   --danger: #dc2626;
   --danger-soft: rgba(220, 38, 38, 0.12);
   --info: #0891b2;
@@ -52,36 +49,37 @@
   --pink-soft: rgba(236, 72, 153, 0.12);
   --teal: #14b8a6;
   --teal-soft: rgba(20, 184, 166, 0.12);
-  --orange: var(--amber);
+  --orange: #f59e0b;
 
-  /* scale — from the reference's design-tokens panel */
+  /* scale */
   --radius-sm: 4px;
   --radius: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.14);
+  --shadow-sm: 0 1px 2px rgba(12, 20, 39, 0.06);
+  --shadow-md: 0 4px 16px rgba(12, 20, 39, 0.08);
+  --shadow-lg: 0 12px 32px rgba(12, 20, 39, 0.16);
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
-/* Dark mode: same tokens, inverted surfaces — not a second hand-tuned
-   palette, so the brand reads identically in both. Applied via body.dark
-   (set from JS in Layout.tsx), not a media query — the toggle is a user
-   choice, persisted, and the OS preference only picks the initial value. */
+/* Dark mode: the two near-black navy swatches anchor --bg/--bg2 directly —
+   this is the same family the sidebar has always used, so for the first
+   time the sidebar and the page it sits next to are visibly the same
+   material instead of two different darks bolted together. */
 body.dark {
   color-scheme: dark;
-  --bg: #0b1120;
-  --bg2: #131c2e;
-  --bg3: #1a2438;
-  --bg4: #253148;
-  --bg5: #334155;
-  --text: #f1f5f9;
-  --text2: #b6c2d4;
-  --text3: #7c8aa3;
-  --border: #253148;
-  --border2: #334155;
-  --accent-soft: rgba(255, 122, 0, 0.18);
+  --bg: #0c1427;
+  --bg2: #0e182f;
+  --bg3: #16213d;
+  --bg4: #1f2c4d;
+  --bg5: #2c3a63;
+  --text: #eaf0fb;
+  --text2: #b8c4e0;
+  --text3: #8593b8;
+  --border: #1f2c4d;
+  --border2: #2c3a63;
+  --accent2: #7c9ae0;
+  --accent-soft: rgba(74, 111, 201, 0.2);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
@@ -145,7 +143,7 @@ td.mono,
 .logo-mark {
   width: 30px; height: 30px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: 13px; flex-shrink: 0;
-  background: var(--brand-gradient);
+  background: linear-gradient(135deg, #6e8fda, var(--accent));
   box-shadow: var(--shadow-sm);
 }
 .nav-section { padding: 10px 0; }
@@ -157,10 +155,10 @@ td.mono,
 }
 .nav-item svg { flex-shrink: 0; opacity: .85; }
 .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-.nav-item.active { background: var(--brand-gradient); color: #fff; font-weight: 600; box-shadow: var(--shadow-sm); }
+.nav-item.active { background: var(--accent); color: #fff; font-weight: 600; box-shadow: var(--shadow-sm); }
 .nav-item.active svg { opacity: 1; color: #fff; }
 .nav-badge { margin-left: auto; background: #fff; color: var(--accent2); font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 16px; text-align: center; }
-.nav-item.active .nav-badge { background: rgba(255,255,255,0.25); color: #fff; }
+.nav-item.active .nav-badge { background: var(--primary-navy); color: #fff; }
 .nav-footer { margin-top: auto; padding: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
 
 .main { margin-left: 232px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
@@ -214,8 +212,13 @@ td.mono,
   font-family: inherit; white-space: nowrap;
 }
 .btn svg { flex-shrink: 0; }
-.btn-primary { background: var(--brand-gradient); color: #fff; box-shadow: var(--shadow-sm); }
-.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+.btn-primary:hover { background: var(--accent2); }
+/* --accent2 flips lighter in dark mode (needed so links/icons stay readable
+   on dark surfaces) — wrong direction for a hover background under white
+   button text, so dark mode brightens the base blue instead of swapping to
+   accent2 here specifically. */
+body.dark .btn-primary:hover { background: var(--accent); filter: brightness(1.18); }
 .btn-ghost { background: var(--bg2); border-color: var(--border2); color: var(--text2); }
 .btn-ghost:hover { background: var(--bg3); color: var(--text); border-color: var(--text3); }
 .btn-danger { background: var(--danger); color: #fff; }
@@ -352,7 +355,7 @@ tr.row-selected td { background: var(--accent-soft); }
 .timeline-time { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
 .progress-bar { height: 6px; background: var(--bg4); border-radius: 10px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--accent), var(--red)); transition: width .3s var(--ease); }
+.progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width .3s var(--ease); }
 
 .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 650; flex-shrink: 0; }
 .av-blue { background: var(--info-soft); color: #0284c7; }
@@ -400,8 +403,8 @@ tr.row-selected td { background: var(--accent-soft); }
 .login-shell {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
   background:
-    radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.35), transparent 45%),
-    radial-gradient(circle at 88% 92%, rgba(220, 38, 38, 0.28), transparent 45%),
+    radial-gradient(circle at 18% 12%, rgba(74, 111, 201, 0.4), transparent 50%),
+    radial-gradient(circle at 85% 88%, rgba(74, 111, 201, 0.16), transparent 55%),
     var(--primary-navy);
 }
 .login-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 36px; width: 380px; max-width: 92vw; box-shadow: var(--shadow-lg); }

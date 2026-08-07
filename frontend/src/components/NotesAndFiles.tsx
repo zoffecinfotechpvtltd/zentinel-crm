@@ -77,7 +77,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
   return (
     <div className="grid2" style={{ marginTop: 4 }}>
       <div className="card">
-        <div className="card-title">Notes</div>
+        <div className="card-title">Activity Notes</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           <textarea
             className="form-textarea"
