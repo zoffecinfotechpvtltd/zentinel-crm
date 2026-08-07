@@ -9,13 +9,18 @@ import { IconSettings } from "../components/Icons";
 const RESTORE_CONFIRM_PHRASE = "REPLACE ALL DATA";
 
 type SmtpConfig = { host: string; port: number; user: string; from: string };
-type ServerInfo = { hostname: string; lan_addresses: string[]; port: number; desktop_bind: "lan" | "loopback" | "not_desktop" };
+type ServerInfo = { hostname: string; lan_addresses: string[]; port: number; desktop_bind: "lan" | "loopback" | "not_desktop"; object_storage_configured: boolean };
+type IntegrationsConfig = { lead_webhook_secret: string | null; outbound_webhook_url: string | null };
 
 export function Settings() {
   const { push } = useToast();
   const confirm = useConfirm();
   const { data, reload } = useFetch<SmtpConfig | null>("/settings/smtp");
   const { data: serverInfo } = useFetch<ServerInfo>("/system/server-info");
+  const { data: integrations, reload: reloadIntegrations } = useFetch<IntegrationsConfig>("/settings/integrations");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookSaved, setWebhookSaved] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [form, setForm] = useState({ host: "", port: "587", user: "", pass: "", from: "" });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +37,32 @@ export function Settings() {
       setForm({ host: data.host, port: String(data.port), user: data.user, pass: "", from: data.from });
     }
   }, [data]);
+
+  useEffect(() => {
+    if (integrations) setWebhookUrl(integrations.outbound_webhook_url ?? "");
+  }, [integrations]);
+
+  async function saveOutboundWebhook() {
+    setWebhookSaved(false);
+    try {
+      await api.put("/settings/integrations/outbound-webhook", { url: webhookUrl });
+      setWebhookSaved(true);
+      reloadIntegrations();
+    } catch (err) {
+      push(err instanceof ApiError ? err.message : "Failed to save", "error");
+    }
+  }
+
+  async function regenerateLeadSecret() {
+    setRegenerating(true);
+    try {
+      await api.post("/settings/integrations/lead-webhook-secret/regenerate");
+      push("New lead-capture key generated — update your website's form handler with it.", "success");
+      reloadIntegrations();
+    } finally {
+      setRegenerating(false);
+    }
+  }
 
   async function save() {
     setError(null);
@@ -160,6 +191,19 @@ export function Settings() {
         </div>
       )}
 
+      {serverInfo && serverInfo.desktop_bind === "not_desktop" && (
+        <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
+          <div className="card-title">File Storage</div>
+          {serverInfo.object_storage_configured ? (
+            <div className="banner banner-info">Object storage is active — uploaded files persist across deploys and restarts, and a full database backup is written there automatically every night.</div>
+          ) : (
+            <div className="banner banner-error">
+              Attachments are stored on local disk, which is wiped on every redeploy/restart on a free-tier host. Set S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY as environment variables to make uploads permanent — a free Supabase Storage bucket (S3-compatible, no card required) works with these as-is.
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
         <div className="card-title">Backup &amp; Restore</div>
         <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14 }}>
@@ -190,6 +234,43 @@ export function Settings() {
           >
             {restoring ? "Restoring…" : "Restore — replace all data"}
           </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
+        <div className="card-title">Integrations</div>
+        <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14 }}>
+          Internal automation hooks — not a public API. Use these to connect your own website's contact form or your own Slack/Make.com/n8n/Zapier webhook.
+        </p>
+
+        <div style={{ marginBottom: 20 }}>
+          <div className="form-label" style={{ marginBottom: 6 }}>Website lead capture</div>
+          <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 8 }}>
+            POST <code className="mono">{`${API_BASE}/api/public/leads`}</code> with <code className="mono">{`{ secret, company, contact_person, email, mobile?, message? }`}</code> from your website's form handler to create a lead here automatically. Assigns round-robin to Sales, same as a manually entered lead.
+          </p>
+          {integrations?.lead_webhook_secret ? (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+              <code className="mono" style={{ background: "var(--bg3)", padding: "6px 10px", borderRadius: 6, fontSize: 12, flex: 1, wordBreak: "break-all" }}>{integrations.lead_webhook_secret}</code>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { navigator.clipboard.writeText(integrations.lead_webhook_secret ?? ""); push("Copied", "success"); }}>Copy</button>
+            </div>
+          ) : (
+            <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 8 }}>Not set up yet.</p>
+          )}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={regenerateLeadSecret} disabled={regenerating}>
+            {regenerating ? "Generating…" : integrations?.lead_webhook_secret ? "Regenerate key" : "Generate key"}
+          </button>
+        </div>
+
+        <div style={{ paddingTop: 18, borderTop: "1px solid var(--border)" }}>
+          <div className="form-group" style={{ marginBottom: 10 }}>
+            <label className="form-label">Outbound webhook URL</label>
+            <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 8 }}>
+              Fires a JSON POST here when a lead is Won or Lost, an invoice is fully paid, or a project is marked Completed — paste in a Slack incoming-webhook URL or a Make.com/n8n/Zapier webhook trigger.
+            </p>
+            <input className="form-input" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://hooks.slack.com/services/..." />
+          </div>
+          {webhookSaved && <div className="banner banner-info">Saved.</div>}
+          <button type="button" className="btn btn-primary btn-sm" onClick={saveOutboundWebhook}>Save</button>
         </div>
       </div>
     </div>

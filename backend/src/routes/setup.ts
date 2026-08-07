@@ -3,6 +3,7 @@ import { z } from "zod";
 import { pool } from "../db/pool";
 import { hashPassword } from "../lib/password";
 import { createSession, setSessionCookie } from "../lib/session";
+import { passwordSchema } from "../lib/passwordPolicy";
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get("/status", async (_req, res) => {
 const createAdminSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
-  password: z.string().min(8),
+  password: passwordSchema,
 });
 
 router.post("/create-admin", async (req, res) => {

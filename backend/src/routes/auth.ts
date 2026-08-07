@@ -9,6 +9,7 @@ import { requireAuth } from "../middleware/auth";
 import { sendMail } from "../lib/mail";
 import { generateSecret, buildOtpauthUri, verifyTotpCode, generateBackupCodes, hashBackupCodes, tryConsumeBackupCode } from "../lib/totp";
 import { getAppBaseUrl } from "../lib/appUrl";
+import { passwordSchema } from "../lib/passwordPolicy";
 
 const router = Router();
 
@@ -252,7 +253,7 @@ router.post("/2fa/disable", requireAuth, async (req, res) => {
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8),
+  newPassword: passwordSchema,
 });
 
 // Self-service password change — the gap left by the fact that the only
@@ -352,7 +353,7 @@ router.post("/password-reset/request", async (req, res) => {
 
 const resetConfirmSchema = z.object({
   token: z.string().min(1),
-  newPassword: z.string().min(8),
+  newPassword: passwordSchema,
 });
 
 router.post("/password-reset/confirm", async (req, res) => {

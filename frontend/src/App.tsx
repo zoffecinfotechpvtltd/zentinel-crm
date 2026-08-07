@@ -7,6 +7,7 @@ import { RequireAuth, RequireRole } from "./components/RequireAuth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
 import { ResetPassword } from "./pages/ResetPassword";
+import { SignDocument } from "./pages/SignDocument";
 import { Setup } from "./pages/Setup";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
@@ -52,6 +53,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/sign/:token" element={<SignDocument />} />
             <Route
               element={
                 <RequireAuth>

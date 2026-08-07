@@ -61,11 +61,19 @@ function SalesFollowups() {
   const { data, reload } = useFetch<ListResponse<Lead>>(`/leads?followup=${tab}&per_page=50`, [tab]);
   const { data: templates } = useFetch<Template[]>("/message-templates");
 
-  async function copyTemplate(leadId: string, templateId: string) {
+  // WhatsApp templates open wa.me with the message pre-filled — one click
+  // instead of copy, switch apps, paste. This is a deep link into the
+  // regular WhatsApp app/web client, not the WhatsApp Business API: no
+  // automated sending, no delivery tracking, still one message at a time.
+  async function copyTemplate(lead: Lead, templateId: string, template: Template) {
     try {
-      const rendered = await api.get<{ rendered: string; subject: string | null }>(`/leads/${leadId}/templates/${templateId}/render`);
-      await navigator.clipboard.writeText(rendered.rendered);
-      push("Message copied — paste it wherever you're sending it", "success");
+      const rendered = await api.get<{ rendered: string; subject: string | null }>(`/leads/${lead.id}/templates/${templateId}/render`);
+      if (template.channel === "whatsapp" && lead.mobile) {
+        window.open(`https://wa.me/${lead.mobile.replace(/\D/g, "")}?text=${encodeURIComponent(rendered.rendered)}`, "_blank", "noreferrer");
+      } else {
+        await navigator.clipboard.writeText(rendered.rendered);
+        push("Message copied — paste it wherever you're sending it", "success");
+      }
     } catch (err) {
       push(err instanceof Error ? err.message : "Couldn't render that template", "error");
     }
@@ -110,8 +118,8 @@ function SalesFollowups() {
               {templates && templates.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                   {templates.map((t) => (
-                    <button type="button" key={t.id} className="btn btn-ghost btn-sm" onClick={() => copyTemplate(l.id, t.id)}>
-                      {t.name}
+                    <button type="button" key={t.id} className="btn btn-ghost btn-sm" onClick={() => copyTemplate(l, t.id, t)}>
+                      {t.channel === "whatsapp" ? `WhatsApp: ${t.name}` : t.name}
                     </button>
                   ))}
                 </div>

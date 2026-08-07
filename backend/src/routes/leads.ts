@@ -6,6 +6,7 @@ import { writeActivityLog } from "../lib/activityLog";
 import { createNotification } from "../lib/notifications";
 import { buildSingleEventIcs } from "../lib/ics";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
+import { fireWebhook } from "../lib/outboundWebhook";
 
 const router = Router();
 
@@ -18,12 +19,51 @@ const INDUSTRIES = [
 const SOURCES = ["Website", "Referral", "LinkedIn", "Cold Call", "Event", "Email Campaign"] as const;
 const STATUSES = ["New", "Contacted", "Qualified", "Proposal Sent", "Negotiation", "Won", "Lost"] as const;
 
+// 0-100 heuristic, not a machine-learned model — stage progress (how far
+// through the pipeline), deal size, source quality (referrals convert
+// better than cold calls, in general), and how recently it's been touched.
+// Won/Lost short-circuit to 100/0 since those are already resolved, not
+// "how promising is this" anymore. Capped at 100 by construction: stage
+// (max 40) + value (max 25) + source (max 15) + recency (max 20) = 100.
+const LEAD_SCORE_EXPR = `
+  case
+    when l.status = 'Won' then 100
+    when l.status = 'Lost' then 0
+    else round(least(100, greatest(0,
+      case l.status
+        when 'Negotiation' then 40
+        when 'Proposal Sent' then 35
+        when 'Qualified' then 25
+        when 'Contacted' then 15
+        else 5
+      end
+      + least(coalesce(l.value_estimate, 0) / 20000, 25)
+      + case l.source
+          when 'Referral' then 15
+          when 'Website' then 12
+          when 'LinkedIn' then 10
+          when 'Event' then 10
+          when 'Email Campaign' then 6
+          when 'Cold Call' then 4
+          else 5
+        end
+      + case
+          when l.updated_at >= now() - interval '3 days' then 20
+          when l.updated_at >= now() - interval '7 days' then 15
+          when l.updated_at >= now() - interval '14 days' then 10
+          when l.updated_at >= now() - interval '30 days' then 5
+          else 0
+        end
+    )))
+  end
+`;
+
 // Cycles through active Sales reps in a stable order, remembering the last
 // one assigned in the settings table (same key-value table Settings' SMTP
 // config and the FY revenue target already use). Only kicks in when an
 // Admin creates a lead without picking an owner — a Sales rep creating their
 // own lead defaults to themself, not into the rotation.
-async function getNextRoundRobinSalesRep(): Promise<string | null> {
+export async function getNextRoundRobinSalesRep(): Promise<string | null> {
   const reps = await pool.query(
     `select id from users where role = 'sales' and is_active and deleted_at is null order by created_at, id`
   );
@@ -110,7 +150,7 @@ router.get("/", async (req, res) => {
 
   const countResult = await pool.query(`select count(*) from leads where ${whereClause}`, values);
   const dataResult = await pool.query(
-    `select * from leads where ${whereClause} order by created_at desc limit $${i} offset $${i + 1}`,
+    `select l.*, ${LEAD_SCORE_EXPR} as lead_score from leads l where ${whereClause} order by created_at desc limit $${i} offset $${i + 1}`,
     [...values, perPage, offset]
   );
 
@@ -125,7 +165,7 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   if (!assertLeadsAccess(req.user!.role, res)) return;
 
-  const result = await pool.query(`select * from leads where id = $1 and deleted_at is null`, [req.params.id]);
+  const result = await pool.query(`select l.*, ${LEAD_SCORE_EXPR} as lead_score from leads l where id = $1 and deleted_at is null`, [req.params.id]);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -305,6 +345,14 @@ router.patch("/:id", requireRole("admin", "sales"), async (req, res) => {
       });
     }
 
+    if (f.status && (f.status === "Won" || f.status === "Lost") && f.status !== existing.status) {
+      fireWebhook(f.status === "Won" ? "lead.won" : "lead.lost", {
+        lead_id: req.params.id,
+        company: updateResult.rows[0].company,
+        value_estimate: updateResult.rows[0].value_estimate,
+      });
+    }
+
     res.json(updateResult.rows[0]);
   } catch (err) {
     await client.query("rollback");
@@ -402,6 +450,7 @@ router.post("/:id/convert", requireRole("admin", "sales"), async (req, res) => {
     });
 
     await client.query("commit");
+    fireWebhook("lead.won", { lead_id: lead.id, company: lead.company, value_estimate: wonValue });
     res.status(201).json({ client: newClient, lead_id: lead.id });
   } catch (err) {
     await client.query("rollback");

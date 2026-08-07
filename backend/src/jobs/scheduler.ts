@@ -4,6 +4,8 @@ import { runFollowupReminderJob } from "./followupReminders";
 import { runArchiveNotificationsJob } from "./archiveNotifications";
 import { runDailyDigestJob } from "./dailyDigest";
 import { runCleanupOldRecordsJob } from "./cleanupOldRecords";
+import { runAutomatedBackupJob } from "./automatedBackup";
+import { runWeeklyReportDigestJob } from "./weeklyReportDigest";
 
 type ScheduledJob = {
   name: string;
@@ -55,6 +57,22 @@ const jobs: ScheduledJob[] = [
     task: async () => {
       const r = await runCleanupOldRecordsJob();
       console.log(`Cleanup job: ${r.sessions} expired session(s), ${r.resetTokens} old reset token(s), ${r.leads} ancient unconverted lead(s) purged.`);
+    },
+  },
+  {
+    name: "automated-backup",
+    cronExpr: "0 4 * * *",
+    task: async () => {
+      const r = await runAutomatedBackupJob();
+      if (!r.skipped) console.log(`Automated backup job: wrote ${r.key}.`);
+    },
+  },
+  {
+    name: "weekly-report-digest",
+    cronExpr: "0 8 * * 1", // Monday 08:00
+    task: async () => {
+      const { sent } = await runWeeklyReportDigestJob();
+      console.log(`Weekly report digest job: sent ${sent} email(s).`);
     },
   },
 ];

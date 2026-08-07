@@ -9,7 +9,11 @@ import { IconPaperclip, IconTrash, IconPlus } from "./Icons";
 
 type EntityType = "lead" | "client" | "project" | "invoice";
 type Note = { id: string; body: string; created_at: string; created_by: string | null; author_name: string | null };
-type Attachment = { id: string; filename: string; mime_type: string; size_bytes: number; document_type: string | null; created_at: string; uploaded_by: string | null; uploader_name: string | null };
+type Attachment = {
+  id: string; filename: string; mime_type: string; size_bytes: number; document_type: string | null;
+  created_at: string; uploaded_by: string | null; uploader_name: string | null;
+  signature_status: "pending" | "signed" | "cancelled" | null; signer_name: string | null; signed_at: string | null;
+};
 
 const DOCUMENT_TYPES = ["Engagement Letter", "PO", "Proposal", "Other"];
 
@@ -76,6 +80,17 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
     reloadAttachments();
   }
 
+  async function requestSignature(id: string) {
+    try {
+      const result = await api.post<{ link: string }>(`${base}/${entityId}/attachments/${id}/signature-request`);
+      await navigator.clipboard.writeText(result.link);
+      push("Signing link copied — send it to the client", "success");
+      reloadAttachments();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Couldn't create a signing link", "error");
+    }
+  }
+
   return (
     <div className="grid2" style={{ marginTop: 4 }}>
       <div className="card">
@@ -132,9 +147,20 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
                 >
                   {a.filename}
                 </a>
-                {a.document_type && <span className="badge badge-draft" style={{ marginTop: 3 }}>{a.document_type}</span>}
+                <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
+                  {a.document_type && <span className="badge badge-draft">{a.document_type}</span>}
+                  {a.signature_status === "signed" && (
+                    <span className="badge" style={{ background: "var(--success-soft)", color: "var(--success)" }} title={a.signed_at ? new Date(a.signed_at).toLocaleString() : undefined}>
+                      Signed by {a.signer_name}
+                    </span>
+                  )}
+                  {a.signature_status === "pending" && <span className="badge badge-draft">Signature requested</span>}
+                </div>
               </div>
               <span style={{ fontSize: 11, color: "var(--text3)", flexShrink: 0 }}>{formatSize(a.size_bytes)}</span>
+              {!a.signature_status && (
+                <button type="button" className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }} onClick={() => requestSignature(a.id)}>Request signature</button>
+              )}
               {canManage(a.uploaded_by) && (
                 <button type="button" className="icon-btn" style={{ width: 20, height: 20, flexShrink: 0 }} onClick={() => deleteAttachment(a.id)} title="Delete"><IconTrash size={11} /></button>
               )}

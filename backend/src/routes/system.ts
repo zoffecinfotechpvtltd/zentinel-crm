@@ -4,6 +4,7 @@ import os from "node:os";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { dumpDatabase, restoreDatabase, type BackupFile } from "../lib/backupRestore";
+import { isObjectStorageConfigured } from "../lib/objectStorage";
 
 const router = Router();
 const backupUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
@@ -62,6 +63,7 @@ router.get("/server-info", (_req, res) => {
     lan_addresses: addresses,
     port: Number(process.env.PORT) || 4000,
     desktop_bind: process.env.DESKTOP_MODE === "1" ? (process.env.DESKTOP_BIND === "lan" ? "lan" : "loopback") : "not_desktop",
+    object_storage_configured: isObjectStorageConfigured,
   });
 });
 

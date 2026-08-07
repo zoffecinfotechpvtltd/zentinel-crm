@@ -26,7 +26,14 @@ type Lead = {
   mobile: string | null; industry: string | null; source: string | null; service_id: string | null;
   status: string; lost_reason: string | null; value_estimate: string | null; assigned_to: string | null;
   next_followup_date: string | null; notes: string | null; converted_to_client_id: string | null;
+  lead_score: number;
 };
+
+function scoreColor(score: number): string {
+  if (score >= 70) return "var(--success)";
+  if (score >= 40) return "var(--warning)";
+  return "var(--text3)";
+}
 type Service = { id: string; name: string };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
@@ -318,13 +325,13 @@ export function Leads() {
               <thead>
                 <tr>
                   <th style={{ width: 32 }}><input type="checkbox" checked={(data?.data.length ?? 0) > 0 && data!.data.every((l) => selected.has(l.id))} onChange={toggleSelectAll} /></th>
-                  <th>Company</th><th>Contact</th><th>Service</th><th>Source</th><th>Status</th><th>Follow-up</th><th>Actions</th>
+                  <th>Company</th><th>Contact</th><th>Service</th><th>Source</th><th title="Stage progress + deal size + source quality + how recently touched">Score</th><th>Status</th><th>Follow-up</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {loading && <TableSkeleton rows={6} cols={8} />}
+                {loading && <TableSkeleton rows={6} cols={9} />}
                 {!loading && data?.data.length === 0 && (
-                  <tr><td colSpan={8}>
+                  <tr><td colSpan={9}>
                     <div className="empty">
                       <div className="empty-icon"><IconInbox size={30} /></div>
                       No leads match these filters yet.
@@ -338,6 +345,9 @@ export function Leads() {
                     <td><div>{l.contact_person}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{l.designation}</div></td>
                     <td style={{ fontSize: 12 }}>{serviceName(l.service_id)}</td>
                     <td style={{ fontSize: 12 }}>{l.source ?? "—"}</td>
+                    <td>
+                      <span style={{ fontWeight: 650, color: scoreColor(l.lead_score) }}>{l.lead_score}</span>
+                    </td>
                     <td>
                       {canEdit ? (
                         <select
@@ -401,7 +411,10 @@ export function Leads() {
                     onDragEnd={() => setDragId(null)}
                     onClick={() => canEdit && openEdit(l)}
                   >
-                    <div className="kanban-card-title">{l.company}</div>
+                    <div className="kanban-card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
+                      <span>{l.company}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: scoreColor(l.lead_score) }}>{l.lead_score}</span>
+                    </div>
                     <div className="kanban-card-sub">{l.contact_person}{l.industry ? ` · ${l.industry}` : ""}</div>
                     <div className="kanban-card-foot">
                       <span className="mono">{l.value_estimate ? formatMoney(l.value_estimate) : "—"}</span>

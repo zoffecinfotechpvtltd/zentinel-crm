@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { AuthBrandPanel } from "../components/AuthBrandPanel";
+import { passwordPolicyError } from "../lib/passwordPolicy";
 
 export function Setup({ onDone }: { onDone: () => void }) {
   const { refresh } = useAuth();
@@ -19,8 +20,9 @@ export function Setup({ onDone }: { onDone: () => void }) {
       setError("Passwords don't match.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const policyError = passwordPolicyError(password);
+    if (policyError) {
+      setError(policyError);
       return;
     }
     setSubmitting(true);

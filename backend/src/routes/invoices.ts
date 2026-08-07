@@ -10,6 +10,7 @@ import { parseInvoicePdfText } from "../lib/invoicePdfParse";
 import { computeTotals } from "../lib/invoiceMath";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 import { buildSingleEventIcs } from "../lib/ics";
+import { fireWebhook } from "../lib/outboundWebhook";
 
 const router = Router();
 const pdfUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -657,6 +658,9 @@ router.post("/:id/payments", requireRole("admin", "finance"), async (req, res) =
     }
 
     await client.query("commit");
+    if (newStatus === "Paid" && invoice.status !== "Paid") {
+      fireWebhook("invoice.paid", { invoice_id: invoice.id, invoice_number: invoice.invoice_number, total: invoice.total });
+    }
     res.status(201).json({ payment: paymentResult.rows[0], balance, invoice_status: newStatus });
   } catch (err) {
     await client.query("rollback");

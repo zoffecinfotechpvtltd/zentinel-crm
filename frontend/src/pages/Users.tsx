@@ -6,6 +6,7 @@ import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { IconUsers, IconPlus } from "../components/Icons";
+import { passwordPolicyError } from "../lib/passwordPolicy";
 
 type User = { id: string; email: string; name: string; role: string; is_active: boolean };
 
@@ -21,6 +22,11 @@ export function Users() {
 
   async function createUser() {
     setError(null);
+    const policyError = passwordPolicyError(form.password);
+    if (policyError) {
+      setError(policyError);
+      return;
+    }
     try {
       await api.post("/users", form);
       setModalOpen(false);
@@ -73,7 +79,7 @@ export function Users() {
           <div className="form-grid">
             <div className="form-group full"><label className="form-label">Name *</label><input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="form-group full"><label className="form-label">Email *</label><input className="form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="form-group full"><label className="form-label">Temporary Password *</label><input className="form-input" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="At least 8 characters" /></div>
+            <div className="form-group full"><label className="form-label">Temporary Password *</label><input className="form-input" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="At least 8 characters, with a letter and a number" /></div>
             <div className="form-group full">
               <label className="form-label">Role</label>
               <select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>

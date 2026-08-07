@@ -6,6 +6,7 @@ import { writeActivityLog } from "../lib/activityLog";
 import { createNotification } from "../lib/notifications";
 import { buildSingleEventIcs } from "../lib/ics";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
+import { fireWebhook } from "../lib/outboundWebhook";
 
 const router = Router();
 
@@ -278,6 +279,10 @@ router.patch("/:id", requireRole("admin", "ops"), async (req, res) => {
         entityId: req.params.id,
         title: `You were assigned a project: ${updateResult.rows[0].name}`,
       });
+    }
+
+    if (f.status === "Completed" && existing.status !== "Completed") {
+      fireWebhook("project.completed", { project_id: req.params.id, name: updateResult.rows[0].name });
     }
 
     res.json(updateResult.rows[0]);

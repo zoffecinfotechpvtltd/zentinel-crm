@@ -26,16 +26,37 @@ import dashboardRoutes from "./routes/dashboard";
 import reportRoutes from "./routes/reports";
 import settingsRoutes from "./routes/settings";
 import systemRoutes from "./routes/system";
-import { getAppBaseUrl } from "./lib/appUrl";
+import publicIntakeRoutes from "./routes/publicIntake";
+import publicSignRoutes from "./routes/publicSign";
+import { getAllowedOrigins } from "./lib/appUrl";
 
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 
 app.use(helmet());
-app.use(cors({ origin: getAppBaseUrl(), credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+// The public lead-intake endpoint is meant to be called from a company
+// marketing site — a different origin than the app itself and one this
+// server has no way to know in advance — so it gets permissive CORS and is
+// mounted (with its own rate limit) before the app's normal credentialed
+// CORS policy below, which is deliberately restricted to known app origins.
+const publicIntakeLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
+app.use("/api/public", cors(), publicIntakeLimiter, publicIntakeRoutes);
+
+// APP_BASE_URL supports a comma-separated list (e.g. production domain +
+// a Vercel preview URL) — cors' origin callback checks the request's
+// Origin header against all of them instead of a single fixed string.
+const allowedOrigins = getAllowedOrigins();
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+    else callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+}));
 
 // Defense-in-depth on top of the per-account lockout in auth.ts: caps total
 // login/reset attempts per IP so a distributed attempt across many accounts
@@ -59,6 +80,10 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/system", systemRoutes);
+// Same-origin only (the /sign/:token page is part of this app's own
+// frontend, not an external site) — unauthenticated by design, but no
+// special CORS treatment needed, unlike /api/public above.
+app.use("/api/sign", publicSignRoutes);
 
 app.get("/api/health", async (_req, res) => {
   try {

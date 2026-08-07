@@ -4,6 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { pool } from "../db/pool";
+import { isObjectStorageConfigured, objectStorageKeyFor, uploadObject, downloadObject, deleteObject } from "./objectStorage";
+import { generateRawToken, hashToken } from "./tokens";
+import { getAppBaseUrl } from "./appUrl";
+
+const SIGNATURE_REQUEST_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 export type NotableEntity = "lead" | "client" | "project" | "invoice";
 
@@ -84,18 +89,24 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
     res.json({ ok: true });
   });
 
+  // Object storage (if configured) survives Render's redeploy-wipes-disk
+  // behavior; local disk doesn't. multer.memoryStorage lets the object-
+  // storage path read the whole file into req.file.buffer to hand to S3 —
+  // fine at the 25MB cap this route already enforces.
   const upload = multer({
-    storage: multer.diskStorage({
-      destination: (_req, _file, cb) => {
-        const dir = path.join(uploadsRoot(), entityType);
-        fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-      },
-      filename: (_req, file, cb) => {
-        const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_").slice(-100);
-        cb(null, `${crypto.randomUUID()}-${safeName}`);
-      },
-    }),
+    storage: isObjectStorageConfigured
+      ? multer.memoryStorage()
+      : multer.diskStorage({
+          destination: (_req, _file, cb) => {
+            const dir = path.join(uploadsRoot(), entityType);
+            fs.mkdirSync(dir, { recursive: true });
+            cb(null, dir);
+          },
+          filename: (_req, file, cb) => {
+            const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_").slice(-100);
+            cb(null, `${crypto.randomUUID()}-${safeName}`);
+          },
+        }),
     limits: { fileSize: 25 * 1024 * 1024 },
   });
 
@@ -105,8 +116,14 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       return;
     }
     const result = await pool.query(
-      `select a.id, a.filename, a.mime_type, a.size_bytes, a.document_type, a.created_at, a.uploaded_by, u.name as uploader_name
-       from attachments a left join users u on u.id = a.uploaded_by
+      `select a.id, a.filename, a.mime_type, a.size_bytes, a.document_type, a.created_at, a.uploaded_by, u.name as uploader_name,
+         sr.status as signature_status, sr.signer_name, sr.signed_at
+       from attachments a
+       left join users u on u.id = a.uploaded_by
+       left join lateral (
+         select status, signer_name, signed_at from signature_requests
+         where attachment_id = a.id order by created_at desc limit 1
+       ) sr on true
        where a.entity_type = $1 and a.entity_id = $2 and a.deleted_at is null
        order by a.created_at desc`,
       [entityType, req.params.id]
@@ -124,10 +141,20 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       return;
     }
     const documentType = typeof req.body?.document_type === "string" && req.body.document_type.trim() ? req.body.document_type.trim() : null;
+
+    let storagePath: string;
+    if (isObjectStorageConfigured) {
+      const safeName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_").slice(-100);
+      const key = `${entityType}/${req.params.id}/${crypto.randomUUID()}-${safeName}`;
+      storagePath = await uploadObject(key, req.file.buffer, req.file.mimetype);
+    } else {
+      storagePath = req.file.path;
+    }
+
     const result = await pool.query(
       `insert into attachments (entity_type, entity_id, filename, mime_type, size_bytes, storage_path, document_type, uploaded_by)
        values ($1,$2,$3,$4,$5,$6,$7,$8) returning id, filename, mime_type, size_bytes, document_type, created_at, uploaded_by`,
-      [entityType, req.params.id, req.file.originalname, req.file.mimetype, req.file.size, req.file.path, documentType, req.user!.id]
+      [entityType, req.params.id, req.file.originalname, req.file.mimetype, req.file.size, storagePath, documentType, req.user!.id]
     );
     res.status(201).json({ ...result.rows[0], uploader_name: req.user!.name });
   });
@@ -142,6 +169,20 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       return;
     }
     const att = result.rows[0];
+    const s3Key = objectStorageKeyFor(att.storage_path);
+
+    if (s3Key) {
+      try {
+        const { body } = await downloadObject(s3Key);
+        res.setHeader("Content-Type", att.mime_type);
+        res.setHeader("Content-Disposition", `attachment; filename="${att.filename.replace(/"/g, "")}"`);
+        body.pipe(res);
+      } catch {
+        res.status(404).json({ error: "file_missing", message: "This file could not be found in storage." });
+      }
+      return;
+    }
+
     if (!fs.existsSync(att.storage_path)) {
       res.status(404).json({ error: "file_missing", message: "This file is no longer on disk." });
       return;
@@ -165,7 +206,35 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       return;
     }
     await pool.query(`update attachments set deleted_at = now() where id = $1`, [req.params.attId]);
-    fs.unlink(result.rows[0].storage_path, () => {}); // best-effort; DB soft-delete is the source of truth
+    // Best-effort; DB soft-delete is the source of truth either way.
+    const s3Key = objectStorageKeyFor(result.rows[0].storage_path);
+    if (s3Key) deleteObject(s3Key).catch(() => {});
+    else fs.unlink(result.rows[0].storage_path, () => {});
     res.json({ ok: true });
+  });
+
+  // Generates a signing link for an existing attachment — send it to the
+  // client, they open it (no login), type their name, and accept. Records
+  // name + IP + user agent + timestamp as the audit trail. Not a legally
+  // certified signature (see the migration's comment) — good enough to
+  // close the "did the client acknowledge this document" loop internally.
+  router.post(`/:id/attachments/:attId/signature-request`, async (req, res) => {
+    const attResult = await pool.query(
+      `select id from attachments where id = $1 and entity_type = $2 and entity_id = $3 and deleted_at is null`,
+      [req.params.attId, entityType, req.params.id]
+    );
+    if (attResult.rows.length === 0) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+
+    const rawToken = generateRawToken();
+    await pool.query(
+      `insert into signature_requests (attachment_id, token_hash, created_by, expires_at)
+       values ($1, $2, $3, $4)`,
+      [req.params.attId, hashToken(rawToken), req.user!.id, new Date(Date.now() + SIGNATURE_REQUEST_TTL_MS)]
+    );
+
+    res.status(201).json({ link: `${getAppBaseUrl()}/sign/${rawToken}` });
   });
 }

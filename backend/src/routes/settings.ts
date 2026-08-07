@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "node:crypto";
 import { z } from "zod";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
@@ -7,6 +8,41 @@ import { sendTestMail } from "../lib/mail";
 const router = Router();
 
 router.use(requireAuth, requireRole("admin"));
+
+router.get("/integrations", async (_req, res) => {
+  const result = await pool.query(`select key, value from settings where key in ('lead_webhook_secret', 'outbound_webhook_url')`);
+  const byKey = Object.fromEntries(result.rows.map((r) => [r.key, r.value]));
+  res.json({
+    lead_webhook_secret: byKey.lead_webhook_secret?.secret ?? null,
+    outbound_webhook_url: byKey.outbound_webhook_url?.url ?? null,
+  });
+});
+
+router.post("/integrations/lead-webhook-secret/regenerate", async (req, res) => {
+  const secret = crypto.randomBytes(24).toString("hex");
+  await pool.query(
+    `insert into settings (key, value, updated_by, updated_at) values ('lead_webhook_secret', $1, $2, now())
+     on conflict (key) do update set value = $1, updated_by = $2, updated_at = now()`,
+    [JSON.stringify({ secret }), req.user!.id]
+  );
+  res.json({ lead_webhook_secret: secret });
+});
+
+const outboundWebhookSchema = z.object({ url: z.string().url().optional().or(z.literal("")) });
+
+router.put("/integrations/outbound-webhook", async (req, res) => {
+  const parsed = outboundWebhookSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  await pool.query(
+    `insert into settings (key, value, updated_by, updated_at) values ('outbound_webhook_url', $1, $2, now())
+     on conflict (key) do update set value = $1, updated_by = $2, updated_at = now()`,
+    [JSON.stringify({ url: parsed.data.url || null }), req.user!.id]
+  );
+  res.json({ ok: true });
+});
 
 router.get("/smtp", async (_req, res) => {
   const result = await pool.query(`select value from settings where key = 'smtp_config'`);

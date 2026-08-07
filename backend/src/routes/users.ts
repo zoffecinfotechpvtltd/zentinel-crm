@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from "../middleware/auth";
 import { generateRawToken, hashToken } from "../lib/tokens";
 import { sendMail } from "../lib/mail";
 import { getAppBaseUrl } from "../lib/appUrl";
+import { passwordSchema } from "../lib/passwordPolicy";
 
 const router = Router();
 
@@ -35,7 +36,7 @@ router.get("/", async (_req, res) => {
 
 const createUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: passwordSchema,
   name: z.string().min(1),
   role: z.enum(["admin", "sales", "finance", "ops"]),
 });

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { useToast } from "./Toast";
+import { passwordPolicyError } from "../lib/passwordPolicy";
 
 export function ChangePassword() {
   const { push } = useToast();
@@ -16,8 +17,9 @@ export function ChangePassword() {
       setError("New passwords don't match.");
       return;
     }
-    if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+    const policyError = passwordPolicyError(newPassword);
+    if (policyError) {
+      setError(policyError);
       return;
     }
     setBusy(true);
