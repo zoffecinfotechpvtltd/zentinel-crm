@@ -5,6 +5,7 @@ import { useToast } from "../components/Toast";
 import { PageHeader } from "../components/PageHeader";
 import { TwoFactorSettings } from "../components/TwoFactorSettings";
 import { IconUsers } from "../components/Icons";
+import { friendlyUserAgent, friendlyAddress } from "../lib/format";
 
 type Session = { id: string; user_agent: string | null; ip_address: string | null; created_at: string; is_current: boolean };
 
@@ -32,8 +33,11 @@ export function MyAccount() {
         {sessions?.map((s) => (
           <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
             <div>
-              <div style={{ color: "var(--text)" }}>{s.ip_address ?? "unknown address"}{s.is_current && <span style={{ color: "var(--success)", marginLeft: 6 }}>(this device)</span>}</div>
-              <div style={{ color: "var(--text3)", marginTop: 2 }}>{s.user_agent ?? "unknown device"}</div>
+              <div style={{ color: "var(--text)" }} title={s.ip_address ?? undefined}>
+                {friendlyUserAgent(s.user_agent)}
+                {s.is_current && <span style={{ color: "var(--success)", marginLeft: 6 }}>(this device)</span>}
+              </div>
+              <div style={{ color: "var(--text3)", marginTop: 2 }} title={s.user_agent ?? undefined}>{friendlyAddress(s.ip_address)}</div>
             </div>
             <div style={{ color: "var(--text3)" }}>signed in {new Date(s.created_at).toLocaleString()}</div>
           </div>

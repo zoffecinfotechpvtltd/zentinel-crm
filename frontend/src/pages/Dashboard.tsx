@@ -4,7 +4,7 @@ import { useFetch } from "../lib/useFetch";
 import { StatCard } from "../components/StatCard";
 import { StatCardSkeleton } from "../components/Skeleton";
 import { PageHeader } from "../components/PageHeader";
-import { formatMoney, formatDateTime, formatDate } from "../lib/format";
+import { formatMoney, formatDateTime, formatDate, isOverdue } from "../lib/format";
 import { Link } from "react-router-dom";
 import { IconDashboard, IconInbox } from "../components/Icons";
 import { useAuth } from "../context/AuthContext";
@@ -116,7 +116,7 @@ export function Dashboard() {
           <div className="followup-list">
             {data.upcoming_followups.length === 0 && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Nothing due</div>}
             {data.upcoming_followups.map((f) => (
-              <div className="followup-item" key={f.id}>
+              <div className={`followup-item${isOverdue(f.next_followup_date) ? " overdue" : ""}`} key={f.id}>
                 <div className="followup-company">{f.company}</div>
                 <div className="followup-detail">{f.contact_person} — due {formatDate(f.next_followup_date)}</div>
               </div>

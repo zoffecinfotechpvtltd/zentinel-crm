@@ -4,7 +4,7 @@ import { api, API_BASE } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
 import { PageHeader } from "../components/PageHeader";
-import { formatDate, formatMoneyExact } from "../lib/format";
+import { formatDate, formatMoneyExact, isOverdue } from "../lib/format";
 import { IconFollowups, IconInbox, IconCheck, IconCalendar } from "../components/Icons";
 
 type Lead = {
@@ -94,7 +94,7 @@ function SalesFollowups() {
             <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing here — you're caught up.</div></div>
           )}
           {data?.data.map((l) => (
-            <div className="followup-item" key={l.id} style={{ position: "relative" }}>
+            <div className={`followup-item${isOverdue(l.next_followup_date) ? " overdue" : ""}`} key={l.id} style={{ position: "relative" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                 <div>
                   <div className="followup-company">{l.company}</div>
@@ -167,7 +167,7 @@ function FinanceFollowups() {
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {data?.data.map((inv) => (
-          <div className="followup-item" key={inv.id}>
+          <div className={`followup-item${isOverdue(inv.next_followup_date) ? " overdue" : ""}`} key={inv.id}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
               <div>
                 <div className="followup-company">{clientName(inv.client_id)} — {inv.invoice_number ?? "Draft"}</div>
