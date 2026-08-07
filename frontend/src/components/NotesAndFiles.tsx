@@ -8,7 +8,9 @@ import { IconPaperclip, IconTrash, IconPlus } from "./Icons";
 
 type EntityType = "lead" | "client" | "project" | "invoice";
 type Note = { id: string; body: string; created_at: string; created_by: string | null; author_name: string | null };
-type Attachment = { id: string; filename: string; mime_type: string; size_bytes: number; created_at: string; uploaded_by: string | null; uploader_name: string | null };
+type Attachment = { id: string; filename: string; mime_type: string; size_bytes: number; document_type: string | null; created_at: string; uploaded_by: string | null; uploader_name: string | null };
+
+const DOCUMENT_TYPES = ["Engagement Letter", "PO", "Proposal", "Other"];
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -26,6 +28,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
   const [noteBody, setNoteBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [docType, setDocType] = useState(DOCUMENT_TYPES[0]);
 
   const canManage = (ownerId: string | null) => user?.role === "admin" || (!!ownerId && ownerId === user?.id);
 
@@ -54,6 +57,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
     try {
       const form = new FormData();
       form.append("file", file);
+      form.append("document_type", docType);
       await api.postForm(`${base}/${entityId}/attachments`, form);
       push("File attached", "success");
       reloadAttachments();
@@ -103,23 +107,31 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
       <div className="card">
         <div className="card-title">
           Files
-          <label className="btn btn-ghost btn-sm" style={{ cursor: uploading ? "wait" : "pointer" }}>
-            <IconPlus size={12} /> {uploading ? "Uploading…" : "Attach"}
-            <input type="file" style={{ display: "none" }} disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = ""; }} />
-          </label>
+          <div style={{ display: "flex", gap: 6 }}>
+            <select className="filter-select" style={{ padding: "4px 8px", fontSize: 11.5 }} value={docType} onChange={(e) => setDocType(e.target.value)}>
+              {DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <label className="btn btn-ghost btn-sm" style={{ cursor: uploading ? "wait" : "pointer" }}>
+              <IconPlus size={12} /> {uploading ? "Uploading…" : "Attach"}
+              <input type="file" style={{ display: "none" }} disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = ""; }} />
+            </label>
+          </div>
         </div>
         {(attachments?.length ?? 0) === 0 && <div className="empty" style={{ padding: 16 }}>No files yet</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {attachments?.map((a) => (
             <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)" }}>
               <IconPaperclip size={14} style={{ color: "var(--text3)", flexShrink: 0 }} />
-              <a
-                href={`${API_BASE}/api${base}/${entityId}/attachments/${a.id}/file`}
-                style={{ fontSize: 13, color: "var(--text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                title={a.filename}
-              >
-                {a.filename}
-              </a>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <a
+                  href={`${API_BASE}/api${base}/${entityId}/attachments/${a.id}/file`}
+                  style={{ fontSize: 13, color: "var(--text)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  title={a.filename}
+                >
+                  {a.filename}
+                </a>
+                {a.document_type && <span className="badge badge-draft" style={{ marginTop: 3 }}>{a.document_type}</span>}
+              </div>
               <span style={{ fontSize: 11, color: "var(--text3)", flexShrink: 0 }}>{formatSize(a.size_bytes)}</span>
               {canManage(a.uploaded_by) && (
                 <button type="button" className="icon-btn" style={{ width: 20, height: 20, flexShrink: 0 }} onClick={() => deleteAttachment(a.id)} title="Delete"><IconTrash size={11} /></button>

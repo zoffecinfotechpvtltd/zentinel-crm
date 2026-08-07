@@ -31,6 +31,7 @@ export function Users() {
   }
 
   async function toggleActive(u: User) {
+    if (u.is_active && !confirm(`Deactivate ${u.name}? They'll be signed out immediately and can't log in until reactivated.`)) return;
     await api.patch(`/users/${u.id}`, { is_active: !u.is_active });
     push(u.is_active ? `${u.name} deactivated` : `${u.name} reactivated`, "info");
     reload();

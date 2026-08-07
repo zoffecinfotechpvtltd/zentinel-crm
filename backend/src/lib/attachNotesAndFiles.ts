@@ -105,7 +105,7 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       return;
     }
     const result = await pool.query(
-      `select a.id, a.filename, a.mime_type, a.size_bytes, a.created_at, a.uploaded_by, u.name as uploader_name
+      `select a.id, a.filename, a.mime_type, a.size_bytes, a.document_type, a.created_at, a.uploaded_by, u.name as uploader_name
        from attachments a left join users u on u.id = a.uploaded_by
        where a.entity_type = $1 and a.entity_id = $2 and a.deleted_at is null
        order by a.created_at desc`,
@@ -123,10 +123,11 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       res.status(400).json({ error: "no_file" });
       return;
     }
+    const documentType = typeof req.body?.document_type === "string" && req.body.document_type.trim() ? req.body.document_type.trim() : null;
     const result = await pool.query(
-      `insert into attachments (entity_type, entity_id, filename, mime_type, size_bytes, storage_path, uploaded_by)
-       values ($1,$2,$3,$4,$5,$6,$7) returning id, filename, mime_type, size_bytes, created_at, uploaded_by`,
-      [entityType, req.params.id, req.file.originalname, req.file.mimetype, req.file.size, req.file.path, req.user!.id]
+      `insert into attachments (entity_type, entity_id, filename, mime_type, size_bytes, storage_path, document_type, uploaded_by)
+       values ($1,$2,$3,$4,$5,$6,$7,$8) returning id, filename, mime_type, size_bytes, document_type, created_at, uploaded_by`,
+      [entityType, req.params.id, req.file.originalname, req.file.mimetype, req.file.size, req.file.path, documentType, req.user!.id]
     );
     res.status(201).json({ ...result.rows[0], uploader_name: req.user!.name });
   });

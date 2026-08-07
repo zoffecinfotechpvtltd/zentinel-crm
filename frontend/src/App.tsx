@@ -5,6 +5,7 @@ import { ToastProvider } from "./components/Toast";
 import { RequireAuth, RequireRole } from "./components/RequireAuth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Setup } from "./pages/Setup";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
@@ -48,6 +49,7 @@ function App() {
         <SetupGate>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               element={
                 <RequireAuth>
@@ -56,10 +58,24 @@ function App() {
               }
             >
               <Route path="/" element={<Dashboard />} />
-              <Route path="/leads" element={<Leads />} />
+              <Route
+                path="/leads"
+                element={
+                  <RequireRole roles={["admin", "sales"]}>
+                    <Leads />
+                  </RequireRole>
+                }
+              />
               <Route path="/clients" element={<Clients />} />
               <Route path="/projects" element={<Projects />} />
-              <Route path="/invoices" element={<Invoices />} />
+              <Route
+                path="/invoices"
+                element={
+                  <RequireRole roles={["admin", "finance"]}>
+                    <Invoices />
+                  </RequireRole>
+                }
+              />
               <Route path="/followups" element={<Followups />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/notifications" element={<Notifications />} />

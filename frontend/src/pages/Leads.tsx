@@ -37,7 +37,11 @@ const emptyForm = {
 export function Leads() {
   const { user } = useAuth();
   const { push } = useToast();
-  const [view, setView] = useState<"list" | "board">("list");
+  const [view, setViewState] = useState<"list" | "board">(() => (localStorage.getItem("zoffec-leads-view") === "board" ? "board" : "list"));
+  function setView(v: "list" | "board") {
+    localStorage.setItem("zoffec-leads-view", v);
+    setViewState(v);
+  }
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");

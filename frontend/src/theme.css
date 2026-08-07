@@ -22,23 +22,30 @@
   --border: #e2e8f0;
   --border2: #cbd5e1;
 
-  /* brand */
-  --accent: #ff7a00;
-  --accent2: #e56e00;
-  --accent-soft: rgba(255, 122, 0, 0.12);
+  /* brand — blue is the primary action color, red is the second half of the
+     signature gradient (logo, active nav, primary buttons, login backdrop).
+     Everywhere else stays disciplined single-hue, per-status, so the
+     gradient reads as a deliberate signature rather than decoration. */
+  --accent: #2563eb;
+  --accent2: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --red: #dc2626;
+  --red2: #b91c1c;
+  --red-soft: rgba(220, 38, 38, 0.12);
+  --brand-gradient: linear-gradient(135deg, var(--accent), var(--red));
   --amber: #ffb703;
-  --primary-navy: #0f172a;
-  --primary-navy2: #1e293b;
+  --primary-navy: #0b1330;
+  --primary-navy2: #16214a;
 
   /* status */
   --success: #22c55e;
   --success-soft: rgba(34, 197, 94, 0.12);
   --warning: #ffb703;
   --warning-soft: rgba(255, 183, 3, 0.16);
-  --danger: #ef4444;
-  --danger-soft: rgba(239, 68, 68, 0.12);
-  --info: #0ea5e9;
-  --info-soft: rgba(14, 165, 233, 0.12);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.12);
+  --info: #0891b2;
+  --info-soft: rgba(8, 145, 178, 0.12);
   --purple: #8b5cf6;
   --purple-soft: rgba(139, 92, 246, 0.12);
   --pink: #ec4899;
@@ -138,7 +145,7 @@ td.mono,
 .logo-mark {
   width: 30px; height: 30px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: 13px; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--accent), var(--amber));
+  background: var(--brand-gradient);
   box-shadow: var(--shadow-sm);
 }
 .nav-section { padding: 10px 0; }
@@ -150,7 +157,7 @@ td.mono,
 }
 .nav-item svg { flex-shrink: 0; opacity: .85; }
 .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-.nav-item.active { background: var(--accent); color: #fff; font-weight: 600; box-shadow: var(--shadow-sm); }
+.nav-item.active { background: var(--brand-gradient); color: #fff; font-weight: 600; box-shadow: var(--shadow-sm); }
 .nav-item.active svg { opacity: 1; color: #fff; }
 .nav-badge { margin-left: auto; background: #fff; color: var(--accent2); font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; min-width: 16px; text-align: center; }
 .nav-item.active .nav-badge { background: rgba(255,255,255,0.25); color: #fff; }
@@ -207,8 +214,8 @@ td.mono,
   font-family: inherit; white-space: nowrap;
 }
 .btn svg { flex-shrink: 0; }
-.btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
-.btn-primary:hover { background: var(--accent2); }
+.btn-primary { background: var(--brand-gradient); color: #fff; box-shadow: var(--shadow-sm); }
+.btn-primary:hover { filter: brightness(1.08); }
 .btn-ghost { background: var(--bg2); border-color: var(--border2); color: var(--text2); }
 .btn-ghost:hover { background: var(--bg3); color: var(--text); border-color: var(--text3); }
 .btn-danger { background: var(--danger); color: #fff; }
@@ -345,7 +352,7 @@ tr.row-selected td { background: var(--accent-soft); }
 .timeline-time { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
 .progress-bar { height: 6px; background: var(--bg4); border-radius: 10px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--accent), var(--amber)); transition: width .3s var(--ease); }
+.progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--accent), var(--red)); transition: width .3s var(--ease); }
 
 .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 650; flex-shrink: 0; }
 .av-blue { background: var(--info-soft); color: #0284c7; }
@@ -390,7 +397,13 @@ tr.row-selected td { background: var(--accent-soft); }
 .banner-error { background: var(--danger-soft); color: #b91c1c; border: 1px solid rgba(239,68,68,.25); }
 .banner-info { background: var(--info-soft); color: #0369a1; border: 1px solid rgba(14,165,233,.2); }
 
-.login-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 25% 15%, #1e293b, var(--primary-navy) 60%); }
+.login-shell {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.35), transparent 45%),
+    radial-gradient(circle at 88% 92%, rgba(220, 38, 38, 0.28), transparent 45%),
+    var(--primary-navy);
+}
 .login-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 36px; width: 380px; max-width: 92vw; box-shadow: var(--shadow-lg); }
 
 /* --------------------------------------------------------------- skeleton */
@@ -445,8 +458,10 @@ tr.row-selected td { background: var(--accent-soft); }
 
 /* ----------------------------------------------------------------- kanban */
 
-.kanban-board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
-.kanban-col { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 260px; min-width: 260px; flex-shrink: 0; max-height: calc(100vh - 260px); display: flex; flex-direction: column; }
+/* Wraps to a second row instead of scrolling sideways — a wide pipeline
+   (7 lead stages) should never make the whole page pan horizontally. */
+.kanban-board { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.kanban-col { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); flex: 1 1 240px; min-width: 240px; max-width: 320px; max-height: 70vh; display: flex; flex-direction: column; }
 .kanban-col-head { padding: 12px 14px; border-bottom: 1px solid var(--border); border-top: 3px solid var(--col-accent, var(--accent)); border-radius: var(--radius-lg) var(--radius-lg) 0 0; display: flex; align-items: center; justify-content: space-between; }
 .kanban-col-title { font-size: 12.5px; font-weight: 650; }
 .kanban-col-count { font-size: 11px; color: var(--text3); background: var(--bg2); border-radius: 10px; padding: 1px 8px; }

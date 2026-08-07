@@ -9,11 +9,15 @@ import { buildTallySalesVoucherXml } from "../lib/tallyExport";
 import { parseInvoicePdfText } from "../lib/invoicePdfParse";
 import { computeTotals } from "../lib/invoiceMath";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
+import { buildSingleEventIcs } from "../lib/ics";
 
 const router = Router();
 const pdfUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-router.use(requireAuth, requireRole("admin", "sales", "finance"));
+// Invoices are Finance's domain — Sales has no access at all now (mirrors
+// Leads being Sales' domain with no Finance access). Clients still bridges
+// the two since both roles legitimately need to see who they're talking to.
+router.use(requireAuth, requireRole("admin", "finance"));
 
 const BALANCE_EXPR = `(i.total - coalesce((select sum(p.amount) from payments p where p.invoice_id = i.id), 0))`;
 
@@ -48,6 +52,15 @@ router.get("/", async (req, res) => {
   if (req.query.tally_sync_status) {
     conditions.push(`i.tally_sync_status = $${i++}`);
     values.push(req.query.tally_sync_status);
+  }
+  // Payment follow-ups — only ever meaningful for invoices that still owe
+  // money, same as Leads' equivalent filter never involving Won/Lost leads.
+  if (req.query.followup === "today") {
+    conditions.push(`i.next_followup_date = current_date`, `${BALANCE_EXPR} > 0`);
+  } else if (req.query.followup === "overdue") {
+    conditions.push(`i.next_followup_date < current_date`, `${BALANCE_EXPR} > 0`);
+  } else if (req.query.followup === "upcoming") {
+    conditions.push(`i.next_followup_date > current_date`, `${BALANCE_EXPR} > 0`);
   }
 
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -274,6 +287,59 @@ router.post("/", requireRole("admin", "finance"), async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+const followupSchema = z.object({
+  next_followup_date: z.string().nullable(),
+});
+
+// Deliberately separate from the general PATCH /:id — payment follow-up
+// tracking is orthogonal to the Draft/Final lock (a Final invoice is
+// exactly the kind you'd be following up on, so this has to work
+// regardless of lock state, unlike line items/amounts).
+router.patch("/:id/followup", async (req, res) => {
+  const parsed = followupSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const result = await pool.query(
+    `update invoices set next_followup_date = $1, updated_by = $2, updated_at = now()
+     where id = $3 and deleted_at is null returning id, next_followup_date`,
+    [parsed.data.next_followup_date, req.user!.id, req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json(result.rows[0]);
+});
+
+router.get("/:id/followup.ics", async (req, res) => {
+  const result = await pool.query(
+    `select i.*, c.company as client_company from invoices i
+     left join clients c on c.id = i.client_id
+     where i.id = $1 and i.deleted_at is null`,
+    [req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const inv = result.rows[0];
+  if (!inv.next_followup_date) {
+    res.status(400).json({ error: "no_followup_date" });
+    return;
+  }
+  const ics = buildSingleEventIcs({
+    uid: inv.id,
+    date: inv.next_followup_date,
+    summary: `Payment follow-up — ${inv.client_company ?? "Client"}${inv.invoice_number ? ` (${inv.invoice_number})` : ""}`,
+    description: `Balance due: ${inv.total}`,
+  });
+  res.setHeader("Content-Type", "text/calendar");
+  res.setHeader("Content-Disposition", `attachment; filename="payment-followup-${(inv.invoice_number ?? "draft").replace(/[^a-z0-9]/gi, "-")}.ics"`);
+  res.send(ics);
 });
 
 const updateDraftSchema = z.object({

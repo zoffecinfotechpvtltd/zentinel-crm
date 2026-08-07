@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ApiError } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 
 export function Login() {
   const { login, verifyTwoFactor } = useAuth();
@@ -14,6 +14,11 @@ export function Login() {
 
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
+
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotBusy, setForgotBusy] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -51,6 +56,50 @@ export function Login() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function onSubmitForgot(e: FormEvent) {
+    e.preventDefault();
+    setForgotBusy(true);
+    try {
+      await api.post("/auth/password-reset/request", { email: forgotEmail });
+      setForgotSent(true);
+    } finally {
+      setForgotBusy(false);
+    }
+  }
+
+  if (forgotMode) {
+    return (
+      <div className="login-shell">
+        <div className="login-card">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div className="logo-mark">Z</div>
+            <div>
+              <div className="logo-name">Zoffec Sentinel</div>
+              <div className="logo-sub">Reset your password</div>
+            </div>
+          </div>
+          {forgotSent ? (
+            <div className="banner banner-info">If that email has an account, a reset link is on its way. Check your inbox.</div>
+          ) : (
+            <form onSubmit={onSubmitForgot}>
+              <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Enter your account email — we'll send a link to set a new password.</p>
+              <div className="form-group" style={{ marginBottom: 18 }}>
+                <label className="form-label" htmlFor="forgot-email">Email</label>
+                <input id="forgot-email" className="form-input" type="email" required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} autoFocus />
+              </div>
+              <button className="btn btn-primary" type="submit" disabled={forgotBusy} style={{ width: "100%", justifyContent: "center" }}>
+                {forgotBusy ? "Sending…" : "Send reset link"}
+              </button>
+            </form>
+          )}
+          <button type="button" className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(""); }}>
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (pendingToken) {
@@ -105,9 +154,14 @@ export function Login() {
             <label className="form-label">Password</label>
             <input className="form-input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 18 }}>
-            <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-            <label htmlFor="remember" style={{ fontSize: 12, color: "var(--text2)" }}>Remember me for 30 days</label>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+              <label htmlFor="remember" style={{ fontSize: 12, color: "var(--text2)" }}>Remember me for 30 days</label>
+            </div>
+            <button type="button" onClick={() => setForgotMode(true)} style={{ background: "none", border: "none", padding: 0, fontSize: 12, color: "var(--accent2)", cursor: "pointer" }}>
+              Forgot password?
+            </button>
           </div>
           <button className="btn btn-primary" type="submit" disabled={submitting} style={{ width: "100%", justifyContent: "center" }}>
             {submitting ? "Signing in…" : "Sign in"}

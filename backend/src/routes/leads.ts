@@ -43,8 +43,10 @@ async function getNextRoundRobinSalesRep(): Promise<string | null> {
   return nextRep;
 }
 
+// Leads/sales pipeline is Sales' domain — Finance and Ops have no reason to
+// see it (mirrors Invoices being Finance's domain with no Sales access).
 function assertLeadsAccess(role: string, res: import("express").Response): boolean {
-  if (role === "ops") {
+  if (role === "ops" || role === "finance") {
     res.status(403).json({ error: "forbidden" });
     return false;
   }

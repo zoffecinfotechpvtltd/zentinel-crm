@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { CommandPalette } from "./CommandPalette";
+import { useToast } from "./Toast";
+import { useIdleLogout } from "../lib/useIdleLogout";
 import {
   IconDashboard, IconLeads, IconClients, IconProjects, IconInvoices, IconFollowups,
   IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconSun,
@@ -16,7 +18,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     section: "Main",
     items: [
       { to: "/", label: "Dashboard", icon: <IconDashboard /> },
-      { to: "/leads", label: "Leads", icon: <IconLeads />, roles: ["admin", "sales", "finance"] },
+      { to: "/leads", label: "Leads", icon: <IconLeads />, roles: ["admin", "sales"] },
       { to: "/clients", label: "Clients", icon: <IconClients /> },
       { to: "/projects", label: "Projects", icon: <IconProjects />, roles: ["admin", "ops", "finance"] },
     ],
@@ -24,8 +26,8 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Finance",
     items: [
-      { to: "/invoices", label: "Invoices", icon: <IconInvoices />, roles: ["admin", "sales", "finance"] },
-      { to: "/followups", label: "Follow-ups", icon: <IconFollowups />, roles: ["admin", "sales"] },
+      { to: "/invoices", label: "Invoices", icon: <IconInvoices />, roles: ["admin", "finance"] },
+      { to: "/followups", label: "Follow-ups", icon: <IconFollowups />, roles: ["admin", "sales", "finance"] },
     ],
   },
   {
@@ -41,6 +43,7 @@ const THEME_KEY = "zoffec-theme";
 
 export function Layout() {
   const { user, logout } = useAuth();
+  const { push } = useToast();
   const navigate = useNavigate();
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem(THEME_KEY);
@@ -102,6 +105,11 @@ export function Layout() {
     await logout();
     navigate("/login");
   }
+
+  useIdleLogout(() => {
+    handleLogout();
+    push("Signed out after 10 minutes of inactivity", "info");
+  });
 
   const initials = user?.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase() ?? "";
 
