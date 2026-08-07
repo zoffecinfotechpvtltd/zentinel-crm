@@ -89,7 +89,7 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 
 const port = Number(process.env.PORT) || 4000;
 const onListening = () => {
-  console.log(`Zoffec Sentinel backend listening on :${port}`);
+  console.log(`Zentinel backend listening on :${port}`);
   startScheduler();
 };
 

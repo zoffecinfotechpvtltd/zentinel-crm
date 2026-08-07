@@ -19,7 +19,7 @@ describe("TOTP secret + verification", () => {
     const secret = generateSecret();
     const uri = buildOtpauthUri(secret, "admin@zoffec.com");
     expect(uri).toMatch(/^otpauth:\/\/totp\//);
-    expect(uri).toContain("Zoffec%20Sentinel");
+    expect(uri).toContain("Zentinel");
     expect(uri).toContain("admin%40zoffec.com");
   });
 });

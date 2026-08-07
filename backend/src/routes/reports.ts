@@ -9,6 +9,12 @@ const router = Router();
 
 router.use(requireAuth);
 
+// lead-conversion stays open to every role (it's status counts, not pricing —
+// Sales' own Dashboard depends on it). Every other report here is revenue,
+// client-wise, or service-wise pricing data — off limits to Sales for the
+// same reason Clients/Invoices are (see clients.ts).
+const NOT_SALES = requireRole("admin", "finance", "ops");
+
 function dateRangeFromQuery(query: import("express").Request["query"]): { from: string; to: string } {
   const fy = getFiscalYearRange();
   return {
@@ -64,7 +70,7 @@ router.get("/lead-conversion", async (req, res) => {
 
 // --- Revenue ---
 
-router.get("/revenue", async (req, res) => {
+router.get("/revenue", NOT_SALES, async (req, res) => {
   const { from, to } = dateRangeFromQuery(req.query);
 
   const monthlyResult = await pool.query(
@@ -156,12 +162,12 @@ async function paymentPendingRows(query: import("express").Request["query"]) {
   return result.rows;
 }
 
-router.get("/payment-pending", async (req, res) => {
+router.get("/payment-pending", NOT_SALES, async (req, res) => {
   const rows = await paymentPendingRows(req.query);
   res.json({ data: rows });
 });
 
-router.get("/payment-pending/export", async (req, res) => {
+router.get("/payment-pending/export", NOT_SALES, async (req, res) => {
   const rows = await paymentPendingRows(req.query);
 
   const workbook = new ExcelJS.Workbook();
@@ -183,7 +189,7 @@ router.get("/payment-pending/export", async (req, res) => {
 
 // --- Service-wise ---
 
-router.get("/service-wise", async (req, res) => {
+router.get("/service-wise", NOT_SALES, async (req, res) => {
   const { from, to } = dateRangeFromQuery(req.query);
 
   const revenueResult = await pool.query(
@@ -213,7 +219,7 @@ function fillTemplate(text: string, values: Record<string, string>): string {
 
 // Reuses the message_templates system (built for Follow-up Automation) for the
 // Payment Pending report's one-click reminder, rather than a separate stub.
-router.get("/payment-pending/:invoiceId/remind/:templateId", async (req, res) => {
+router.get("/payment-pending/:invoiceId/remind/:templateId", NOT_SALES, async (req, res) => {
   const invoiceResult = await pool.query(
     `select i.*, c.company,
             (i.total - coalesce((select sum(p.amount) from payments p where p.invoice_id = i.id), 0)) as balance

@@ -2,8 +2,10 @@ import { useFetch } from "../lib/useFetch";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { PageHeader } from "../components/PageHeader";
 import { TwoFactorSettings } from "../components/TwoFactorSettings";
+import { ChangePassword } from "../components/ChangePassword";
 import { IconUsers } from "../components/Icons";
 import { friendlyUserAgent, friendlyAddress } from "../lib/format";
 
@@ -12,10 +14,11 @@ type Session = { id: string; user_agent: string | null; ip_address: string | nul
 export function MyAccount() {
   const { user } = useAuth();
   const { push } = useToast();
+  const confirm = useConfirm();
   const { data: sessions, reload } = useFetch<Session[]>("/auth/sessions");
 
   async function revokeOtherSessions() {
-    if (!confirm("Log out every other session on your account? This one stays signed in.")) return;
+    if (!(await confirm({ message: "Log out every other session on your account? This one stays signed in.", confirmLabel: "Log out others" }))) return;
     const res = await api.post<{ revoked: number }>("/auth/sessions/revoke-others");
     push(`Signed out ${res.revoked} other session${res.revoked === 1 ? "" : "s"}`, "success");
     reload();
@@ -44,6 +47,7 @@ export function MyAccount() {
         ))}
       </div>
 
+      <ChangePassword />
       <TwoFactorSettings />
     </div>
   );

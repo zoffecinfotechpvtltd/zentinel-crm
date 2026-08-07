@@ -196,6 +196,14 @@ router.post("/", requireRole("admin", "sales"), async (req, res) => {
     });
   }
 
+  await writeActivityLog(pool, {
+    entityType: "lead",
+    entityId: result.rows[0].id,
+    actorId: req.user!.id,
+    action: "created",
+    detail: { company: result.rows[0].company },
+  });
+
   res.status(201).json({
     lead: result.rows[0],
     duplicate_warning: dupCheck.rows.length > 0 ? dupCheck.rows : undefined,

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./components/Toast";
+import { ConfirmProvider } from "./components/ConfirmDialog";
 import { RequireAuth, RequireRole } from "./components/RequireAuth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
@@ -45,6 +46,7 @@ function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
+      <ConfirmProvider>
       <AuthProvider>
         <SetupGate>
           <Routes>
@@ -66,7 +68,14 @@ function App() {
                   </RequireRole>
                 }
               />
-              <Route path="/clients" element={<Clients />} />
+              <Route
+                path="/clients"
+                element={
+                  <RequireRole roles={["admin", "finance", "ops"]}>
+                    <Clients />
+                  </RequireRole>
+                }
+              />
               <Route path="/projects" element={<Projects />} />
               <Route
                 path="/invoices"
@@ -77,7 +86,14 @@ function App() {
                 }
               />
               <Route path="/followups" element={<Followups />} />
-              <Route path="/reports" element={<Reports />} />
+              <Route
+                path="/reports"
+                element={
+                  <RequireRole roles={["admin", "finance", "ops"]}>
+                    <Reports />
+                  </RequireRole>
+                }
+              />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/account" element={<MyAccount />} />
               <Route
@@ -116,6 +132,7 @@ function App() {
           </Routes>
         </SetupGate>
       </AuthProvider>
+      </ConfirmProvider>
       </ToastProvider>
     </BrowserRouter>
   );

@@ -9,6 +9,7 @@ import { PageHeader } from "../components/PageHeader";
 import { NotesAndFiles } from "../components/NotesAndFiles";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate } from "../lib/format";
 import { IconProjects, IconPlus, IconInbox, IconCalendar } from "../components/Icons";
 
@@ -28,6 +29,7 @@ const emptyForm = { name: "", client_id: "", assigned_to: "", start_date: "", du
 export function Projects() {
   const { user } = useAuth();
   const { push } = useToast();
+  const confirm = useConfirm();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -90,7 +92,7 @@ export function Projects() {
   }
 
   async function remove(p: Project) {
-    if (!confirm(`Delete project "${p.name}"? This can't be undone.`)) return;
+    if (!(await confirm({ message: `Delete project "${p.name}"? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
     try {
       await api.delete(`/projects/${p.id}`);
       push("Project deleted", "success");

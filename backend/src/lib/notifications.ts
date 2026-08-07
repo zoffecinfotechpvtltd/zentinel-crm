@@ -40,8 +40,8 @@ export async function createNotification(
     await sendMail({
       to: user.email,
       subject: n.title,
-      text: `Hi ${user.name},\n\n${n.title}${n.body ? `\n\n${n.body}` : ""}\n\n— Zoffec Sentinel`,
-      html: `<p>Hi ${user.name},</p><p><strong>${n.title}</strong></p>${n.body ? `<p>${n.body}</p>` : ""}<p style="color:#64748b;font-size:12px">— Zoffec Sentinel</p>`,
+      text: `Hi ${user.name},\n\n${n.title}${n.body ? `\n\n${n.body}` : ""}\n\n— Zentinel`,
+      html: `<p>Hi ${user.name},</p><p><strong>${n.title}</strong></p>${n.body ? `<p>${n.body}</p>` : ""}<p style="color:#64748b;font-size:12px">— Zentinel</p>`,
     });
   } catch (err) {
     // A mail failure must never break whatever triggered the notification —

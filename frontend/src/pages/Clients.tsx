@@ -9,6 +9,7 @@ import { PageHeader } from "../components/PageHeader";
 import { NotesAndFiles } from "../components/NotesAndFiles";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate, formatMoney } from "../lib/format";
 import { IconClients, IconPlus, IconInbox } from "../components/Icons";
 
@@ -30,6 +31,7 @@ type Service = { id: string; name: string };
 export function Clients() {
   const { user } = useAuth();
   const { push } = useToast();
+  const confirm = useConfirm();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -68,7 +70,7 @@ export function Clients() {
   }
 
   async function removeClient(c: Client) {
-    if (!confirm(`Delete client "${c.company}"? This can't be undone.`)) return;
+    if (!(await confirm({ message: `Delete client "${c.company}"? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
     try {
       await api.delete(`/clients/${c.id}`);
       push("Client deleted", "success");

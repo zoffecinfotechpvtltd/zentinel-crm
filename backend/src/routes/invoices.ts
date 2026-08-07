@@ -280,6 +280,13 @@ router.post("/", requireRole("admin", "finance"), async (req, res) => {
     }
 
     await client.query("commit");
+    await writeActivityLog(pool, {
+      entityType: "invoice",
+      entityId: invoice.id,
+      actorId: req.user!.id,
+      action: "created",
+      detail: { total },
+    });
     res.status(201).json(invoice);
   } catch (err) {
     await client.query("rollback");

@@ -1,4 +1,4 @@
-# Zoffec Sentinel
+# Zentinel
 
 Internal CRM & operations platform for Zoffec Infotech Pvt. Ltd. — leads,
 clients, projects, GST-correct invoicing, payments, follow-up automation,
@@ -14,7 +14,7 @@ walks you through creating the admin account; there's no default login.
 
 Grab the latest installer from the [Releases page](../../releases/latest).
 Run it, click through Windows' "unknown publisher" warning (More info → Run
-anyway — the installer isn't code-signed), and open Zoffec Sentinel from the
+anyway — the installer isn't code-signed), and open Zentinel from the
 Start menu.
 
 ## What's inside
@@ -46,7 +46,7 @@ cd ../frontend && npm install && npm run build
 cd ../desktop && npm install && npm run dist
 ```
 
-Produces `desktop/release/Zoffec Sentinel Setup <version>.exe`.
+Produces `desktop/release/Zentinel Setup <version>.exe`.
 
 ## Stack
 

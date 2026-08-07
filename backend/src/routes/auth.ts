@@ -250,6 +250,39 @@ router.post("/2fa/disable", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
+});
+
+// Self-service password change — the gap left by the fact that the only
+// existing paths to a new password are the admin-issued welcome link and
+// the "forgot password" email flow, neither of which helps someone who's
+// already logged in and just wants to update their own password. Keeps the
+// current session alive (unlike password-reset/confirm, which assumes the
+// old session may be compromised) but revokes every other session, same as
+// a security-sensitive change should.
+router.post("/change-password", requireAuth, async (req, res) => {
+  const parsed = changePasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const result = await pool.query(`select password_hash from users where id = $1`, [req.user!.id]);
+  const passwordOk = result.rows[0] && (await verifyPassword(result.rows[0].password_hash, parsed.data.currentPassword));
+  if (!passwordOk) {
+    res.status(401).json({ error: "invalid_credentials", message: "Current password didn't match." });
+    return;
+  }
+
+  const newHash = await hashPassword(parsed.data.newPassword);
+  const currentSessionId = req.cookies?.[getSessionCookieName()];
+  await pool.query(`update users set password_hash = $1 where id = $2`, [newHash, req.user!.id]);
+  await pool.query(`delete from sessions where user_id = $1 and id <> $2`, [req.user!.id, currentSessionId]);
+
+  res.json({ ok: true });
+});
+
 router.get("/sessions", requireAuth, async (req, res) => {
   const currentSessionId = req.cookies?.[getSessionCookieName()];
   const result = await pool.query(
@@ -300,7 +333,7 @@ router.post("/password-reset/request", async (req, res) => {
     try {
       await sendMail({
         to: parsed.data.email,
-        subject: "Reset your Zoffec Sentinel password",
+        subject: "Reset your Zentinel password",
         text: `Click the link below to reset your password. This link expires in 1 hour and can only be used once.\n\n${resetLink}\n\nIf you didn't request this, you can ignore this email.`,
         html: `<p>Click the link below to reset your password. This link expires in 1 hour and can only be used once.</p><p><a href="${resetLink}">${resetLink}</a></p><p>If you didn't request this, you can ignore this email.</p>`,
       });

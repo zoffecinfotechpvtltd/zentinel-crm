@@ -7,7 +7,7 @@ export function AuthBrandPanel({ headline }: { headline: string }) {
       <div className="login-brand-mark">
         <div className="logo-mark">Z</div>
         <div>
-          <div className="login-brand-name">Zoffec Sentinel</div>
+          <div className="login-brand-name">Zentinel</div>
           <div className="login-brand-sub">Zoffec Infotech Pvt. Ltd.</div>
         </div>
       </div>

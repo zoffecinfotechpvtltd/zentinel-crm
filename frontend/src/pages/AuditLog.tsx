@@ -16,13 +16,16 @@ const ENTITY_TYPES = ["lead", "client", "project", "invoice"];
 
 function describe(row: LogRow): string {
   const who = row.actor_name ?? "System";
+  const article = /^[aeiou]/i.test(row.entity_type) ? "an" : "a";
   if (row.action === "status_changed") {
     const d = row.detail as { from?: string; to?: string };
     return `${who} changed ${row.entity_type} status from "${d.from}" to "${d.to}"`;
   }
-  if (row.action === "created") return `${who} created a ${row.entity_type}`;
-  if (row.action === "reassigned") return `${who} reassigned a ${row.entity_type}`;
-  if (row.action === "note_added") return `${who} logged a note on a ${row.entity_type}`;
+  if (row.action === "created") return `${who} created ${article} ${row.entity_type}`;
+  if (row.action === "reassigned") return `${who} reassigned ${article} ${row.entity_type}`;
+  if (row.action === "note_added") return `${who} logged a note on ${article} ${row.entity_type}`;
+  if (row.action === "contact_added") return `${who} added a contact to ${article} ${row.entity_type}`;
+  if (row.action === "contract_added") return `${who} added a contract to ${article} ${row.entity_type}`;
   return `${who} — ${row.action} on ${row.entity_type}`;
 }
 

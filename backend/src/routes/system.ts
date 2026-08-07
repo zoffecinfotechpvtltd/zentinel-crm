@@ -72,7 +72,7 @@ router.get("/server-info", (_req, res) => {
 router.get("/backup", async (req, res) => {
   console.log(`[backup] ${req.user!.email} requested a full data export`);
   const backup = await dumpDatabase(pool);
-  const filename = `zoffec-sentinel-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const filename = `zentinel-backup-${new Date().toISOString().slice(0, 10)}.json`;
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.send(JSON.stringify(backup));

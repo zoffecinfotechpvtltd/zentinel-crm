@@ -68,7 +68,7 @@ export async function runDailyDigestJob(): Promise<{ sent: number }> {
     try {
       await sendMail({
         to: user.email,
-        subject: "Zoffec Sentinel — your daily summary",
+        subject: "Zentinel — your daily summary",
         text: `Good morning ${user.name},\n\n${sections.join("\n\n")}\n\nOpen the app for full detail.`,
       });
       sent++;

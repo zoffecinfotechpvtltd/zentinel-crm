@@ -9,6 +9,7 @@ import { PageHeader } from "../components/PageHeader";
 import { NotesAndFiles } from "../components/NotesAndFiles";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate, formatMoney, toDateInputValue } from "../lib/format";
 import { IconLeads, IconPlus, IconInbox, IconCheck } from "../components/Icons";
 
@@ -37,6 +38,7 @@ const emptyForm = {
 export function Leads() {
   const { user } = useAuth();
   const { push } = useToast();
+  const confirm = useConfirm();
   const [view, setViewState] = useState<"list" | "board">(() => (localStorage.getItem("zoffec-leads-view") === "board" ? "board" : "list"));
   function setView(v: "list" | "board") {
     localStorage.setItem("zoffec-leads-view", v);
@@ -97,7 +99,7 @@ export function Leads() {
 
   async function bulkDelete() {
     if (selected.size === 0) return;
-    if (!confirm(`Delete ${selected.size} selected lead(s)? This can't be undone.`)) return;
+    if (!(await confirm({ message: `Delete ${selected.size} selected lead(s)? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
     setBulkBusy(true);
     try {
       await Promise.all([...selected].map((id) => api.delete(`/leads/${id}`)));
@@ -188,7 +190,7 @@ export function Leads() {
   }
 
   async function convert(l: Lead) {
-    if (!confirm(`Convert ${l.company} to a client?`)) return;
+    if (!(await confirm({ message: `Convert ${l.company} to a client?`, confirmLabel: "Convert" }))) return;
     try {
       await api.post(`/leads/${l.id}/convert`, {});
       push(`${l.company} converted to a client`, "success");
@@ -200,7 +202,7 @@ export function Leads() {
   }
 
   async function remove(l: Lead) {
-    if (!confirm(`Delete lead "${l.company}"? This can't be undone.`)) return;
+    if (!(await confirm({ message: `Delete lead "${l.company}"? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
     try {
       await api.delete(`/leads/${l.id}`);
       push("Lead deleted", "success");

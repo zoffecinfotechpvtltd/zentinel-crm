@@ -1,5 +1,5 @@
 {
-  "name": "zoffec-sentinel-desktop",
+  "name": "zentinel-desktop",
   "version": "2.0.0",
   "private": true,
   "main": "main.js",
@@ -9,7 +9,7 @@
     "dist": "npm run prepare-resources && electron-builder"
   },
   "author": "Zoffec Infotech Pvt. Ltd.",
-  "description": "Zoffec Sentinel — internal CRM & operations platform",
+  "description": "Zentinel — internal CRM & operations platform",
   "dependencies": {
     "embedded-postgres": "18.4.0-beta.17",
     "node-pg-migrate": "^7.9.1",
@@ -20,8 +20,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.zoffecinfotech.sentinel",
-    "productName": "Zoffec Sentinel",
+    "appId": "com.zoffecinfotech.zentinel",
+    "productName": "Zentinel",
     "directories": {
       "output": "release"
     },

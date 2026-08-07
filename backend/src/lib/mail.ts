@@ -19,13 +19,13 @@ async function getSmtpConfig(): Promise<SmtpConfig | null> {
   if (result.rows.length > 0) {
     const v = result.rows[0].value as Partial<SmtpConfig>;
     if (v.host && v.user && v.pass) {
-      return { host: v.host, port: v.port ?? 587, user: v.user, pass: v.pass, from: v.from || `Zoffec Sentinel <${v.user}>` };
+      return { host: v.host, port: v.port ?? 587, user: v.user, pass: v.pass, from: v.from || `Zentinel <${v.user}>` };
     }
   }
 
   const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT, MAIL_FROM } = process.env;
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-    return { host: SMTP_HOST, port: Number(SMTP_PORT) || 587, user: SMTP_USER, pass: SMTP_PASS, from: MAIL_FROM || `Zoffec Sentinel <${SMTP_USER}>` };
+    return { host: SMTP_HOST, port: Number(SMTP_PORT) || 587, user: SMTP_USER, pass: SMTP_PASS, from: MAIL_FROM || `Zentinel <${SMTP_USER}>` };
   }
 
   return null;
@@ -76,7 +76,7 @@ export async function sendTestMail(config: SmtpConfig, to: string): Promise<void
   await transporter.sendMail({
     from: config.from,
     to,
-    subject: "Zoffec Sentinel — SMTP test",
+    subject: "Zentinel — SMTP test",
     text: "If you're reading this, your SMTP settings are working correctly.",
   });
 }

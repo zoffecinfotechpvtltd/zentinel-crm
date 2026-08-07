@@ -232,7 +232,7 @@ function createWindow(url) {
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
-    title: "Zoffec Sentinel",
+    title: "Zentinel",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -257,7 +257,7 @@ async function startServerMode() {
     dialog.showMessageBox({
       type: "warning",
       title: "Other PCs may not be able to connect",
-      message: "Zoffec Sentinel is running, but this PC couldn't reach itself over the network address other computers would use.",
+      message: "Zentinel is running, but this PC couldn't reach itself over the network address other computers would use.",
       detail:
         "This usually means Windows Firewall is blocking the connection. When Windows shows an \"allow this app\" prompt, allow it for Private networks. You can check Settings → Network in the app once it's open to see the exact address to test.",
     });
@@ -276,7 +276,7 @@ async function startClientMode(serverUrl) {
   } catch (err) {
     dialog.showErrorBox(
       "Can't reach that server",
-      `Couldn't connect to ${serverUrl}.\n\nCheck that:\n- The other PC's Zoffec Sentinel (Server mode) is running\n- Both PCs are on the same network\n- The address and port are correct\n\n${String(err instanceof Error ? err.message : err)}`
+      `Couldn't connect to ${serverUrl}.\n\nCheck that:\n- The other PC's Zentinel (Server mode) is running\n- Both PCs are on the same network\n- The address and port are correct\n\n${String(err instanceof Error ? err.message : err)}`
     );
     app.quit();
     return;
@@ -290,7 +290,7 @@ function showModePicker() {
     pickerWindow = new BrowserWindow({
       width: 520,
       height: 480,
-      title: "Zoffec Sentinel — Setup",
+      title: "Zentinel — Setup",
       resizable: false,
       webPreferences: {
         contextIsolation: true,
@@ -339,7 +339,7 @@ app.whenReady().then(async () => {
     }
   } catch (err) {
     console.error("Startup failed:", err);
-    dialog.showErrorBox("Zoffec Sentinel failed to start", String(err instanceof Error ? err.stack : err));
+    dialog.showErrorBox("Zentinel failed to start", String(err instanceof Error ? err.stack : err));
     app.quit();
   }
 });

@@ -40,7 +40,10 @@ function describeActivity(a: DashboardData["recent_activity"][number]): string {
 export function Dashboard() {
   const { user } = useAuth();
   const { data, loading } = useFetch<DashboardData>("/dashboard");
-  const { data: revenue } = useFetch<RevenueReport>("/reports/revenue");
+  // Revenue is pricing data Sales doesn't have access to (see reports.ts) —
+  // skip the request entirely rather than firing one that's always going to
+  // come back 403.
+  const { data: revenue } = useFetch<RevenueReport>(user?.role === "sales" ? "" : "/reports/revenue");
   const { data: conversion } = useFetch<ConversionReport>("/reports/lead-conversion");
 
   const hour = new Date().getHours();
@@ -56,44 +59,59 @@ export function Dashboard() {
     );
   }
   const s = data.stats;
+  const isSales = user?.role === "sales";
 
   return (
     <div>
       <PageHeader icon={<IconDashboard size={19} />} title="Dashboard" subtitle={`${greeting}, ${user?.name?.split(" ")[0] ?? ""} — here's where things stand`} />
       {user?.role === "admin" && <OnboardingChecklist hasLeads={s.total_leads > 0} hasClients={s.active_clients > 0} />}
       <div className="stat-grid">
-        <StatCard label="Total Leads" value={String(s.total_leads)} color="var(--accent)"
+        <StatCard label={isSales ? "Your Leads" : "Total Leads"} value={String(s.total_leads)} color="var(--accent)"
           change={s.new_leads_change_pct != null ? `${s.new_leads_change_pct >= 0 ? "+" : ""}${s.new_leads_change_pct.toFixed(0)}% vs last month` : `${s.new_leads_this_month} this month`}
           changeUp={s.new_leads_change_pct == null || s.new_leads_change_pct >= 0} />
-        <StatCard label="Active Clients" value={String(s.active_clients)} color="var(--success)" />
-        <StatCard label="Proposals Sent" value={String(s.proposals_sent)} color="var(--purple)" />
-        <StatCard label="Projects Active" value={String(s.projects_active)} color="var(--info)" />
+        {isSales ? (
+          <StatCard label="Proposals Sent" value={String(s.proposals_sent)} color="var(--purple)" />
+        ) : (
+          <>
+            <StatCard label="Active Clients" value={String(s.active_clients)} color="var(--success)" />
+            <StatCard label="Proposals Sent" value={String(s.proposals_sent)} color="var(--purple)" />
+            <StatCard label="Projects Active" value={String(s.projects_active)} color="var(--info)" />
+          </>
+        )}
       </div>
       <div className="stat-grid">
-        <StatCard label="Pending Payments" value={formatMoney(s.pending_payments_amount)} color="var(--warning)"
-          change={`${s.pending_payments_count} invoice(s) pending`} changeUp={false} />
-        <StatCard label="Revenue This Month" value={formatMoney(s.revenue_this_month)} color="var(--success)"
-          change={s.revenue_change_pct != null ? `${s.revenue_change_pct >= 0 ? "+" : ""}${s.revenue_change_pct.toFixed(0)}% vs last month` : "no data last month"}
-          changeUp={s.revenue_change_pct == null || s.revenue_change_pct >= 0} />
+        {!isSales && (
+          <>
+            <StatCard label="Pending Payments" value={formatMoney(s.pending_payments_amount)} color="var(--warning)"
+              change={`${s.pending_payments_count} invoice(s) pending`} changeUp={false} />
+            <StatCard label="Revenue This Month" value={formatMoney(s.revenue_this_month)} color="var(--success)"
+              change={s.revenue_change_pct != null ? `${s.revenue_change_pct >= 0 ? "+" : ""}${s.revenue_change_pct.toFixed(0)}% vs last month` : "no data last month"}
+              changeUp={s.revenue_change_pct == null || s.revenue_change_pct >= 0} />
+          </>
+        )}
         <StatCard label="Follow-ups Today" value={String(s.followups_today)} color="var(--orange)" />
         <StatCard label="Conversion Rate" value={`${s.conversion_rate_pct}%`} color="var(--accent)" />
       </div>
 
       <div className="grid2">
-        <div className="card">
-          <div className="card-title">Revenue Trend</div>
-          <div className="chart-wrap">
-            {revenue && (
-              <Bar
-                data={{
-                  labels: revenue.monthly_trend.map((m) => new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })),
-                  datasets: [{ label: "Revenue", data: revenue.monthly_trend.map((m) => Number(m.total)), backgroundColor: "#4a6fc9", borderRadius: 4 }],
-                }}
-                options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }}
-              />
-            )}
+        {!isSales && (
+          <div className="card">
+            <div className="card-title">Revenue Trend</div>
+            <div className="chart-wrap">
+              {revenue?.monthly_trend.some((m) => Number(m.total) > 0) ? (
+                <Bar
+                  data={{
+                    labels: revenue.monthly_trend.map((m) => new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })),
+                    datasets: [{ label: "Revenue", data: revenue.monthly_trend.map((m) => Number(m.total)), backgroundColor: "#4a6fc9", borderRadius: 4 }],
+                  }}
+                  options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }}
+                />
+              ) : revenue && (
+                <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>No payments recorded yet</div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
         <div className="card">
           <div className="card-title">Lead Status Breakdown</div>
           <div className="chart-wrap">

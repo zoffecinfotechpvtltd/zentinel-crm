@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api, ApiError } from "../lib/api";
 import { AuthBrandPanel } from "../components/AuthBrandPanel";
@@ -7,10 +7,11 @@ import { AuthBrandPanel } from "../components/AuthBrandPanel";
 export function Login() {
   const { login, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(params.get("expired") ? "Your session expired. Sign in again to continue." : null);
   const [submitting, setSubmitting] = useState(false);
 
   const [pendingToken, setPendingToken] = useState<string | null>(null);

@@ -1,6 +1,6 @@
-# Building & releasing Zoffec Sentinel (Windows desktop app)
+# Building & releasing Zentinel (Windows desktop app)
 
-Zoffec Sentinel ships as a single Windows installer — no cloud hosting, no
+Zentinel ships as a single Windows installer — no cloud hosting, no
 database to manage, no env vars to configure. It bundles its own PostgreSQL
 (via `embedded-postgres`) and starts the whole app (database + backend +
 frontend, all in one process on `127.0.0.1`, never reachable from the network)
@@ -35,7 +35,7 @@ npm install
 npm run dist
 ```
 
-Output: `desktop/release/Zoffec Sentinel Setup <version>.exe` — this is the
+Output: `desktop/release/Zentinel Setup <version>.exe` — this is the
 one file to distribute. (`desktop/release/win-unpacked/` also contains the
 unpacked app, useful for quick local testing without running the installer.)
 
@@ -63,11 +63,11 @@ unpacked app, useful for quick local testing without running the installer.)
 
 ```bash
 cd desktop/release/win-unpacked
-./"Zoffec Sentinel.exe"
+./"Zentinel.exe"
 ```
 
 Confirms the packaged app boots without needing to run the full NSIS
-installer each time. Delete `%APPDATA%\zoffec-sentinel-desktop` between test
+installer each time. Delete `%APPDATA%\zentinel-desktop` between test
 runs to get a genuinely fresh first-run (Setup screen, empty database).
 
 ## Known gotchas hit while building this
@@ -94,8 +94,8 @@ runs to get a genuinely fresh first-run (Setup screen, empty database).
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
-gh release create v1.0.0 "desktop/release/Zoffec Sentinel Setup 1.0.0.exe" \
-  --title "Zoffec Sentinel v1.0.0" \
+gh release create v1.0.0 "desktop/release/Zentinel Setup 1.0.0.exe" \
+  --title "Zentinel v1.0.0" \
   --notes "First release."
 ```
 

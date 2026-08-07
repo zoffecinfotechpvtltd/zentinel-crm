@@ -15,6 +15,13 @@ export class ApiError extends Error {
   }
 }
 
+// These endpoints legitimately return 401 as a normal, pre-authentication
+// outcome (wrong password, "am I logged in yet" probe on first paint) — a
+// 401 from anywhere else means a session that WAS valid has expired or been
+// revoked mid-use, which is worth surfacing distinctly rather than as a raw
+// failed-request toast.
+const UNAUTH_EXPECTED_PATHS = ["/auth/login", "/auth/login/2fa", "/auth/me", "/auth/password-reset/", "/setup/"];
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}/api${path}`, {
     credentials: "include",
@@ -31,6 +38,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const body = isJson ? await res.json().catch(() => null) : await res.text();
 
   if (!res.ok) {
+    if (res.status === 401 && !UNAUTH_EXPECTED_PATHS.some((p) => path.startsWith(p)) && !window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login?expired=1";
+    }
     throw new ApiError(res.status, body);
   }
   return body as T;

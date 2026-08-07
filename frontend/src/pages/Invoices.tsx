@@ -10,6 +10,7 @@ import { NotesAndFiles } from "../components/NotesAndFiles";
 import { StatCard } from "../components/StatCard";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate, formatMoneyExact, formatMoney } from "../lib/format";
 import { IconInvoices, IconPlus, IconInbox } from "../components/Icons";
 
@@ -30,6 +31,7 @@ type DraftLine = { description: string; quantity: string; rate: string; gst_rate
 export function Invoices() {
   const { user } = useAuth();
   const { push } = useToast();
+  const confirm = useConfirm();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
@@ -132,7 +134,7 @@ export function Invoices() {
   }
 
   async function finalize() {
-    if (!detailId || !confirm("Finalize this invoice? It will be locked and assigned a permanent invoice number.")) return;
+    if (!detailId || !(await confirm({ message: "Finalize this invoice? It will be locked and assigned a permanent invoice number.", confirmLabel: "Finalize" }))) return;
     await api.post(`/invoices/${detailId}/finalize`);
     push("Invoice finalized", "success");
     reloadDetail();
@@ -157,7 +159,7 @@ export function Invoices() {
   }
 
   async function removeInvoice(inv: Invoice) {
-    if (!confirm(`Delete invoice ${inv.invoice_number ?? "(draft)"}? This can't be undone.`)) return;
+    if (!(await confirm({ message: `Delete invoice ${inv.invoice_number ?? "(draft)"}? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
     try {
       await api.delete(`/invoices/${inv.id}`);
       push("Invoice deleted", "success");

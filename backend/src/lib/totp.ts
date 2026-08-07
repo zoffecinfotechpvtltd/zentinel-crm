@@ -2,7 +2,7 @@ import * as OTPAuth from "otpauth";
 import crypto from "node:crypto";
 import { hashPassword, verifyPassword } from "./password";
 
-const ISSUER = "Zoffec Sentinel";
+const ISSUER = "Zentinel";
 
 export function generateSecret(): string {
   return new OTPAuth.Secret({ size: 20 }).base32;

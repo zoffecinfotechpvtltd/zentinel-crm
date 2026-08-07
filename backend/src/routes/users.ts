@@ -79,9 +79,9 @@ router.post("/", async (req, res) => {
     const resetLink = `${appBaseUrl}/reset-password?token=${rawToken}`;
     await sendMail({
       to: email,
-      subject: "Your Zoffec Sentinel account is ready",
-      text: `Hi ${name},\n\n${req.user!.name} set up a Zoffec Sentinel account for you (role: ${role}).\n\nSet your own password here (link valid 7 days):\n${resetLink}\n\nOnce set, log in at ${appBaseUrl} with ${email}.`,
-      html: `<p>Hi ${name},</p><p>${req.user!.name} set up a Zoffec Sentinel account for you (role: <strong>${role}</strong>).</p><p><a href="${resetLink}">Set your password</a> (link valid 7 days).</p><p>Once set, log in at <a href="${appBaseUrl}">${appBaseUrl}</a> with ${email}.</p>`,
+      subject: "Your Zentinel account is ready",
+      text: `Hi ${name},\n\n${req.user!.name} set up a Zentinel account for you (role: ${role}).\n\nSet your own password here (link valid 7 days):\n${resetLink}\n\nOnce set, log in at ${appBaseUrl} with ${email}.`,
+      html: `<p>Hi ${name},</p><p>${req.user!.name} set up a Zentinel account for you (role: <strong>${role}</strong>).</p><p><a href="${resetLink}">Set your password</a> (link valid 7 days).</p><p>Once set, log in at <a href="${appBaseUrl}">${appBaseUrl}</a> with ${email}.</p>`,
     });
   } catch (err) {
     console.error("Failed to send welcome email to new user:", err);

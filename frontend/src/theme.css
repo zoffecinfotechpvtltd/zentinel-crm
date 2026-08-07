@@ -1,4 +1,4 @@
-/* Zoffec Sentinel — theme v4. Single-family monochrome navy/blue, from a
+/* Zentinel — theme v4. Single-family monochrome navy/blue, from a
    4-swatch client palette (#0E182F, #4A6FC9, #D8E0F3, #0C1427) — no second
    brand hue this time. Everything else (status badges) stays semantically
    colored since 7 lead stages genuinely need to be tell-apart-able, but the
@@ -338,6 +338,13 @@ tr.row-selected td { background: var(--accent-soft); }
 .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+
+.confirm-dialog { width: 420px; }
+.confirm-dialog-body { padding: 22px 20px 6px; display: flex; gap: 14px; align-items: flex-start; }
+.confirm-dialog-icon { flex: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--info-soft); color: var(--info); }
+.confirm-dialog-icon.danger { background: var(--danger-soft); color: var(--danger); }
+.confirm-dialog-title { font-size: 15px; font-weight: 650; margin-bottom: 4px; }
+.confirm-dialog-message { font-size: 13px; color: var(--text2); line-height: 1.5; }
 
 /* ------------------------------------------------------------------ form */
 

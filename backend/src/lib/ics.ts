@@ -13,10 +13,10 @@ export function buildSingleEventIcs(params: { uid: string; date: string; summary
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Zoffec Sentinel//EN",
+    "PRODID:-//Zentinel//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
-    `UID:${params.uid}@zoffec-sentinel`,
+    `UID:${params.uid}@zentinel`,
     `DTSTAMP:${now}`,
     `DTSTART;VALUE=DATE:${icsDate(params.date)}`,
     `SUMMARY:${escapeText(params.summary)}`,

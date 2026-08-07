@@ -3,6 +3,7 @@ import { useFetch } from "../lib/useFetch";
 import { api, ApiError, API_BASE } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { IconSettings } from "../components/Icons";
 
 const RESTORE_CONFIRM_PHRASE = "REPLACE ALL DATA";
@@ -12,6 +13,7 @@ type ServerInfo = { hostname: string; lan_addresses: string[]; port: number; des
 
 export function Settings() {
   const { push } = useToast();
+  const confirm = useConfirm();
   const { data, reload } = useFetch<SmtpConfig | null>("/settings/smtp");
   const { data: serverInfo } = useFetch<ServerInfo>("/system/server-info");
   const [form, setForm] = useState({ host: "", port: "587", user: "", pass: "", from: "" });
@@ -53,7 +55,7 @@ export function Settings() {
 
   async function restoreFromBackup() {
     if (!restoreFile || restoreConfirmText !== RESTORE_CONFIRM_PHRASE) return;
-    if (!confirm("This replaces EVERY record in the database with what's in this backup file. Everyone's current data will be gone. Continue?")) return;
+    if (!(await confirm({ message: "This replaces EVERY record in the database with what's in this backup file. Everyone's current data will be gone. Continue?", confirmLabel: "Replace all data", danger: true }))) return;
     setRestoring(true);
     try {
       const form = new FormData();
@@ -113,7 +115,7 @@ export function Settings() {
           </div>
           <div className="form-group full">
             <label className="form-label">"From" address</label>
-            <input className="form-input" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} placeholder="Zoffec Sentinel <no-reply@yourcompany.com>" />
+            <input className="form-input" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} placeholder="Zentinel <no-reply@yourcompany.com>" />
           </div>
         </div>
         <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>Save</button>
@@ -141,7 +143,7 @@ export function Settings() {
           {serverInfo.desktop_bind === "lan" && (
             <>
               <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 12 }}>
-                This PC is hosting. On any other PC on this network, install Zoffec Sentinel, choose "Connect to a Server," and enter one of these addresses — or just open it in a browser, no install needed.
+                This PC is hosting. On any other PC on this network, install Zentinel, choose "Connect to a Server," and enter one of these addresses — or just open it in a browser, no install needed.
               </p>
               {serverInfo.lan_addresses.length === 0 && <div className="banner banner-error">No LAN network interface detected — check this PC is connected to the office network.</div>}
               {serverInfo.lan_addresses.map((addr) => {

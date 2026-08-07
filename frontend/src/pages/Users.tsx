@@ -4,6 +4,7 @@ import { api, ApiError } from "../lib/api";
 import { Modal } from "../components/Modal";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/ConfirmDialog";
 import { IconUsers, IconPlus } from "../components/Icons";
 
 type User = { id: string; email: string; name: string; role: string; is_active: boolean };
@@ -13,6 +14,7 @@ const ROLES = ["admin", "sales", "finance", "ops"];
 export function Users() {
   const { data, reload } = useFetch<User[]>("/users");
   const { push } = useToast();
+  const confirm = useConfirm();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "", role: "sales" });
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function Users() {
   }
 
   async function toggleActive(u: User) {
-    if (u.is_active && !confirm(`Deactivate ${u.name}? They'll be signed out immediately and can't log in until reactivated.`)) return;
+    if (u.is_active && !(await confirm({ message: `Deactivate ${u.name}? They'll be signed out immediately and can't log in until reactivated.`, confirmLabel: "Deactivate", danger: true }))) return;
     await api.patch(`/users/${u.id}`, { is_active: !u.is_active });
     push(u.is_active ? `${u.name} deactivated` : `${u.name} reactivated`, "info");
     reload();

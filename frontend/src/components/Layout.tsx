@@ -19,7 +19,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { to: "/", label: "Dashboard", icon: <IconDashboard /> },
       { to: "/leads", label: "Leads", icon: <IconLeads />, roles: ["admin", "sales"] },
-      { to: "/clients", label: "Clients", icon: <IconClients /> },
+      { to: "/clients", label: "Clients", icon: <IconClients />, roles: ["admin", "ops", "finance"] },
       { to: "/projects", label: "Projects", icon: <IconProjects />, roles: ["admin", "ops", "finance"] },
     ],
   },
@@ -33,7 +33,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Insights",
     items: [
-      { to: "/reports", label: "Reports", icon: <IconReports /> },
+      { to: "/reports", label: "Reports", icon: <IconReports />, roles: ["admin", "finance", "ops"] },
       { to: "/notifications", label: "Notifications", icon: <IconBell /> },
     ],
   },
@@ -121,7 +121,7 @@ export function Layout() {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className="logo-mark">Z</div>
             <div>
-              <div className="logo-name">Zoffec Sentinel</div>
+              <div className="logo-name">Zentinel</div>
               <div className="logo-sub">Zoffec Infotech Pvt. Ltd.</div>
             </div>
           </div>

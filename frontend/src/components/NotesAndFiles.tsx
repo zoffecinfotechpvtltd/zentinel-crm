@@ -3,6 +3,7 @@ import { useFetch } from "../lib/useFetch";
 import { api, API_BASE } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "./Toast";
+import { useConfirm } from "./ConfirmDialog";
 import { formatDateTime } from "../lib/format";
 import { IconPaperclip, IconTrash, IconPlus } from "./Icons";
 
@@ -21,6 +22,7 @@ function formatSize(bytes: number): string {
 export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType; entityId: string }) {
   const { user } = useAuth();
   const { push } = useToast();
+  const confirm = useConfirm();
   const base = `/${entityType}s`;
   const { data: notes, reload: reloadNotes } = useFetch<Note[]>(`${base}/${entityId}/notes`, [entityId]);
   const { data: attachments, reload: reloadAttachments } = useFetch<Attachment[]>(`${base}/${entityId}/attachments`, [entityId]);
@@ -47,7 +49,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
   }
 
   async function deleteNote(id: string) {
-    if (!confirm("Delete this note?")) return;
+    if (!(await confirm({ message: "Delete this note?", confirmLabel: "Delete", danger: true }))) return;
     await api.delete(`${base}/${entityId}/notes/${id}`);
     reloadNotes();
   }
@@ -69,7 +71,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
   }
 
   async function deleteAttachment(id: string) {
-    if (!confirm("Delete this file?")) return;
+    if (!(await confirm({ message: "Delete this file?", confirmLabel: "Delete", danger: true }))) return;
     await api.delete(`${base}/${entityId}/attachments/${id}`);
     reloadAttachments();
   }

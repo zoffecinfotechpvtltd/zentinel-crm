@@ -7,7 +7,7 @@ describe("buildSingleEventIcs", () => {
     expect(ics).toContain("BEGIN:VCALENDAR");
     expect(ics).toContain("BEGIN:VEVENT");
     expect(ics).toContain("DTSTART;VALUE=DATE:20260305");
-    expect(ics).toContain("UID:abc-123@zoffec-sentinel");
+    expect(ics).toContain("UID:abc-123@zentinel");
     expect(ics).toContain("END:VEVENT");
     expect(ics).toContain("END:VCALENDAR");
   });

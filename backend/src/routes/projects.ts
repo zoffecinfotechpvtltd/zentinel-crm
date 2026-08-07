@@ -170,6 +170,14 @@ router.post("/", requireRole("admin", "ops"), async (req, res) => {
     });
   }
 
+  await writeActivityLog(pool, {
+    entityType: "project",
+    entityId: result.rows[0].id,
+    actorId: req.user!.id,
+    action: "created",
+    detail: { name: result.rows[0].name },
+  });
+
   res.status(201).json(result.rows[0]);
 });
 

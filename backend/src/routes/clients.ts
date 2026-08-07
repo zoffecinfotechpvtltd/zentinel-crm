@@ -3,10 +3,23 @@ import { z } from "zod";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
+import { writeActivityLog } from "../lib/activityLog";
 
 const router = Router();
 
 router.use(requireAuth);
+
+// Sales' job ends at a Won lead — the client, its pricing, and its contracts
+// are Finance/Ops territory from there on. Blocked router-wide (rather than
+// per-field) so pricing can never leak to Sales through this API regardless
+// of which endpoint they hit.
+router.use((req, res, next) => {
+  if (req.user!.role === "sales") {
+    res.status(403).json({ error: "forbidden", message: "Clients and pricing are managed by Finance/Ops. Sales works Leads through to conversion." });
+    return;
+  }
+  next();
+});
 
 // Computed status per Clients README: Active if not archived and at least one
 // contract has no end_date or an end_date in the future; Inactive otherwise.
@@ -22,18 +35,6 @@ const STATUS_EXPR = `
     else 'Inactive'
   end
 `;
-
-// A client is "assigned" to a Sales rep transitively through the lead that
-// converted into it (Clients README defines no direct ownership field).
-async function isClientOwnedBySales(clientId: string, userId: string): Promise<boolean> {
-  const result = await pool.query(
-    `select 1 from clients c
-     join leads l on l.id = c.converted_from_lead_id
-     where c.id = $1 and l.assigned_to = $2`,
-    [clientId, userId]
-  );
-  return result.rows.length > 0;
-}
 
 router.get("/", async (req, res) => {
   const conditions: string[] = ["c.deleted_at is null"];
@@ -131,6 +132,13 @@ router.post("/", requireRole("admin"), async (req, res) => {
      values ($1,$2,$3,$4,$5,$5) returning *`,
     [f.company, f.gstin ?? null, f.billing_address ?? null, f.tally_ledger_name ?? null, req.user!.id]
   );
+  await writeActivityLog(pool, {
+    entityType: "client",
+    entityId: result.rows[0].id,
+    actorId: req.user!.id,
+    action: "created",
+    detail: { company: result.rows[0].company },
+  });
   res.status(201).json(result.rows[0]);
 });
 
@@ -142,7 +150,7 @@ const updateClientSchema = z.object({
   is_archived: z.boolean().optional(),
 });
 
-router.patch("/:id", requireRole("admin", "sales"), async (req, res) => {
+router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
   const parsed = updateClientSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
@@ -152,11 +160,6 @@ router.patch("/:id", requireRole("admin", "sales"), async (req, res) => {
 
   if (f.is_archived !== undefined && req.user!.role !== "admin") {
     res.status(403).json({ error: "forbidden", message: "Only Admin can archive/unarchive a client." });
-    return;
-  }
-
-  if (req.user!.role === "sales" && !(await isClientOwnedBySales(req.params.id, req.user!.id))) {
-    res.status(403).json({ error: "forbidden" });
     return;
   }
 
@@ -208,14 +211,10 @@ const createContactSchema = z.object({
   is_primary: z.boolean().optional().default(false),
 });
 
-router.post("/:id/contacts", requireRole("admin", "sales"), async (req, res) => {
+router.post("/:id/contacts", requireRole("admin", "finance"), async (req, res) => {
   const parsed = createContactSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
-    return;
-  }
-  if (req.user!.role === "sales" && !(await isClientOwnedBySales(req.params.id, req.user!.id))) {
-    res.status(403).json({ error: "forbidden" });
     return;
   }
   const f = parsed.data;
@@ -232,6 +231,13 @@ router.post("/:id/contacts", requireRole("admin", "sales"), async (req, res) => 
       [req.params.id, f.name, f.email ?? null, f.mobile ?? null, f.designation ?? null, f.is_primary, req.user!.id]
     );
     await client.query("commit");
+    await writeActivityLog(pool, {
+      entityType: "client",
+      entityId: req.params.id,
+      actorId: req.user!.id,
+      action: "contact_added",
+      detail: { name: f.name },
+    });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     await client.query("rollback");
@@ -251,14 +257,10 @@ const updateContactSchema = z.object({
 
 // Making a contact primary is a single action: this handler both sets the
 // new primary and clears the old one atomically, per the Clients AC.
-router.patch("/:id/contacts/:contactId", requireRole("admin", "sales"), async (req, res) => {
+router.patch("/:id/contacts/:contactId", requireRole("admin", "finance"), async (req, res) => {
   const parsed = updateContactSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
-    return;
-  }
-  if (req.user!.role === "sales" && !(await isClientOwnedBySales(req.params.id, req.user!.id))) {
-    res.status(403).json({ error: "forbidden" });
     return;
   }
   const f = parsed.data;
@@ -311,14 +313,10 @@ const createContractSchema = z.object({
   status: z.enum(["active", "completed", "cancelled"]).optional().default("active"),
 });
 
-router.post("/:id/contracts", requireRole("admin", "sales"), async (req, res) => {
+router.post("/:id/contracts", requireRole("admin", "finance"), async (req, res) => {
   const parsed = createContractSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
-    return;
-  }
-  if (req.user!.role === "sales" && !(await isClientOwnedBySales(req.params.id, req.user!.id))) {
-    res.status(403).json({ error: "forbidden" });
     return;
   }
   const f = parsed.data;
@@ -327,6 +325,13 @@ router.post("/:id/contracts", requireRole("admin", "sales"), async (req, res) =>
      values ($1,$2,$3,$4,$5,$6,$7,$7) returning *`,
     [req.params.id, f.service_id ?? null, f.value ?? null, f.start_date ?? null, f.end_date ?? null, f.status, req.user!.id]
   );
+  await writeActivityLog(pool, {
+    entityType: "client",
+    entityId: req.params.id,
+    actorId: req.user!.id,
+    action: "contract_added",
+    detail: { value: f.value ?? null },
+  });
   res.status(201).json(result.rows[0]);
 });
 
@@ -338,14 +343,10 @@ const updateContractSchema = z.object({
   status: z.enum(["active", "completed", "cancelled"]).optional(),
 });
 
-router.patch("/:id/contracts/:contractId", requireRole("admin", "sales"), async (req, res) => {
+router.patch("/:id/contracts/:contractId", requireRole("admin", "finance"), async (req, res) => {
   const parsed = updateContractSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
-    return;
-  }
-  if (req.user!.role === "sales" && !(await isClientOwnedBySales(req.params.id, req.user!.id))) {
-    res.status(403).json({ error: "forbidden" });
     return;
   }
   const f = parsed.data;
