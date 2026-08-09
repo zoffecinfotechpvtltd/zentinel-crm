@@ -31,7 +31,7 @@ export function Login() {
       if (result.requiresTwoFactor) {
         setPendingToken(result.pendingToken);
       } else {
-        navigate("/");
+        navigate("/dashboard");
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -52,7 +52,7 @@ export function Login() {
     setSubmitting(true);
     try {
       await verifyTwoFactor(pendingToken, code);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "That code didn't work. Try again.");
     } finally {

@@ -214,7 +214,7 @@ td.mono,
 .btn {
   display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: var(--radius);
   font-size: 13px; cursor: pointer; border: 1px solid transparent; font-weight: 600; transition: all .12s var(--ease);
-  font-family: inherit; white-space: nowrap;
+  font-family: inherit; white-space: nowrap; text-decoration: none;
 }
 .btn svg { flex-shrink: 0; }
 .btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
@@ -467,6 +467,73 @@ tr.row-selected td { background: var(--accent-soft); }
 @media (max-width: 860px) {
   .login-brand { display: none; }
   .login-form-panel { flex: 1 1 100%; }
+}
+
+/* -------------------------------------------------------------- marketing */
+
+.marketing { min-height: 100vh; background: var(--bg); }
+.marketing-nav {
+  display: flex; align-items: center; justify-content: space-between; padding: 16px 40px;
+  position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+}
+.marketing-nav-brand { display: flex; align-items: center; gap: 10px; }
+
+.marketing-hero {
+  position: relative; overflow: hidden; background: var(--primary-navy);
+  padding: 88px 40px 96px; display: flex; justify-content: center;
+}
+.marketing-hero::before {
+  content: ""; position: absolute; width: 720px; height: 720px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 99, 255, 0.32), transparent 65%);
+  top: -360px; right: -220px; pointer-events: none;
+}
+.marketing-hero::after {
+  content: ""; position: absolute; width: 480px; height: 480px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.26), transparent 70%);
+  bottom: -280px; left: -160px; pointer-events: none;
+}
+.marketing-hero-watermark {
+  position: absolute; top: 50%; right: -80px; transform: translateY(-50%) rotate(-8deg);
+  opacity: .06; pointer-events: none; z-index: 0;
+}
+.marketing-hero-inner { position: relative; z-index: 1; max-width: 640px; text-align: left; }
+.marketing-hero-title { font-weight: 700; font-size: 40px; line-height: 1.2; letter-spacing: -0.02em; color: #fff; margin: 14px 0 16px; }
+.marketing-hero-sub { font-size: 15px; line-height: 1.6; color: #b7c1d9; max-width: 520px; }
+.marketing-hero-actions { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
+.marketing-hero .btn-ghost { background: rgba(11,16,32,0.45); border-color: rgba(255,255,255,0.25); color: #fff; }
+.marketing-hero .btn-ghost:hover { background: rgba(11,16,32,0.65); border-color: rgba(255,255,255,0.4); }
+
+.marketing-section { padding: 64px 40px; max-width: 1120px; margin: 0 auto; }
+.marketing-section-head { text-align: center; max-width: 520px; margin: 0 auto 32px; }
+.marketing-section-head .page-subtitle { margin-top: 6px; }
+.marketing-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.marketing-feature-card { text-align: left; }
+.marketing-feature-body { font-size: 13px; color: var(--text2); line-height: 1.55; }
+
+.marketing-roles { background: var(--bg3); border-radius: var(--radius-xl); }
+.marketing-role-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.marketing-role-card svg { color: var(--success); flex-shrink: 0; }
+
+.marketing-cta {
+  padding: 72px 40px; text-align: center; background: linear-gradient(135deg, var(--accent-soft), var(--indigo-soft));
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.marketing-cta-inner { max-width: 420px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.marketing-cta-title { font-weight: 700; font-size: 26px; letter-spacing: -0.015em; margin: 4px 0 0; }
+.marketing-cta .btn-primary { margin-top: 10px; }
+
+.marketing-footer {
+  display: flex; align-items: center; justify-content: center; gap: 10px; padding: 22px 40px;
+  font-size: 12px; color: var(--text3);
+}
+
+@media (max-width: 860px) {
+  .marketing-nav, .marketing-hero, .marketing-section, .marketing-cta { padding-left: 20px; padding-right: 20px; }
+  .marketing-hero { padding-top: 64px; padding-bottom: 72px; }
+  .marketing-hero-title { font-size: 30px; }
+  .marketing-feature-grid { grid-template-columns: 1fr; }
+  .marketing-role-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* --------------------------------------------------------------- skeleton */

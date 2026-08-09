@@ -5,6 +5,7 @@ import { ToastProvider } from "./components/Toast";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { RequireAuth, RequireRole } from "./components/RequireAuth";
 import { Layout } from "./components/Layout";
+import { Marketing } from "./pages/Marketing";
 import { Login } from "./pages/Login";
 import { ResetPassword } from "./pages/ResetPassword";
 import { SignDocument } from "./pages/SignDocument";
@@ -51,6 +52,7 @@ function App() {
       <AuthProvider>
         <SetupGate>
           <Routes>
+            <Route path="/" element={<Marketing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/sign/:token" element={<SignDocument />} />
@@ -61,7 +63,7 @@ function App() {
                 </RequireAuth>
               }
             >
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route
                 path="/leads"
                 element={

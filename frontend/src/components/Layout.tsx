@@ -18,7 +18,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Main",
     items: [
-      { to: "/", label: "Dashboard", icon: <IconDashboard /> },
+      { to: "/dashboard", label: "Dashboard", icon: <IconDashboard /> },
       { to: "/leads", label: "Leads", icon: <IconLeads />, roles: ["admin", "sales"] },
       { to: "/clients", label: "Clients", icon: <IconClients />, roles: ["admin", "ops", "finance"] },
       { to: "/projects", label: "Projects", icon: <IconProjects />, roles: ["admin", "ops", "finance"] },
@@ -137,7 +137,6 @@ export function Layout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.to === "/"}
                   onClick={() => setMobileNavOpen(false)}
                   className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
                 >
