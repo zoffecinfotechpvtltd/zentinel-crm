@@ -1,50 +1,54 @@
-/* Zentinel — theme v4. Single-family monochrome navy/blue, from a
-   4-swatch client palette (#0E182F, #4A6FC9, #D8E0F3, #0C1427) — no second
-   brand hue this time. Everything else (status badges) stays semantically
-   colored since 7 lead stages genuinely need to be tell-apart-able, but the
-   BRAND surfaces — buttons, active nav, the sidebar, links — never leave
-   this one blue family. That restraint is the fix for what read as clashing
-   before: one hue, used consistently, at different depths.
+/* Zentinel — theme v5. Rebuilt from the client's brand sheet: Midnight
+   #0B1020, Graphite #111827, Electric Blue #2563FF, Indigo #6366F1, Cyan
+   #06B6D4, Violet #A855F7, Slate #64748B, Light #F1F5F9. The old theme
+   picked one blue and stayed monochrome; this one uses the full brand
+   ramp on purpose — Electric Blue still owns every large brand surface
+   (buttons, active nav, links) so the product never looks multi-colored,
+   but Indigo/Cyan/Violet now do real work as the gradient partner in the
+   logo, the chart/status palette, and small accents — the four hues the
+   brand sheet actually specifies, not a single one it happened to show.
 
-   Both themes are first-class, not one derived as an afterthought — the
-   light surface is built from the same lavender-blue swatch rather than
-   generic slate, so light and dark visibly belong to the same product. */
+   Both themes are first-class. Light is built from the Light/Slate family,
+   dark from Midnight/Graphite — the two swatches the brand sheet names for
+   "on dark" vs "on light", not a generic tint of the brand blue. */
 
 :root {
-  /* neutrals — the pale-lavender swatch IS --bg3 (the tint used for
-     hover/fills/table headers); --bg/--bg2 are lighter/whiter steps above
-     it so cards still lift off the page. */
-  --bg: #eef2fa;
+  /* neutrals — Light (#F1F5F9) family, stepped up to white for cards so
+     they still lift off the page background. */
+  --bg: #f1f5f9;
   --bg2: #ffffff;
-  --bg3: #d8e0f3;
-  --bg4: #c3ceea;
-  --bg5: #a9b8de;
-  --text: #0c1427;
-  --text2: #3d4a6b;
-  --text3: #546080;
-  --border: #c9d3ec;
-  --border2: #a9b8de;
+  --bg3: #e7edf5;
+  --bg4: #dbe3ee;
+  --bg5: #c3d0e2;
+  --text: #0b1020;
+  --text2: #3f4a5f;
+  --text3: #64748b;
+  --border: #dde4ee;
+  --border2: #c3d0e2;
 
-  /* brand — one blue, three jobs: --accent for large fields (buttons, the
-     active-nav fill), --accent2 for small text/icons that need more
-     contrast sitting directly on a light background (links, active tab). */
-  --accent: #4a6fc9;
-  --accent2: #3a5aa8;
-  --accent-soft: rgba(74, 111, 201, 0.12);
-  --primary-navy: #0c1427;
-  --primary-navy2: #0e182f;
+  /* brand — Electric Blue for every large field (buttons, active-nav
+     fill); --accent2 is the same hue pushed darker for small text/icons
+     that need more contrast sitting directly on a light background. */
+  --accent: #2563ff;
+  --accent2: #1c4fd6;
+  --accent-soft: rgba(37, 99, 255, 0.11);
+  --indigo: #6366f1;
+  --indigo-soft: rgba(99, 102, 241, 0.12);
+  --primary-navy: #0b1020;
+  --primary-navy2: #111827;
 
-  /* status — semantic, not brand; stays legible against either theme */
+  /* status — semantic, drawn from the brand ramp so charts/badges read as
+     the same product as the buttons, while staying tell-apart-able. */
   --success: #22c55e;
   --success-soft: rgba(34, 197, 94, 0.12);
   --warning: #f59e0b;
   --warning-soft: rgba(245, 158, 11, 0.14);
   --danger: #dc2626;
   --danger-soft: rgba(220, 38, 38, 0.12);
-  --info: #0891b2;
-  --info-soft: rgba(8, 145, 178, 0.12);
-  --purple: #8b5cf6;
-  --purple-soft: rgba(139, 92, 246, 0.12);
+  --info: #06b6d4;
+  --info-soft: rgba(6, 182, 212, 0.13);
+  --purple: #a855f7;
+  --purple-soft: rgba(168, 85, 247, 0.12);
   --pink: #ec4899;
   --pink-soft: rgba(236, 72, 153, 0.12);
   --teal: #14b8a6;
@@ -56,30 +60,30 @@
   --radius: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  --shadow-sm: 0 1px 2px rgba(12, 20, 39, 0.06);
-  --shadow-md: 0 4px 16px rgba(12, 20, 39, 0.08);
-  --shadow-lg: 0 12px 32px rgba(12, 20, 39, 0.16);
+  --shadow-sm: 0 1px 2px rgba(11, 16, 32, 0.06);
+  --shadow-md: 0 4px 16px rgba(11, 16, 32, 0.08);
+  --shadow-lg: 0 12px 32px rgba(11, 16, 32, 0.16);
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
-/* Dark mode: the two near-black navy swatches anchor --bg/--bg2 directly —
-   this is the same family the sidebar has always used, so for the first
-   time the sidebar and the page it sits next to are visibly the same
-   material instead of two different darks bolted together. */
+/* Dark mode: Midnight/Graphite anchor --bg/--bg2 directly — the same pair
+   the sidebar has always used, so the sidebar and the page next to it read
+   as one material. */
 body.dark {
   color-scheme: dark;
-  --bg: #0c1427;
-  --bg2: #0e182f;
-  --bg3: #16213d;
-  --bg4: #1f2c4d;
-  --bg5: #2c3a63;
-  --text: #eaf0fb;
-  --text2: #b8c4e0;
-  --text3: #8593b8;
-  --border: #1f2c4d;
-  --border2: #2c3a63;
-  --accent2: #7c9ae0;
-  --accent-soft: rgba(74, 111, 201, 0.2);
+  --bg: #0b1020;
+  --bg2: #111827;
+  --bg3: #182338;
+  --bg4: #212f4a;
+  --bg5: #2e3e60;
+  --text: #eef2fa;
+  --text2: #b7c1d9;
+  --text3: #8592ac;
+  --border: #212f4a;
+  --border2: #2e3e60;
+  --accent2: #7c9bff;
+  --accent-soft: rgba(37, 99, 255, 0.2);
+  --indigo-soft: rgba(99, 102, 241, 0.22);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
@@ -97,7 +101,7 @@ html { color-scheme: light; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Satoshi", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -110,18 +114,17 @@ body {
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
-/* Poppins for headings/numbers — the one characterful face, used only
-   where the reference specifies (H1/H2, stat values, modal/section
-   titles); DM Sans carries everything else. */
+/* Single-family type system (Satoshi, per brand). Hierarchy comes from
+   weight and tracking, not a second face — headings/numbers step up to
+   bold with tighter tracking, everything else stays regular/medium. */
 .section-title,
 .stat-value,
 .modal-title,
 .logo-name,
 .page-title,
 .card-title {
-  font-family: "Poppins", "DM Sans", sans-serif;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 .mono,
@@ -147,12 +150,7 @@ td.mono,
 .logo { padding: 18px 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .logo-name { font-size: 14.5px; font-weight: 650; color: #fff; line-height: 1.2; }
 .logo-sub { font-size: 11px; color: #8896ae; margin-top: 2px; }
-.logo-mark {
-  width: 30px; height: 30px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center;
-  color: #fff; font-weight: 700; font-size: 13px; flex-shrink: 0;
-  background: linear-gradient(135deg, #6e8fda, var(--accent));
-  box-shadow: var(--shadow-sm);
-}
+.logo-mark { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .nav-section { padding: 10px 0; }
 .nav-label { font-size: 10px; font-weight: 650; color: #7885a0; text-transform: uppercase; letter-spacing: .08em; padding: 10px 16px 6px; }
 .nav-item {
@@ -283,7 +281,7 @@ tr.row-selected td { background: var(--accent-soft); }
 
 .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 650; white-space: nowrap; border: 1px solid transparent; }
 .badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-.badge-new { background: var(--info-soft); color: #0284c7; }
+.badge-new { background: var(--info-soft); color: #0e7490; }
 .badge-contacted { background: var(--bg4); color: var(--text3); }
 .badge-qualified { background: var(--success-soft); color: #16a34a; }
 .badge-proposal { background: var(--purple-soft); color: #7c3aed; }
@@ -292,15 +290,15 @@ tr.row-selected td { background: var(--accent-soft); }
 .badge-lost { background: var(--danger-soft); color: #dc2626; }
 .badge-active { background: var(--success-soft); color: #16a34a; }
 .badge-inactive { background: var(--bg4); color: var(--text3); }
-.badge-draft { background: var(--info-soft); color: #0284c7; }
+.badge-draft { background: var(--info-soft); color: #0e7490; }
 .badge-final { background: var(--bg4); color: var(--text2); }
 .badge-sent { background: var(--purple-soft); color: #7c3aed; }
 .badge-pending { background: var(--warning-soft); color: #b45309; }
 .badge-paid { background: var(--success-soft); color: #16a34a; }
 .badge-overdue { background: var(--danger-soft); color: #dc2626; }
 .badge-cancelled { background: var(--bg4); color: var(--text3); }
-.badge-partial { background: var(--info-soft); color: #0284c7; }
-.badge-inprogress { background: var(--info-soft); color: #0284c7; }
+.badge-partial { background: var(--info-soft); color: #0e7490; }
+.badge-inprogress { background: var(--info-soft); color: #0e7490; }
 .badge-notstarted { background: var(--bg4); color: var(--text3); }
 .badge-completed { background: var(--success-soft); color: #16a34a; }
 .badge-onhold { background: var(--warning-soft); color: #b45309; }
@@ -384,7 +382,7 @@ tr.row-selected td { background: var(--accent-soft); }
 .progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width .3s var(--ease); }
 
 .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 650; flex-shrink: 0; }
-.av-blue { background: var(--info-soft); color: #0284c7; }
+.av-blue { background: var(--info-soft); color: #0e7490; }
 .av-green { background: var(--success-soft); color: #16a34a; }
 .av-purple { background: var(--purple-soft); color: #7c3aed; }
 .av-amber { background: var(--warning-soft); color: #b45309; }
@@ -411,7 +409,7 @@ tr.row-selected td { background: var(--accent-soft); }
 .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
 
 .report-stat { background: var(--bg2); border: 1px solid var(--border); box-shadow: var(--shadow-sm); border-radius: var(--radius-lg); padding: 14px 16px; text-align: center; }
-.report-stat-val { font-size: 22px; font-weight: 700; font-family: "Poppins", sans-serif; }
+.report-stat-val { font-size: 22px; font-weight: 700; }
 .report-stat-label { font-size: 12px; color: var(--text3); margin-top: 4px; }
 
 .pagination { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 14px; }
@@ -429,10 +427,11 @@ tr.row-selected td { background: var(--accent-soft); }
 
 /* Split-panel auth layout, shared by Login/Setup/Reset — a brand panel
    permanently on the left (the one place this app spends visual boldness)
-   and a plain white form panel on the right. Signature: a single soft
-   accent-blue glow anchored off the bottom-right corner of the brand
-   panel, echoed faintly as a ring around the logo mark — quiet everywhere
-   else, per the rest of the app's restraint. */
+   and a plain white form panel on the right. Signature: the shield/Z/
+   signal mark itself, echoed twice — a huge, near-invisible watermark
+   behind the copy, and a two-tone electric-blue/indigo glow that reads
+   like the mark's own gradient bled across the whole panel. Quiet
+   everywhere else, per the rest of the app's restraint. */
 .login-shell { min-height: 100vh; display: flex; }
 .login-brand {
   flex: 1 1 42%; min-width: 360px; max-width: 560px; background: var(--primary-navy);
@@ -441,19 +440,29 @@ tr.row-selected td { background: var(--accent-soft); }
 }
 .login-brand::before {
   content: ""; position: absolute; width: 640px; height: 640px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(74, 111, 201, 0.35), transparent 65%);
+  background: radial-gradient(circle, rgba(37, 99, 255, 0.32), transparent 65%);
   bottom: -320px; right: -220px; pointer-events: none;
 }
+.login-brand::after {
+  content: ""; position: absolute; width: 420px; height: 420px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.28), transparent 70%);
+  top: -160px; left: -140px; pointer-events: none;
+}
+.login-brand-watermark {
+  position: absolute; top: 50%; right: -60px; transform: translateY(-50%) rotate(-8deg);
+  opacity: .05; pointer-events: none; z-index: 0;
+}
 .login-brand-mark { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
-.login-brand-mark .logo-mark { width: 42px; height: 42px; font-size: 17px; box-shadow: 0 0 0 6px rgba(74, 111, 201, 0.18); }
-.login-brand-name { font-family: "Poppins", sans-serif; font-weight: 650; font-size: 17px; color: #fff; letter-spacing: -0.01em; }
+.login-brand-mark .logo-mark { width: 42px; height: 42px; filter: drop-shadow(0 0 14px rgba(37, 99, 255, 0.55)); }
+.login-brand-name { font-weight: 700; font-size: 17px; color: #fff; letter-spacing: -0.01em; }
 .login-brand-sub { font-size: 12px; color: #8fa3c7; margin-top: 2px; }
-.login-brand-headline { font-family: "Poppins", sans-serif; font-weight: 650; font-size: 30px; line-height: 1.25; color: #fff; max-width: 380px; letter-spacing: -0.015em; position: relative; z-index: 1; }
-.login-brand-foot { font-size: 12px; color: #6b7fa8; position: relative; z-index: 1; }
+.login-brand-headline { font-weight: 700; font-size: 30px; line-height: 1.25; color: #fff; max-width: 380px; letter-spacing: -0.015em; position: relative; z-index: 1; }
+.login-brand-foot { font-size: 12px; color: #6b7fa8; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 10px; }
+.login-brand-tag { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #9fb4e8; }
 .login-form-panel { flex: 1 1 58%; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 24px; }
 .login-card { background: transparent; padding: 0; width: 380px; max-width: 100%; }
 .login-card-head { margin-bottom: 24px; }
-.login-card-title { font-family: "Poppins", sans-serif; font-weight: 650; font-size: 22px; color: var(--text); letter-spacing: -0.01em; }
+.login-card-title { font-weight: 700; font-size: 22px; color: var(--text); letter-spacing: -0.01em; }
 .login-card-sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
 @media (max-width: 860px) {
   .login-brand { display: none; }

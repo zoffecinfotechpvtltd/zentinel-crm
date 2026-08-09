@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { Logo } from "./Logo";
 import { CommandPalette } from "./CommandPalette";
 import { useToast } from "./Toast";
 import { useIdleLogout } from "../lib/useIdleLogout";
@@ -119,7 +120,7 @@ export function Layout() {
       <div className={`sidebar${mobileNavOpen ? " open" : ""}`}>
         <div className="logo">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div className="logo-mark">Z</div>
+            <div className="logo-mark"><Logo size={28} /></div>
             <div>
               <div className="logo-name">Zentinel</div>
               <div className="logo-sub">Zoffec Infotech Pvt. Ltd.</div>

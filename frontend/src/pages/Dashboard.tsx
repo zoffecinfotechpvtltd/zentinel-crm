@@ -102,7 +102,7 @@ export function Dashboard() {
                 <Bar
                   data={{
                     labels: revenue.monthly_trend.map((m) => new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })),
-                    datasets: [{ label: "Revenue", data: revenue.monthly_trend.map((m) => Number(m.total)), backgroundColor: "#4a6fc9", borderRadius: 4 }],
+                    datasets: [{ label: "Revenue", data: revenue.monthly_trend.map((m) => Number(m.total)), backgroundColor: "#2563ff", borderRadius: 4 }],
                   }}
                   options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }}
                 />
@@ -119,7 +119,7 @@ export function Dashboard() {
               <Doughnut
                 data={{
                   labels: conversion.funnel.map((f) => f.status),
-                  datasets: [{ data: conversion.funnel.map((f) => Number(f.count)), backgroundColor: ["#0284c7", "#94a3b8", "#16a34a", "#7c3aed", "#b45309", "#16a34a", "#dc2626"], borderWidth: 0 }],
+                  datasets: [{ data: conversion.funnel.map((f) => Number(f.count)), backgroundColor: ["#06b6d4", "#94a3b8", "#16a34a", "#7c3aed", "#b45309", "#16a34a", "#dc2626"], borderWidth: 0 }],
                 }}
                 options={{ maintainAspectRatio: false }}
               />

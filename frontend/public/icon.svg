@@ -1,4 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0c1427"/>
-  <text x="256" y="340" font-family="Poppins, Arial, sans-serif" font-weight="700" font-size="300" fill="#4a6fc9" text-anchor="middle">Z</text>
+  <rect width="512" height="512" rx="112" fill="#0b1020"/>
+  <defs>
+    <linearGradient id="g" x1="96" y1="48" x2="416" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4d8bff"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <path d="M256 60 400 122v138c0 116-72 198-144 234-72-36-144-118-144-234V122Z" fill="url(#g)"/>
+  <path d="M186 178h140l-112 138h112" stroke="#f8fafc" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <g stroke="#a8f0ff" stroke-width="17" stroke-linecap="round" fill="none">
+    <path d="M348 138a68 68 0 0 1 0 96" opacity=".95"/>
+    <path d="M373 111a106 106 0 0 1 0 150" opacity=".5"/>
+  </g>
+  <circle cx="322" cy="176" r="18" fill="#eafcff"/>
 </svg>
