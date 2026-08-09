@@ -12,7 +12,7 @@ const REMEMBER_TTL_DAYS = Number(process.env.SESSION_REMEMBER_TTL_DAYS) || 30;
 // server, which turns the secure flag off regardless of NODE_ENV.
 const COOKIE_SECURE = process.env.NODE_ENV === "production" && process.env.DESKTOP_MODE !== "1";
 // "lax" is correct (and simplest) when the frontend and backend share a
-// registrable domain — e.g. sentinel.ztplsolutions.com talking to
+// registrable domain — e.g. zentinel.ztplsolutions.com talking to
 // api.ztplsolutions.com counts as same-site. Only override to "none" (which
 // requires COOKIE_SECURE, i.e. HTTPS) if the frontend and backend are on
 // genuinely different domains, e.g. a Vercel *.vercel.app default URL

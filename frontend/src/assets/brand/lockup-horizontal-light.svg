@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160">
+  <rect width="640" height="160" fill="#ffffff"/>
+  <defs>
+    <linearGradient id="g2" x1="34" y1="24" x2="126" y2="136" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4d8bff"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(32,24)">
+    <path d="M64 0 100 15.5v34.5c0 29-18 49.5-36 58.5-18-9-36-29.5-36-58.5V15.5Z" fill="url(#g2)"/>
+    <path d="M45 44.5h39.5l-31.5 34.5h31.5" stroke="#f8fafc" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <g stroke="#a8f0ff" stroke-width="5.2" stroke-linecap="round" fill="none">
+      <path d="M87 34.5a17 17 0 0 1 0 24" opacity=".95"/>
+      <path d="M93.2 27.8a26.5 26.5 0 0 1 0 37.5" opacity=".5"/>
+    </g>
+    <circle cx="80.5" cy="44" r="5.5" fill="#eafcff"/>
+  </g>
+  <text x="168" y="80" font-family="Satoshi, -apple-system, sans-serif" font-size="46" font-weight="700" letter-spacing="-0.5" fill="#0b1020">Zentinel</text>
+  <text x="168" y="108" font-family="Satoshi, -apple-system, sans-serif" font-size="18" font-weight="500" fill="#64748b">Internal CRM by Zoffec</text>
+</svg>
