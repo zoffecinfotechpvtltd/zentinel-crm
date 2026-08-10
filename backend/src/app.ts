@@ -21,6 +21,7 @@ import settingsRoutes from "./routes/settings";
 import systemRoutes from "./routes/system";
 import publicIntakeRoutes from "./routes/publicIntake";
 import publicSignRoutes from "./routes/publicSign";
+import opportunityRoutes from "./routes/opportunities";
 import { getAllowedOrigins } from "./lib/appUrl";
 import { STATUS_PAGE_HTML, STATUS_PAGE_SCRIPT } from "./lib/statusPage";
 
@@ -92,6 +93,7 @@ export function createApp(): express.Application {
   app.use("/api/reports", reportRoutes);
   app.use("/api/settings", settingsRoutes);
   app.use("/api/system", systemRoutes);
+  app.use("/api/opportunities", opportunityRoutes);
   // Same-origin only (the /sign/:token page is part of this app's own
   // frontend, not an external site) — unauthenticated by design, but no
   // special CORS treatment needed, unlike /api/public above.

@@ -36,6 +36,9 @@ const APP_TABLES = [
   "leads", "message_templates", "services",
   "notifications", "password_reset_tokens", "sessions", "users",
   "settings",
+  // Opportunities module, added after this harness was first written —
+  // merged in from a sibling branch (docs/superpowers/specs/2026-08-10-opportunities-module-design.md).
+  "opportunity_type_links", "opportunities", "opportunity_types",
 ];
 
 export async function resetDb(): Promise<void> {

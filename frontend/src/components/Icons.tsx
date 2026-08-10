@@ -97,3 +97,12 @@ export const IconCalendar = ({ size = 17, ...p }: IconProps) => (
 export const IconArrowRight = ({ size = 17, ...p }: IconProps) => (
   <svg {...base(size, p)}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 );
+export const IconOpportunities = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" fill="currentColor" /></svg>
+);
+export const IconUpload = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" /></svg>
+);
+export const IconDownload = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}><path d="M12 4v12M7 11l5 5 5-5" /><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" /></svg>
+);

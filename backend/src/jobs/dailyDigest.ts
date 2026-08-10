@@ -34,6 +34,20 @@ export async function runDailyDigestJob(): Promise<{ sent: number }> {
       }
     }
 
+    if (user.role === "sales" || user.role === "admin") {
+      const opportunitiesResult = await pool.query(
+        `select company, follow_up_date from opportunities
+         where deleted_at is null and stage not in ('Won','Lost') and follow_up_date <= current_date
+         order by follow_up_date limit 10`
+      );
+      if (opportunitiesResult.rows.length > 0) {
+        sections.push(
+          `Opportunity follow-ups due today or overdue (${opportunitiesResult.rows.length}):\n` +
+            opportunitiesResult.rows.map((o) => `  - ${o.company} (due ${fmtDate(o.follow_up_date)})`).join("\n")
+        );
+      }
+    }
+
     if (user.role === "finance" || user.role === "admin") {
       const invoicesResult = await pool.query(
         `select invoice_number, due_date from invoices

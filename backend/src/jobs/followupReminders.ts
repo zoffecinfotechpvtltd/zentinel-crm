@@ -2,9 +2,37 @@ import { pool } from "../db/pool";
 import { createNotification } from "../lib/notifications";
 import { businessDaysBetween } from "../lib/businessDays";
 
+// Opportunities has no per-rep "assigned_to" workflow today (it's a shared
+// Admin+Sales tracker, unlike Leads) — so a due follow-up is bundled once
+// per active Admin/Sales user rather than routed to a single owner.
+async function runOpportunityFollowupReminders(): Promise<number> {
+  const dueResult = await pool.query(
+    `select id, company, follow_up_date from opportunities
+     where deleted_at is null and stage not in ('Won','Lost') and follow_up_date <= current_date
+     order by follow_up_date`
+  );
+  if (dueResult.rows.length === 0) return 0;
+
+  const recipientsResult = await pool.query(
+    `select id from users where role in ('admin','sales') and is_active = true and deleted_at is null`
+  );
+
+  const names = dueResult.rows.slice(0, 5).map((o) => o.company).join(", ");
+  const title = `${dueResult.rows.length} opportunity follow-up(s) due today or overdue`;
+  const body = names + (dueResult.rows.length > 5 ? ", …" : "");
+
+  let reminders = 0;
+  for (const user of recipientsResult.rows) {
+    await createNotification(pool, { userId: user.id, type: "opportunity_followup_due", title, body });
+    reminders++;
+  }
+  return reminders;
+}
+
 // Runs each morning: one bundled notification per rep for their own Today +
 // Overdue leads, plus a separate escalation notification (to Admins — no
 // manager hierarchy is modeled) for any lead more than 3 business days overdue.
+// Also bundles due Opportunity follow-ups (see above) to every Admin/Sales user.
 export async function runFollowupReminderJob(): Promise<{ reminders: number; escalations: number }> {
   const dueResult = await pool.query(
     `select id, company, assigned_to, next_followup_date from leads
@@ -54,6 +82,8 @@ export async function runFollowupReminderJob(): Promise<{ reminders: number; esc
       }
     }
   }
+
+  reminders += await runOpportunityFollowupReminders();
 
   return { reminders, escalations };
 }
