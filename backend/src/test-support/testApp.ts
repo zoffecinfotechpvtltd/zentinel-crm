@@ -1,4 +1,5 @@
 import { afterAll } from "vitest";
+import "express-async-errors";
 import supertest from "supertest";
 import { createApp } from "../app";
 import { pool } from "../db/pool";
