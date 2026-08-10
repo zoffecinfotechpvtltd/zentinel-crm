@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { app, resetDb, loginAs } from "../../test-support/testApp";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { resetDb, loginAs } from "../../test-support/testApp";
 
 type Agent = Awaited<ReturnType<typeof loginAs>>["agent"];
 
@@ -9,6 +9,10 @@ async function makeClient(adminAgent: Agent): Promise<string> {
 }
 
 describe("projects routes", () => {
+  beforeAll(async () => {
+    await resetDb();
+  });
+
   afterEach(async () => {
     await resetDb();
   });

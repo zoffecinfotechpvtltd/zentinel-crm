@@ -1,8 +1,12 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import supertest from "supertest";
 import { app, resetDb } from "../../test-support/testApp";
 
 describe("setup routes", () => {
+  beforeAll(async () => {
+    await resetDb();
+  });
+
   afterEach(async () => {
     await resetDb();
   });

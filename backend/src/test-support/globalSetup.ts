@@ -74,6 +74,15 @@ async function startPostgres() {
 export default async function setup() {
   const { pg, port, dataDir } = await startPostgres();
 
+  // Attachment uploads (see backend/src/lib/attachNotesAndFiles.ts) resolve
+  // their storage root from UPLOADS_DIR, falling back to
+  // `path.join(process.cwd(), "uploads")` — the real checkout's
+  // backend/uploads/ dir — when unset. Pointed at a throwaway temp dir here,
+  // the same way the Postgres dataDir above is, so tests that upload files
+  // (notesAndAttachments.test.ts, publicSign.test.ts) never write into the
+  // actual repo.
+  const uploadsDir = path.join(os.tmpdir(), `zentinel-test-uploads-${crypto.randomUUID()}`);
+
   // From here on, any failure must still stop the Postgres process and
   // clean up its data dir — otherwise setup() throws without ever
   // returning a teardown function, and vitest has nothing to call, leaking
@@ -86,6 +95,7 @@ export default async function setup() {
     process.env.APP_BASE_URL = "http://localhost:5173";
     process.env.SESSION_COOKIE_NAME = "zoffec_sid_test";
     process.env.NODE_ENV = "test";
+    process.env.UPLOADS_DIR = uploadsDir;
 
     // stdio "pipe" (not "inherit") so a clean migration run doesn't dump
     // ~200 lines of SQL into every test invocation — the output is only
@@ -106,11 +116,13 @@ export default async function setup() {
   } catch (err) {
     await pg.stop().catch(() => {});
     fs.rmSync(dataDir, { recursive: true, force: true });
+    fs.rmSync(uploadsDir, { recursive: true, force: true });
     throw err;
   }
 
   return async () => {
     await pg.stop();
     fs.rmSync(dataDir, { recursive: true, force: true });
+    fs.rmSync(uploadsDir, { recursive: true, force: true });
   };
 }

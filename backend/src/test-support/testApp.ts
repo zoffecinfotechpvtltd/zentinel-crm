@@ -27,7 +27,7 @@ afterAll(async () => {
 });
 
 // Verified against every `create table` in backend/migrations/*.sql as of this
-// plan being written (23 tables) — if a later migration adds a table, add it
+// plan being written (26 tables) — if a later migration adds a table, add it
 // here too, or that table's rows will leak between tests.
 const APP_TABLES = [
   "activity_log", "attachments", "notes", "signature_requests",

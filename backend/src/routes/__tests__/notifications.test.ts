@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { app, resetDb, loginAs } from "../../test-support/testApp";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { resetDb, loginAs } from "../../test-support/testApp";
 import { pool } from "../../db/pool";
 
 async function seedNotification(userId: string): Promise<string> {
@@ -11,6 +11,10 @@ async function seedNotification(userId: string): Promise<string> {
 }
 
 describe("notifications routes", () => {
+  beforeAll(async () => {
+    await resetDb();
+  });
+
   afterEach(async () => {
     await resetDb();
   });

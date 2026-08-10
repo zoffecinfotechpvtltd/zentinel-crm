@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { app, resetDb, loginAs } from "../../test-support/testApp";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { resetDb, loginAs } from "../../test-support/testApp";
 
 type Agent = Awaited<ReturnType<typeof loginAs>>["agent"];
 
@@ -14,6 +14,10 @@ async function createLead(agent: Agent, company: string): Promise<string> {
 }
 
 describe("notes and attachments sub-routes (via leads)", () => {
+  beforeAll(async () => {
+    await resetDb();
+  });
+
   afterEach(async () => {
     await resetDb();
   });

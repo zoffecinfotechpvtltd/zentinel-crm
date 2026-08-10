@@ -1,19 +1,21 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { app, resetDb, loginAs } from "../../test-support/testApp";
-
-type Agent = Awaited<ReturnType<typeof loginAs>>["agent"];
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { resetDb, loginAs } from "../../test-support/testApp";
 
 // POST /api/clients is admin-only (verified against backend/src/routes/clients.ts:123,
 // `requireRole("admin")` — finance is not in the allowed list), so client creation here
 // always goes through a fresh admin agent regardless of which role the caller passes in
 // for the subsequent invoice operations (invoices routes allow admin *and* finance).
-async function makeInvoiceableClient(_agent: Agent): Promise<string> {
+async function makeInvoiceableClient(): Promise<string> {
   const { agent: adminAgent } = await loginAs("admin");
   const res = await adminAgent.post("/api/clients").send({ company: `Client-${Date.now()}-${Math.random()}`, tally_ledger_name: "TEST-LEDGER" });
   return res.body.id as string;
 }
 
 describe("invoices routes", () => {
+  beforeAll(async () => {
+    await resetDb();
+  });
+
   afterEach(async () => {
     await resetDb();
   });
@@ -21,7 +23,7 @@ describe("invoices routes", () => {
   describe("happy path", () => {
     it("creates a Draft, finalizes it with a sequential number, and a full payment marks it Paid", async () => {
       const { agent } = await loginAs("finance");
-      const clientId = await makeInvoiceableClient(agent);
+      const clientId = await makeInvoiceableClient();
 
       const createRes = await agent.post("/api/invoices").send({
         client_id: clientId,
@@ -66,7 +68,7 @@ describe("invoices routes", () => {
 
     it("rejects a payment larger than the outstanding balance", async () => {
       const { agent } = await loginAs("finance");
-      const clientId = await makeInvoiceableClient(agent);
+      const clientId = await makeInvoiceableClient();
       const createRes = await agent.post("/api/invoices").send({
         client_id: clientId, line_items: [{ description: "X", quantity: 1, rate: 1000, gst_rate: 0 }],
       });
@@ -78,7 +80,7 @@ describe("invoices routes", () => {
 
     it("rejects editing line items on a finalized invoice (must use a credit note instead)", async () => {
       const { agent } = await loginAs("finance");
-      const clientId = await makeInvoiceableClient(agent);
+      const clientId = await makeInvoiceableClient();
       const createRes = await agent.post("/api/invoices").send({
         client_id: clientId, line_items: [{ description: "X", quantity: 1, rate: 1000, gst_rate: 0 }],
       });
@@ -90,7 +92,7 @@ describe("invoices routes", () => {
 
     it("rejects a credit note against a Draft invoice", async () => {
       const { agent } = await loginAs("finance");
-      const clientId = await makeInvoiceableClient(agent);
+      const clientId = await makeInvoiceableClient();
       const createRes = await agent.post("/api/invoices").send({
         client_id: clientId, line_items: [{ description: "X", quantity: 1, rate: 1000, gst_rate: 0 }],
       });
@@ -110,7 +112,7 @@ describe("invoices routes", () => {
 
     it("returns 404 deleting a finalized (non-Draft) invoice", async () => {
       const { agent } = await loginAs("finance");
-      const clientId = await makeInvoiceableClient(agent);
+      const clientId = await makeInvoiceableClient();
       const createRes = await agent.post("/api/invoices").send({
         client_id: clientId, line_items: [{ description: "X", quantity: 1, rate: 1000, gst_rate: 0 }],
       });
