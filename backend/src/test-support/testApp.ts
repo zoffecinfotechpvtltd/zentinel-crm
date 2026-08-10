@@ -1,9 +1,29 @@
+import { afterAll } from "vitest";
 import supertest from "supertest";
 import { createApp } from "../app";
 import { pool } from "../db/pool";
 import { hashPassword } from "../lib/password";
 
 export const app = createApp();
+
+// Vitest forks a fresh child process per test file even with
+// fileParallelism: false (verified empirically: distinct process.pid and
+// distinct `pool` object identity across two test files in this sandbox) —
+// so this module, and the `pool` above, are freshly created once per test
+// file, not shared across the whole run or with globalSetup.ts (which runs
+// in a separate, unrelated process). That makes this afterAll — registered
+// exactly once per file, right here, at the point pool.ts's module is first
+// created for that file — the correct place to close it: it runs after all
+// of that file's tests (and their resetDb() calls) are done, and well
+// before globalSetup's teardown stops the shared Postgres instance. Without
+// this, idle connections got torn down by the Postgres process shutting
+// down underneath them (harmless but noisy), and pool.ts's own
+// `pool.on("error", ...)` handler calls `process.exit(1)` on any
+// unexpected idle-client error — a badly-timed one during shutdown could
+// exit the test run nonzero and look like a flake.
+afterAll(async () => {
+  await pool.end();
+});
 
 // Verified against every `create table` in backend/migrations/*.sql as of this
 // plan being written (23 tables) — if a later migration adds a table, add it

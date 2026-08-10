@@ -60,7 +60,20 @@ export function createApp(): express.Application {
   // Defense-in-depth on top of the per-account lockout in auth.ts: caps total
   // login/reset attempts per IP so a distributed attempt across many accounts
   // can't bypass the per-account limit.
-  const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
+  // Skipped under NODE_ENV=test (set by test-support/globalSetup.ts): the
+  // integration test suite calls these routes (loginAs() -> POST
+  // /api/auth/login, plus password-reset/setup flow tests) dozens of times
+  // per test file, all from the same in-process IP. This in-memory, per-IP,
+  // 15-minute-window limiter can't be reset by resetDb() and would otherwise
+  // start 429ing test runs well before any individual test does anything
+  // wrong. Production behavior (NODE_ENV != "test") is unchanged.
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === "test",
+  });
   app.use("/api/auth/login", authLimiter);
   app.use("/api/auth/password-reset", authLimiter);
   app.use("/api/setup", authLimiter);
