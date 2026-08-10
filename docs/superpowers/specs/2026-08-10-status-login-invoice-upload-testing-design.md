@@ -123,16 +123,38 @@ route or a real database. There is no `supertest`, no test-database setup, no wa
 
 ### Harness (built once, used by every module)
 
+**Revised 2026-08-10, before planning:** the original approach below called for a Docker-based
+Postgres and per-test transaction rollback. Both are changed, for reasons validated live (not just
+argued) before the plan was written:
+
+- **Test database: `embedded-postgres`, not Docker.** This package is already a dependency of
+  `desktop/package.json` (the Electron build uses it to run Postgres with no external install).
+  A throwaway instance was spun up in a plain Node script during planning — `initialise()`,
+  `start()`, connect, query, `stop()` — and it worked with zero Docker, zero network dependency,
+  on this machine. Using it for tests means `npm test` never depends on Docker being installed or
+  running, locally or in CI (no `services:` block needed in `.github/workflows/ci.yml` either).
+  A vitest `globalSetup` starts one instance for the whole test run (data directory under the OS
+  temp dir, removed on teardown), runs migrations against it once, and sets `DATABASE_URL` before
+  any test file imports the app.
+- **Isolation: `TRUNCATE` between tests, not transaction rollback.** Every route handler calls
+  `pool.query(...)` directly (grabbing a fresh client per query from the pool), not a single
+  held connection — so real per-test `BEGIN`/`ROLLBACK` would require mocking the `pool` module to
+  route all of a test's queries through one shared client. That's fragile (every route must
+  actually go through the mock, easy to silently bypass) for a marginal speed win at this test
+  count (~50 tests). Simpler and robust instead: an `afterEach` hook runs a single
+  `TRUNCATE <every app table> RESTART IDENTITY CASCADE` — one statement, order-independent (CASCADE
+  handles FK dependents), no mocking, no shared-connection bookkeeping.
 - Add `supertest` as a dev dependency.
-- Test database: reuse the existing `docker-compose.yml` Postgres service; tests run migrations
-  once (`node-pg-migrate up`) against a dedicated test database (`DATABASE_URL` override via
-  `.env.test` or an env var read in a vitest setup file), then each test wraps its work in a
-  transaction that's rolled back afterward (`BEGIN` in a `beforeEach`, `ROLLBACK` in `afterEach`) so
-  tests don't leak state into each other and don't require a reset between runs.
-- A shared test helper builds the Express `app` (extracted so `index.ts` can be imported without
-  auto-`listen()`-ing) and provides `loginAs(role)` — creates a user of the given role in the test
-  transaction and returns an authenticated `supertest` agent (reuses the real `/api/auth/login`
-  flow, not a bypass, so auth itself stays covered too).
+- `backend/src/index.ts` currently builds the Express app AND calls `app.listen()` in one file, so
+  importing it for tests would start a real server and the cron scheduler. Extract everything up to
+  (not including) `app.listen()` into a new `createApp(): express.Application` in
+  `backend/src/app.ts`; `index.ts` becomes a thin `createApp()` + `listen()` + `startScheduler()`
+  caller. This is the one production-code change the test sweep requires, and it's mechanical.
+- A shared test helper builds on `createApp()` and provides `loginAs(role)` — hashes a fixed test
+  password with the app's own `hashPassword` (`src/lib/password.ts`), inserts a `users` row
+  directly (fast, avoids needing an existing admin to create every test user), then calls the real
+  `POST /api/auth/login` and returns an authenticated `supertest` agent — so the login flow itself
+  stays exercised by every other module's tests, not bypassed.
 
 ### Scope and the "3 scenarios" definition
 
