@@ -29,6 +29,7 @@ import systemRoutes from "./routes/system";
 import publicIntakeRoutes from "./routes/publicIntake";
 import publicSignRoutes from "./routes/publicSign";
 import { getAllowedOrigins } from "./lib/appUrl";
+import { STATUS_PAGE_HTML } from "./lib/statusPage";
 
 const app = express();
 app.disable("x-powered-by");
@@ -97,6 +98,10 @@ app.get("/api/health", async (_req, res) => {
     console.error("Health check DB query failed:", err);
     res.status(503).json({ ok: false, db: "unreachable" });
   }
+});
+
+app.get("/status", (_req, res) => {
+  res.type("html").send(STATUS_PAGE_HTML);
 });
 
 // Desktop build: the Electron app points this at the bundled frontend/dist so
