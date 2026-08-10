@@ -119,7 +119,7 @@ cp .env.example .env      # defaults already match docker-compose.yml
 | `PORT` | API port | you have something else on 4000 |
 | `DATABASE_URL` | Postgres connection string | you're not using `docker compose up -d` above |
 | `SESSION_COOKIE_NAME` / `SESSION_TTL_HOURS` / `SESSION_REMEMBER_TTL_DAYS` | session cookie behavior | rarely needs changing |
-| `APP_BASE_URL` | used to build password-reset links | matches the frontend dev URL (`http://localhost:5173`) by default |
+| `APP_BASE_URL` | used to build password-reset links, and the whitelist for CORS | matches the frontend dev URL (`http://localhost:5173`) by default — **in production this must also include your deployed frontend's exact origin(s), comma-separated, or login will fail with a CORS error** |
 | `SMTP_*` / `MAIL_FROM` | optional fallback mail sender | leave blank — SMTP is normally configured later, in-app, under **Settings** (works with any provider: Gmail, Zoho, your own server). With these blank, emails just log to the console instead of sending. |
 
 Run migrations, then start the API in watch mode:

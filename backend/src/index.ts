@@ -29,6 +29,7 @@ import systemRoutes from "./routes/system";
 import publicIntakeRoutes from "./routes/publicIntake";
 import publicSignRoutes from "./routes/publicSign";
 import { getAllowedOrigins } from "./lib/appUrl";
+import { STATUS_PAGE_HTML, STATUS_PAGE_SCRIPT } from "./lib/statusPage";
 
 const app = express();
 app.disable("x-powered-by");
@@ -52,8 +53,12 @@ app.use("/api/public", cors(), publicIntakeLimiter, publicIntakeRoutes);
 const allowedOrigins = getAllowedOrigins();
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error("Not allowed by CORS"));
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    console.warn(`[cors] rejected origin "${origin}" — not in APP_BASE_URL (${allowedOrigins.join(", ") || "none set"})`);
+    callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
 }));
@@ -93,6 +98,14 @@ app.get("/api/health", async (_req, res) => {
     console.error("Health check DB query failed:", err);
     res.status(503).json({ ok: false, db: "unreachable" });
   }
+});
+
+app.get("/status", (_req, res) => {
+  res.type("html").send(STATUS_PAGE_HTML);
+});
+
+app.get("/status.js", (_req, res) => {
+  res.type("application/javascript").send(STATUS_PAGE_SCRIPT);
 });
 
 // Desktop build: the Electron app points this at the bundled frontend/dist so
