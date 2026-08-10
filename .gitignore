@@ -6,3 +6,4 @@ build/
 *.log
 .DS_Store
 .claude/worktrees/
+backend/uploads/
