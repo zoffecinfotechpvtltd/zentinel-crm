@@ -68,7 +68,12 @@ export const STATUS_PAGE_HTML = `<!doctype html>
     <div class="meta" id="meta">—</div>
     <button id="btn" type="button">Force Refresh</button>
   </div>
-<script>
+<script src="/status.js"></script>
+</body>
+</html>
+`;
+
+export const STATUS_PAGE_SCRIPT = `
   var dot = document.getElementById("dot");
   var label = document.getElementById("label");
   var meta = document.getElementById("meta");
@@ -128,7 +133,4 @@ export const STATUS_PAGE_HTML = `<!doctype html>
   }
 
   runWithRetry();
-</script>
-</body>
-</html>
 `;

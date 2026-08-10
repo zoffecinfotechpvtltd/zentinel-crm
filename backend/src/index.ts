@@ -29,7 +29,7 @@ import systemRoutes from "./routes/system";
 import publicIntakeRoutes from "./routes/publicIntake";
 import publicSignRoutes from "./routes/publicSign";
 import { getAllowedOrigins } from "./lib/appUrl";
-import { STATUS_PAGE_HTML } from "./lib/statusPage";
+import { STATUS_PAGE_HTML, STATUS_PAGE_SCRIPT } from "./lib/statusPage";
 
 const app = express();
 app.disable("x-powered-by");
@@ -102,6 +102,10 @@ app.get("/api/health", async (_req, res) => {
 
 app.get("/status", (_req, res) => {
   res.type("html").send(STATUS_PAGE_HTML);
+});
+
+app.get("/status.js", (_req, res) => {
+  res.type("application/javascript").send(STATUS_PAGE_SCRIPT);
 });
 
 // Desktop build: the Electron app points this at the bundled frontend/dist so
