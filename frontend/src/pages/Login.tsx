@@ -37,6 +37,10 @@ export function Login() {
       if (err instanceof ApiError) {
         if (err.status === 423) setError("Account locked due to too many failed attempts. Try again later.");
         else setError("Invalid email or password.");
+      } else if (err instanceof TypeError) {
+        // A request that never reached the server (network/CORS failure, or
+        // a cold-start timeout) throws a TypeError, not an ApiError.
+        setError("Can't reach the server. It may be waking up — try again in a moment.");
       } else {
         setError("Something went wrong. Try again.");
       }

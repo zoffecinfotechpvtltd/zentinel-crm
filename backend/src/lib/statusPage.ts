@@ -1,8 +1,21 @@
-// Self-contained diagnostic page — no build step, no external requests, no
-// auth (mirrors /api/health, which is already public). Exists so a
-// non-technical person can check "is the backend up" without opening
-// DevTools, and force a re-check when Render's free tier has put the
-// service to sleep after idle (cold start takes roughly 30-50s).
+// Self-contained diagnostic page — no build step, no auth (mirrors
+// /api/health, which is already public). Exists so a non-technical person
+// can check "is the backend up" without opening DevTools, and force a
+// re-check when Render's free tier has put the service to sleep after idle
+// (cold start takes roughly 30-50s). The page does make one request of its
+// own, to /status.js (see STATUS_PAGE_SCRIPT below), plus its live
+// reachability checks against /api/health.
+
+// Mirrors the classification logic embedded in STATUS_PAGE_SCRIPT below.
+// STATUS_PAGE_SCRIPT is plain JS shipped to the browser — it can't import
+// from this module — so this pure function exists purely so the
+// online-vs-degraded decision has a unit-testable copy. If you change the
+// classification logic in STATUS_PAGE_SCRIPT's `classifyHealthResponse`,
+// update this one to match (and vice versa).
+export function classifyHealthResponse(ok: boolean, body: { ok: boolean; db: string }): "online" | "degraded" {
+  return ok && body.ok ? "online" : "degraded";
+}
+
 export const STATUS_PAGE_HTML = `<!doctype html>
 <html lang="en">
 <head>
@@ -10,7 +23,7 @@ export const STATUS_PAGE_HTML = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zentinel — Backend Status</title>
 <style>
-  :root { color-scheme: light; }
+  :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -73,55 +86,93 @@ export const STATUS_PAGE_HTML = `<!doctype html>
 </html>
 `;
 
+// Served from its own route (/status.js) rather than inlined as a <script>
+// tag in STATUS_PAGE_HTML, because helmet's default CSP (script-src 'self')
+// blocks inline scripts. Keep this as a separate export/route — inlining it
+// back into the HTML will silently reintroduce that CSP bug.
 export const STATUS_PAGE_SCRIPT = `
   var dot = document.getElementById("dot");
   var label = document.getElementById("label");
   var meta = document.getElementById("meta");
   var btn = document.getElementById("btn");
+  var checking = false;
 
-  function setState(state, text, metaHtml) {
+  function renderMeta(lines) {
+    while (meta.firstChild) meta.removeChild(meta.firstChild);
+    lines.forEach(function (line) {
+      var row = document.createElement("div");
+      if (line.label) {
+        var strong = document.createElement("strong");
+        strong.textContent = line.label + ":";
+        row.appendChild(strong);
+        row.appendChild(document.createTextNode(" " + line.value));
+      } else {
+        row.textContent = line.text;
+      }
+      meta.appendChild(row);
+    });
+  }
+
+  function setState(state, text, metaLines) {
     dot.className = "dot " + state;
     label.textContent = text;
-    meta.innerHTML = metaHtml;
+    if (metaLines) renderMeta(metaLines);
+  }
+
+  // Mirrors classifyHealthResponse in statusPage.ts (that copy is what's
+  // unit-tested; keep the two in sync if this logic changes).
+  function classifyHealthResponse(ok, body) {
+    return (ok && body && body.ok) ? "online" : "degraded";
   }
 
   function checkOnce() {
     var start = performance.now();
-    return fetch("/api/health", { cache: "no-store" })
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function () { controller.abort(); }, 15000);
+    return fetch("/api/health", { cache: "no-store", signal: controller.signal })
       .then(function (res) {
         var ms = Math.round(performance.now() - start);
         return res.json().then(function (body) { return { res: res, body: body, ms: ms }; });
       })
       .then(function (r) {
-        var now = new Date().toLocaleTimeString();
-        if (r.res.ok && r.body.ok) {
-          setState("online", "Online", "<strong>DB:</strong> " + r.body.db + "<br><strong>Response time:</strong> " + r.ms + "ms<br><strong>Last checked:</strong> " + now);
-          return true;
-        }
-        setState("degraded", "Degraded", "<strong>DB:</strong> " + (r.body.db || "unreachable") + "<br><strong>Response time:</strong> " + r.ms + "ms<br><strong>Last checked:</strong> " + now);
-        return false;
+        clearTimeout(timeoutId);
+        var state = classifyHealthResponse(r.res.ok, r.body);
+        return { state: state, db: r.body.db, ms: r.ms };
       })
       .catch(function () {
-        return false;
+        clearTimeout(timeoutId);
+        return { state: "unreachable", db: null, ms: null };
       });
   }
-
-  btn.addEventListener("click", function () {
-    btn.disabled = true;
-    runWithRetry().finally(function () { btn.disabled = false; });
-  });
 
   function runWithRetry() {
     return new Promise(function (resolve) {
       var maxAttempts = 3;
       function attempt(n) {
-        setState("checking", n === 0 ? "Checking…" : "Waking up… (attempt " + (n + 1) + " of " + maxAttempts + ")", meta.innerHTML);
-        checkOnce().then(function (ok) {
-          if (ok || n + 1 >= maxAttempts) {
-            if (!ok) {
-              var now = new Date().toLocaleTimeString();
-              setState("offline", "Offline", "Could not reach the backend after " + maxAttempts + " attempts.<br><strong>Last checked:</strong> " + now);
-            }
+        setState("checking", n === 0 ? "Checking…" : "Waking up… (attempt " + (n + 1) + " of " + maxAttempts + ")", null);
+        checkOnce().then(function (result) {
+          var now = new Date().toLocaleTimeString();
+          if (result.state === "online") {
+            setState("online", "Online", [
+              { label: "DB", value: result.db },
+              { label: "Response time", value: result.ms + "ms" },
+              { label: "Last checked", value: now }
+            ]);
+            resolve();
+          } else if (result.state === "degraded") {
+            // The server responded — retrying tells us nothing new. Stop
+            // immediately instead of looping into a false "Offline".
+            setState("degraded", "Degraded", [
+              { label: "DB", value: result.db || "unreachable" },
+              { label: "Response time", value: result.ms + "ms" },
+              { label: "Last checked", value: now }
+            ]);
+            resolve();
+          } else if (n + 1 >= maxAttempts) {
+            setState("offline", "Offline", [
+              { text: "Could not reach the backend after " + maxAttempts + " attempts." },
+              { label: "Last checked", value: now }
+            ]);
             resolve();
           } else {
             setTimeout(function () { attempt(n + 1); }, 5000);
@@ -132,5 +183,17 @@ export const STATUS_PAGE_SCRIPT = `
     });
   }
 
-  runWithRetry();
+  function runChecked() {
+    if (checking) return Promise.resolve();
+    checking = true;
+    btn.disabled = true;
+    return runWithRetry().finally(function () {
+      checking = false;
+      btn.disabled = false;
+    });
+  }
+
+  btn.addEventListener("click", runChecked);
+
+  runChecked();
 `;
