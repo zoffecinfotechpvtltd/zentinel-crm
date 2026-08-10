@@ -52,8 +52,12 @@ app.use("/api/public", cors(), publicIntakeLimiter, publicIntakeRoutes);
 const allowedOrigins = getAllowedOrigins();
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error("Not allowed by CORS"));
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    console.warn(`[cors] rejected origin "${origin}" — not in APP_BASE_URL (${allowedOrigins.join(", ") || "none set"})`);
+    callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
 }));
