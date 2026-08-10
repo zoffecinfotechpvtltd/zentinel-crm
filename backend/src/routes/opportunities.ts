@@ -246,39 +246,49 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
 
   let imported = 0;
   const skipped: Array<{ row: number; reason: string }> = [];
+  const dateFormat = /^\d{4}-\d{2}-\d{2}$/;
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  // Deliberately NOT one big transaction: this is a best-effort bulk import
+  // over real-world messy spreadsheet data (verified against ~150 real
+  // historical rows while building this — several had unparseable date
+  // strings). One row's DB-level failure must not roll back every other
+  // already-valid row in the same file; each row commits independently and
+  // a failure is reported in `skipped`, not thrown.
+  for (let r = 2; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r);
+    const kindRaw = row.getCell(1).text.trim().toLowerCase();
+    const company = row.getCell(2).text.trim();
+    if (!kindRaw && !company) continue; // blank row
 
-    for (let r = 2; r <= sheet.rowCount; r++) {
-      const row = sheet.getRow(r);
-      const kindRaw = row.getCell(1).text.trim().toLowerCase();
-      const company = row.getCell(2).text.trim();
-      if (!kindRaw && !company) continue; // blank row
+    if (!KINDS.includes(kindRaw as (typeof KINDS)[number])) {
+      skipped.push({ row: r, reason: `Kind must be "service" or "product", got "${kindRaw || "(blank)"}"` });
+      continue;
+    }
+    if (!company) {
+      skipped.push({ row: r, reason: "Company is required" });
+      continue;
+    }
 
-      if (!KINDS.includes(kindRaw as (typeof KINDS)[number])) {
-        skipped.push({ row: r, reason: `Kind must be "service" or "product", got "${kindRaw || "(blank)"}"` });
-        continue;
-      }
-      if (!company) {
-        skipped.push({ row: r, reason: "Company is required" });
-        continue;
-      }
+    const stageRaw = row.getCell(8).text.trim() || "Open";
+    if (!STAGES.includes(stageRaw as (typeof STAGES)[number])) {
+      skipped.push({ row: r, reason: `Stage must be one of ${STAGES.join("/")}, got "${stageRaw}"` });
+      continue;
+    }
 
-      const stageRaw = row.getCell(8).text.trim() || "Open";
-      if (!STAGES.includes(stageRaw as (typeof STAGES)[number])) {
-        skipped.push({ row: r, reason: `Stage must be one of ${STAGES.join("/")}, got "${stageRaw}"` });
-        continue;
-      }
+    const followUpRaw = row.getCell(9).text.trim();
+    if (followUpRaw && !dateFormat.test(followUpRaw)) {
+      skipped.push({ row: r, reason: `Follow-up Date must be YYYY-MM-DD, got "${followUpRaw}"` });
+      continue;
+    }
 
+    try {
       const typeNames = row.getCell(5).text.split(",").map((s) => s.trim()).filter(Boolean);
       const typeIds: string[] = [];
       for (const name of typeNames) {
         const key = name.toLowerCase();
         let typeId = typeIdByName.get(key);
         if (!typeId) {
-          const inserted = await client.query(
+          const inserted = await pool.query(
             `insert into opportunity_types (name) values ($1) on conflict (name) do update set name = excluded.name returning id`,
             [name]
           );
@@ -288,8 +298,7 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
         typeIds.push(typeId!);
       }
 
-      const followUpRaw = row.getCell(9).text.trim();
-      const opportunityResult = await client.query(
+      const opportunityResult = await pool.query(
         `insert into opportunities (
            kind, company, client_name, contact, description, pdf_pg_url,
            stage, follow_up_date, remarks, created_by, updated_by
@@ -304,21 +313,16 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
 
       if (typeIds.length > 0) {
         const values = typeIds.map((_, idx) => `($1, $${idx + 2})`).join(", ");
-        await client.query(
+        await pool.query(
           `insert into opportunity_type_links (opportunity_id, opportunity_type_id) values ${values}`,
           [opportunityResult.rows[0].id, ...typeIds]
         );
       }
 
       imported++;
+    } catch (err) {
+      skipped.push({ row: r, reason: err instanceof Error ? err.message : "Unexpected error inserting this row" });
     }
-
-    await client.query("commit");
-  } catch (err) {
-    await client.query("rollback");
-    throw err;
-  } finally {
-    client.release();
   }
 
   res.json({ imported, skipped });

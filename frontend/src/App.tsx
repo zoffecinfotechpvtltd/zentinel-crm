@@ -12,6 +12,7 @@ import { SignDocument } from "./pages/SignDocument";
 import { Setup } from "./pages/Setup";
 import { Dashboard } from "./pages/Dashboard";
 import { Leads } from "./pages/Leads";
+import { Opportunities } from "./pages/Opportunities";
 import { Clients } from "./pages/Clients";
 import { Projects } from "./pages/Projects";
 import { Invoices } from "./pages/Invoices";
@@ -69,6 +70,14 @@ function App() {
                 element={
                   <RequireRole roles={["admin", "sales"]}>
                     <Leads />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/opportunities"
+                element={
+                  <RequireRole roles={["admin", "sales"]}>
+                    <Opportunities />
                   </RequireRole>
                 }
               />

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   IconDashboard, IconLeads, IconClients, IconProjects, IconInvoices, IconFollowups,
-  IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconPlus,
+  IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconPlus, IconOpportunities,
 } from "./Icons";
 
 type Command = { label: string; hint?: string; to?: string; roles?: string[]; icon: React.ReactNode; action?: () => void };
@@ -19,6 +19,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { label: "Dashboard", to: "/", icon: <IconDashboard /> },
     { label: "Leads", to: "/leads", icon: <IconLeads />, roles: ["admin", "sales", "finance"] },
     { label: "Add a lead", to: "/leads?new=1", icon: <IconPlus />, roles: ["admin", "sales"] },
+    { label: "Opportunities", to: "/opportunities", icon: <IconOpportunities />, roles: ["admin", "sales"] },
     { label: "Clients", to: "/clients", icon: <IconClients /> },
     { label: "Projects", to: "/projects", icon: <IconProjects />, roles: ["admin", "ops", "finance"] },
     { label: "Invoices", to: "/invoices", icon: <IconInvoices />, roles: ["admin", "sales", "finance"] },
