@@ -15,7 +15,7 @@ type Attachment = {
   signature_status: "pending" | "signed" | "cancelled" | null; signer_name: string | null; signed_at: string | null;
 };
 
-const DOCUMENT_TYPES = ["Engagement Letter", "PO", "Proposal", "Other"];
+const DOCUMENT_TYPES = ["Engagement Letter", "PO", "Proposal", "Bill/Invoice", "Other"];
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -130,7 +130,13 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
             </select>
             <label className="btn btn-ghost btn-sm" style={{ cursor: uploading ? "wait" : "pointer" }}>
               <IconPlus size={12} /> {uploading ? "Uploading…" : "Attach"}
-              <input type="file" style={{ display: "none" }} disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = ""; }} />
+              <input
+                type="file"
+                style={{ display: "none" }}
+                disabled={uploading}
+                accept={docType === "Bill/Invoice" ? ".pdf,image/*" : undefined}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = ""; }}
+              />
             </label>
           </div>
         </div>
