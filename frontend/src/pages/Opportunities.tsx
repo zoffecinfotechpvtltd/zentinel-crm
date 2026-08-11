@@ -23,7 +23,7 @@ type Opportunity = {
   opportunity_types: OpportunityType[];
 };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
-type ImportResult = { imported: number; skipped: { row: number; reason: string }[] };
+type ImportResult = { imported: number; skipped: { row: number; reason: string }[]; duplicates: number };
 
 const emptyForm = {
   kind: "service" as (typeof KINDS)[number], company: "", client_name: "", contact: "",
@@ -372,7 +372,10 @@ export function Opportunities() {
             </div>
             {importResult && (
               <div>
-                <div className="banner banner-info">{importResult.imported} row(s) imported.</div>
+                <div className="banner banner-info">
+                  {importResult.imported} row(s) imported.
+                  {importResult.duplicates > 0 && ` ${importResult.duplicates} duplicate(s) skipped — already in the system.`}
+                </div>
                 {importResult.skipped.length > 0 && (
                   <div style={{ marginTop: 8 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", marginBottom: 6 }}>

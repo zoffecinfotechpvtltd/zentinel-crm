@@ -245,8 +245,21 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
   const typeIdByName = new Map<string, string>(existingTypesResult.rows.map((t) => [t.name.toLowerCase(), t.id]));
 
   let imported = 0;
+  let duplicates = 0;
   const skipped: Array<{ row: number; reason: string }> = [];
   const dateFormat = /^\d{4}-\d{2}-\d{2}$/;
+
+  // Duplicate guard: keyed on (kind, lowercased company) — the closest thing
+  // to a natural key this data has (no external id in the source
+  // spreadsheets). Re-uploading the same file (or a file with overlapping
+  // rows) must not create repeat opportunities. Seeded from what's already
+  // in the DB, then grown as each row in THIS file is accepted, so two
+  // duplicate rows inside one file are also caught, not just duplicates
+  // against pre-existing data.
+  const existingKeysResult = await pool.query(
+    `select kind, lower(company) as company from opportunities where deleted_at is null`
+  );
+  const seenKeys = new Set(existingKeysResult.rows.map((r) => `${r.kind}::${r.company}`));
 
   // Deliberately NOT one big transaction: this is a best-effort bulk import
   // over real-world messy spreadsheet data (verified against ~150 real
@@ -266,6 +279,13 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
     }
     if (!company) {
       skipped.push({ row: r, reason: "Company is required" });
+      continue;
+    }
+
+    const dedupeKey = `${kindRaw}::${company.toLowerCase()}`;
+    if (seenKeys.has(dedupeKey)) {
+      skipped.push({ row: r, reason: `Duplicate — an opportunity for "${company}" (${kindRaw}) already exists` });
+      duplicates++;
       continue;
     }
 
@@ -319,13 +339,14 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
         );
       }
 
+      seenKeys.add(dedupeKey);
       imported++;
     } catch (err) {
       skipped.push({ row: r, reason: err instanceof Error ? err.message : "Unexpected error inserting this row" });
     }
   }
 
-  res.json({ imported, skipped });
+  res.json({ imported, skipped, duplicates });
 });
 
 // --- Single-opportunity routes (":id" is a catch-all for this router's
