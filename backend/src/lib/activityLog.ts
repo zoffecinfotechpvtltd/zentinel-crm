@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { pool } from "../db/pool";
 
-export type EntityType = "lead" | "client" | "project" | "invoice";
+export type EntityType = "lead" | "client" | "project" | "invoice" | "opportunity";
 
 export async function writeActivityLog(
   db: PoolClient | typeof pool,

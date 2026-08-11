@@ -11,24 +11,30 @@ import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate } from "../lib/format";
 import { IconOpportunities, IconPlus, IconInbox, IconUpload, IconDownload } from "../components/Icons";
+import { CustomSelect, type SelectOption } from "../components/CustomSelect";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 const KINDS = ["service", "product"] as const;
 const STAGES = ["Open", "Proposal Sent", "Won", "Lost"] as const;
 
 type OpportunityType = { id: string; name: string };
+type LinkedCompany = { id: string; company: string };
 type Opportunity = {
   id: string; kind: "service" | "product"; company: string; client_name: string | null; contact: string | null;
   description: string | null; pdf_pg_url: string | null; stage: string; lost_reason: string | null;
   follow_up_date: string | null; remarks: string | null; assigned_to: string | null;
+  client_id: string | null; lead_id: string | null; client: LinkedCompany | null; lead: LinkedCompany | null;
   opportunity_types: OpportunityType[];
 };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type ImportResult = { imported: number; skipped: { row: number; reason: string }[]; duplicates: number };
+type CompanySearchResponse = { clients: LinkedCompany[]; leads: LinkedCompany[] };
 
 const emptyForm = {
   kind: "service" as (typeof KINDS)[number], company: "", client_name: "", contact: "",
   opportunity_type_ids: [] as string[], description: "", pdf_pg_url: "",
   stage: "Open" as (typeof STAGES)[number], lost_reason: "", follow_up_date: "", remarks: "",
+  client_id: "", lead_id: "",
 };
 
 export function Opportunities() {
@@ -50,6 +56,7 @@ export function Opportunities() {
 
   const { data, loading, error, reload } = useFetch<ListResponse<Opportunity>>(`/opportunities?${query.toString()}`, [page, search, kind, stage, typeId]);
   const { data: types, reload: reloadTypes } = useFetch<OpportunityType[]>("/opportunities/types");
+  const { data: companies } = useFetch<CompanySearchResponse>("/opportunities/companies/search");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Opportunity | null>(null);
@@ -57,6 +64,32 @@ export function Opportunities() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
+
+  const companyOptions: SelectOption[] = [
+    ...(companies?.clients.map((c) => ({ value: `client:${c.id}`, label: `${c.company} — existing client` })) ?? []),
+    ...(companies?.leads.map((l) => ({ value: `lead:${l.id}`, label: `${l.company} — existing lead` })) ?? []),
+  ];
+  // Deliberately NOT a composite "client:<id>"/"lead:<id>" value here: that
+  // would make CustomSelect's closed-state display fall back to the picked
+  // option's full annotated label ("Acme Co — existing client") instead of
+  // the plain company name. Feeding it the plain company text keeps the
+  // input showing just the company, while handleCompanyChange below still
+  // reads the composite id off whichever option was actually clicked.
+  const companySelectValue = form.company;
+
+  function handleCompanyChange(v: string) {
+    if (v.startsWith("client:")) {
+      const id = v.slice(7);
+      const match = companies?.clients.find((c) => c.id === id);
+      setForm((f) => ({ ...f, company: match?.company ?? f.company, client_id: id, lead_id: "" }));
+    } else if (v.startsWith("lead:")) {
+      const id = v.slice(5);
+      const match = companies?.leads.find((l) => l.id === id);
+      setForm((f) => ({ ...f, company: match?.company ?? f.company, lead_id: id, client_id: "" }));
+    } else {
+      setForm((f) => ({ ...f, company: v, client_id: "", lead_id: "" }));
+    }
+  }
 
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -79,6 +112,7 @@ export function Opportunities() {
       opportunity_type_ids: o.opportunity_types.map((t) => t.id), description: o.description ?? "",
       pdf_pg_url: o.pdf_pg_url ?? "", stage: o.stage as (typeof STAGES)[number], lost_reason: o.lost_reason ?? "",
       follow_up_date: o.follow_up_date ?? "", remarks: o.remarks ?? "",
+      client_id: o.client_id ?? "", lead_id: o.lead_id ?? "",
     });
     setFieldErrors({});
     setModalOpen(true);
@@ -114,6 +148,7 @@ export function Opportunities() {
       description: form.description || undefined, pdf_pg_url: form.pdf_pg_url || undefined,
       stage: form.stage, lost_reason: form.stage === "Lost" ? form.lost_reason || undefined : undefined,
       follow_up_date: form.follow_up_date || undefined, remarks: form.remarks || undefined,
+      client_id: form.client_id || undefined, lead_id: form.lead_id || undefined,
     };
     try {
       if (editing) {
@@ -151,6 +186,20 @@ export function Opportunities() {
       reload();
     } catch (err) {
       push(err instanceof Error ? err.message : "Failed to delete", "error");
+    }
+  }
+
+  async function convertToClient(o: Opportunity) {
+    if (!(await confirm({
+      message: `Convert "${o.company}" to a Client record? This links (or creates) a Client so its projects, invoices, and files all live under the same company.`,
+      confirmLabel: "Convert",
+    }))) return;
+    try {
+      await api.post(`/opportunities/${o.id}/convert`, {});
+      push("Converted to Client", "success");
+      reload();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Conversion failed", "error");
     }
   }
 
@@ -193,19 +242,24 @@ export function Opportunities() {
 
       <div className="filter-bar">
         <input className="filter-input" placeholder="Search company / client..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-        <select className="filter-select" value={kind} onChange={(e) => { setKind(e.target.value); setPage(1); }}>
-          <option value="">All Kinds</option>
-          <option value="service">Service</option>
-          <option value="product">Product</option>
-        </select>
-        <select className="filter-select" value={stage} onChange={(e) => { setStage(e.target.value); setPage(1); }}>
-          <option value="">All Stages</option>
-          {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select className="filter-select" value={typeId} onChange={(e) => { setTypeId(e.target.value); setPage(1); }}>
-          <option value="">All Types</option>
-          {types?.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
+        <CustomSelect
+          value={kind}
+          onChange={(v) => { setKind(v); setPage(1); }}
+          placeholder="All Kinds"
+          options={[{ value: "", label: "All Kinds" }, { value: "service", label: "Service" }, { value: "product", label: "Product" }]}
+        />
+        <CustomSelect
+          value={stage}
+          onChange={(v) => { setStage(v); setPage(1); }}
+          placeholder="All Stages"
+          options={[{ value: "", label: "All Stages" }, ...STAGES.map((s) => ({ value: s, label: s }))]}
+        />
+        <CustomSelect
+          value={typeId}
+          onChange={(v) => { setTypeId(v); setPage(1); }}
+          placeholder="All Types"
+          options={[{ value: "", label: "All Types" }, ...(types?.map((t) => ({ value: t.id, label: t.name })) ?? [])]}
+        />
       </div>
 
       {error && <div className="banner banner-error">{error}</div>}
@@ -230,7 +284,12 @@ export function Opportunities() {
               )}
               {data?.data.map((o) => (
                 <tr key={o.id}>
-                  <td><div style={{ fontWeight: 550, color: "var(--text)" }}>{o.company}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{o.client_name ?? "—"}</div></td>
+                  <td>
+                    <div style={{ fontWeight: 550, color: "var(--text)" }}>{o.company}</div>
+                    <div style={{ fontSize: 11, color: "var(--text3)" }}>{o.client_name ?? "—"}</div>
+                    {o.client && <div style={{ fontSize: 10.5, color: "var(--success)", fontWeight: 600 }}>↳ linked client</div>}
+                    {!o.client && o.lead && <div style={{ fontSize: 10.5, color: "var(--info)", fontWeight: 600 }}>↳ linked lead</div>}
+                  </td>
                   <td style={{ fontSize: 12 }}>{o.contact ?? "—"}</td>
                   <td style={{ fontSize: 12, textTransform: "capitalize" }}>{o.kind}</td>
                   <td>
@@ -244,6 +303,9 @@ export function Opportunities() {
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
                       {canEdit && <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(o)}>Edit</button>}
+                      {canEdit && o.stage === "Won" && !o.client_id && (
+                        <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--success)" }} onClick={() => convertToClient(o)}>Convert to Client</button>
+                      )}
                       {canDelete && <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => remove(o)}>Delete</button>}
                     </div>
                   </td>
@@ -270,14 +332,25 @@ export function Opportunities() {
           <div className="form-grid">
             <div className="form-group">
               <label className="form-label">Kind *</label>
-              <select className="form-select" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as (typeof KINDS)[number] })}>
-                <option value="service">Service</option>
-                <option value="product">Product</option>
-              </select>
+              <CustomSelect
+                value={form.kind}
+                onChange={(v) => setForm({ ...form, kind: v as (typeof KINDS)[number] })}
+                options={[{ value: "service", label: "Service" }, { value: "product", label: "Product" }]}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Company *</label>
-              <input className="form-input" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
+              <CustomSelect
+                searchable
+                allowCustomValue
+                value={companySelectValue}
+                onChange={handleCompanyChange}
+                placeholder="Type a company name, or pick an existing client/lead…"
+                options={companyOptions}
+              />
+              {(form.client_id || form.lead_id) && (
+                <div style={{ fontSize: 11, color: "var(--success)" }}>Linked to an existing {form.client_id ? "client" : "lead"}</div>
+              )}
               {fieldErrors.company && <div className="form-error">{fieldErrors.company}</div>}
             </div>
             <div className="form-group">
@@ -290,9 +363,11 @@ export function Opportunities() {
             </div>
             <div className="form-group">
               <label className="form-label">Stage</label>
-              <select className="form-select" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value as (typeof STAGES)[number] })}>
-                {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <CustomSelect
+                value={form.stage}
+                onChange={(v) => setForm({ ...form, stage: v as (typeof STAGES)[number] })}
+                options={STAGES.map((s) => ({ value: s, label: s }))}
+              />
             </div>
             {form.stage === "Lost" && (
               <div className="form-group">
@@ -303,7 +378,7 @@ export function Opportunities() {
             )}
             <div className="form-group">
               <label className="form-label">Follow-up Date</label>
-              <input className="form-input" type="date" value={form.follow_up_date} onChange={(e) => setForm({ ...form, follow_up_date: e.target.value })} />
+              <CustomDatePicker value={form.follow_up_date} onChange={(v) => setForm({ ...form, follow_up_date: v })} />
             </div>
             <div className="form-group">
               <label className="form-label">PDF/PG &amp; URL</label>

@@ -5,6 +5,7 @@ import { Modal } from "../components/Modal";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
 import { IconTemplate, IconPlus } from "../components/Icons";
+import { CustomSelect } from "../components/CustomSelect";
 
 type Template = { id: string; name: string; channel: string; subject: string | null; body: string; category: string };
 
@@ -58,15 +59,19 @@ export function MessageTemplates() {
             <div className="form-group full"><label className="form-label">Name *</label><input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="form-group">
               <label className="form-label">Channel</label>
-              <select className="form-select" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>
-                <option value="email">Email</option><option value="whatsapp">WhatsApp</option>
-              </select>
+              <CustomSelect
+                value={form.channel}
+                onChange={(v) => setForm({ ...form, channel: v })}
+                options={[{ value: "email", label: "Email" }, { value: "whatsapp", label: "WhatsApp" }]}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Category</label>
-              <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <CustomSelect
+                value={form.category}
+                onChange={(v) => setForm({ ...form, category: v })}
+                options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+              />
             </div>
             {form.channel === "email" && (
               <div className="form-group full"><label className="form-label">Subject</label><input className="form-input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></div>

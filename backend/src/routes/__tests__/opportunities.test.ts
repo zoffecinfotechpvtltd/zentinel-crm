@@ -87,6 +87,80 @@ describe("opportunities routes", () => {
     });
   });
 
+  describe("client/lead linking", () => {
+    it("links a new opportunity to an existing client, and the link shows up in companies/search and the list response", async () => {
+      const { agent } = await loginAs("admin");
+      const clientRes = await agent.post("/api/clients").send({ company: "Linked Client Co" });
+      expect(clientRes.status).toBe(201);
+
+      const searchRes = await agent.get("/api/opportunities/companies/search?q=Linked");
+      expect(searchRes.status).toBe(200);
+      expect(searchRes.body.clients).toEqual([{ id: clientRes.body.id, company: "Linked Client Co" }]);
+      expect(searchRes.body.leads).toEqual([]);
+
+      const createRes = await agent.post("/api/opportunities").send({
+        kind: "service", company: "Linked Client Co", client_id: clientRes.body.id,
+      });
+      expect(createRes.status).toBe(201);
+      expect(createRes.body.client).toEqual({ id: clientRes.body.id, company: "Linked Client Co" });
+      expect(createRes.body.lead).toBeNull();
+
+      const listRes = await agent.get("/api/opportunities");
+      expect(listRes.body.data[0].client.id).toBe(clientRes.body.id);
+    });
+
+    it("rejects a client_id that doesn't exist", async () => {
+      const { agent } = await loginAs("admin");
+      const res = await agent.post("/api/opportunities").send({
+        kind: "service", company: "Ghost Co", client_id: "00000000-0000-0000-0000-000000000000",
+      });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("convert to client", () => {
+    it("converts a Won opportunity into a new client and links it back", async () => {
+      const { agent } = await loginAs("admin");
+      const createRes = await agent.post("/api/opportunities").send({ kind: "service", company: "Convert Target Co" });
+      await agent.patch(`/api/opportunities/${createRes.body.id}`).send({ stage: "Won" });
+
+      const convertRes = await agent.post(`/api/opportunities/${createRes.body.id}/convert`);
+      expect(convertRes.status).toBe(201);
+      expect(convertRes.body.client.company).toBe("Convert Target Co");
+      expect(convertRes.body.client_id).toBe(convertRes.body.client.id);
+
+      const clientCheck = await agent.get(`/api/clients/${convertRes.body.client_id}`);
+      expect(clientCheck.status).toBe(200);
+      expect(clientCheck.body.company).toBe("Convert Target Co");
+    });
+
+    it("reuses an existing client with a matching company name instead of creating a duplicate", async () => {
+      const { agent } = await loginAs("admin");
+      const clientRes = await agent.post("/api/clients").send({ company: "Reuse Me Co" });
+      const createRes = await agent.post("/api/opportunities").send({ kind: "product", company: "reuse me co" });
+      await agent.patch(`/api/opportunities/${createRes.body.id}`).send({ stage: "Won" });
+
+      const convertRes = await agent.post(`/api/opportunities/${createRes.body.id}/convert`);
+      expect(convertRes.status).toBe(201);
+      expect(convertRes.body.client_id).toBe(clientRes.body.id);
+    });
+
+    it("rejects converting a non-Won opportunity, and rejects converting an already-linked one twice", async () => {
+      const { agent } = await loginAs("admin");
+      const createRes = await agent.post("/api/opportunities").send({ kind: "service", company: "Not Won Yet Co" });
+
+      const tooEarly = await agent.post(`/api/opportunities/${createRes.body.id}/convert`);
+      expect(tooEarly.status).toBe(400);
+
+      await agent.patch(`/api/opportunities/${createRes.body.id}`).send({ stage: "Won" });
+      const first = await agent.post(`/api/opportunities/${createRes.body.id}/convert`);
+      expect(first.status).toBe(201);
+
+      const second = await agent.post(`/api/opportunities/${createRes.body.id}/convert`);
+      expect(second.status).toBe(409);
+    });
+  });
+
   describe("bulk import duplicate detection", () => {
     it("imports a row once, then skips it as a duplicate on a second import of the same file", async () => {
       const { agent } = await loginAs("admin");

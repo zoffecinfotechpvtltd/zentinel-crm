@@ -6,6 +6,7 @@ import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { IconUsers, IconPlus } from "../components/Icons";
+import { CustomSelect } from "../components/CustomSelect";
 import { passwordPolicyError } from "../lib/passwordPolicy";
 
 type User = { id: string; email: string; name: string; role: string; is_active: boolean };
@@ -82,9 +83,11 @@ export function Users() {
             <div className="form-group full"><label className="form-label">Temporary Password *</label><input className="form-input" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="At least 8 characters, with a letter and a number" /></div>
             <div className="form-group full">
               <label className="form-label">Role</label>
-              <select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <CustomSelect
+                value={form.role}
+                onChange={(v) => setForm({ ...form, role: v })}
+                options={ROLES.map((r) => ({ value: r, label: r }))}
+              />
             </div>
           </div>
         </Modal>

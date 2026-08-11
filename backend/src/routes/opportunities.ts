@@ -4,6 +4,8 @@ import multer from "multer";
 import ExcelJS from "exceljs";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { writeActivityLog } from "../lib/activityLog";
+import { fireWebhook } from "../lib/outboundWebhook";
 
 const router = Router();
 
@@ -34,6 +36,36 @@ async function attachTypeNames(opportunities: Array<{ id: string }>): Promise<Ar
     byOpportunity.set(row.opportunity_id, list);
   }
   return opportunities.map((o) => ({ ...o, opportunity_types: byOpportunity.get(o.id) ?? [] }));
+}
+
+// Attaches the linked Lead/Client's company name so the UI can show "this
+// opportunity is tied to an existing account" instead of just a free-text
+// company string — same batched-lookup shape as attachTypeNames above.
+async function attachLinkedCompanies(opportunities: Array<Record<string, unknown>>): Promise<Array<Record<string, unknown>>> {
+  if (opportunities.length === 0) return [];
+  const clientIds = [...new Set(opportunities.map((o) => o.client_id).filter((v): v is string => typeof v === "string"))];
+  const leadIds = [...new Set(opportunities.map((o) => o.lead_id).filter((v): v is string => typeof v === "string"))];
+
+  const clientsById = new Map<string, { id: string; company: string }>();
+  if (clientIds.length > 0) {
+    const r = await pool.query(`select id, company from clients where id = any($1)`, [clientIds]);
+    for (const row of r.rows) clientsById.set(row.id, row);
+  }
+  const leadsById = new Map<string, { id: string; company: string }>();
+  if (leadIds.length > 0) {
+    const r = await pool.query(`select id, company from leads where id = any($1)`, [leadIds]);
+    for (const row of r.rows) leadsById.set(row.id, row);
+  }
+
+  return opportunities.map((o) => ({
+    ...o,
+    client: typeof o.client_id === "string" ? (clientsById.get(o.client_id) ?? null) : null,
+    lead: typeof o.lead_id === "string" ? (leadsById.get(o.lead_id) ?? null) : null,
+  }));
+}
+
+async function enrichOpportunities(opportunities: Array<{ id: string }>): Promise<Array<Record<string, unknown>>> {
+  return attachLinkedCompanies(await attachTypeNames(opportunities));
 }
 
 async function linkTypes(opportunityId: string, typeIds: string[]): Promise<void> {
@@ -92,7 +124,7 @@ router.get("/", async (req, res) => {
   );
 
   res.json({
-    data: await attachTypeNames(dataResult.rows),
+    data: await enrichOpportunities(dataResult.rows),
     total: Number(countResult.rows[0].count),
     page,
     per_page: perPage,
@@ -112,7 +144,24 @@ const createSchema = z.object({
   follow_up_date: z.string().optional(),
   remarks: z.string().optional(),
   assigned_to: z.string().uuid().optional(),
+  client_id: z.string().uuid().optional(),
+  lead_id: z.string().uuid().optional(),
 });
+
+// Confirms a referenced client_id/lead_id actually exists (and isn't
+// soft-deleted) before linking an opportunity to it — the picker in the UI
+// only ever offers real rows, but the API can't trust that blindly.
+async function validateLinkedIds(f: { client_id?: string | null; lead_id?: string | null }): Promise<string | null> {
+  if (f.client_id) {
+    const r = await pool.query(`select 1 from clients where id = $1 and deleted_at is null`, [f.client_id]);
+    if (r.rows.length === 0) return "client_id does not refer to an existing client";
+  }
+  if (f.lead_id) {
+    const r = await pool.query(`select 1 from leads where id = $1 and deleted_at is null`, [f.lead_id]);
+    if (r.rows.length === 0) return "lead_id does not refer to an existing lead";
+  }
+  return null;
+}
 
 router.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
@@ -130,16 +179,22 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  const linkError = await validateLinkedIds(f);
+  if (linkError) {
+    res.status(400).json({ error: "invalid_input", details: { client_id: linkError } });
+    return;
+  }
+
   const result = await pool.query(
     `insert into opportunities (
        kind, company, client_name, contact, description, pdf_pg_url,
-       stage, lost_reason, follow_up_date, remarks, assigned_to, created_by, updated_by
-     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)
+       stage, lost_reason, follow_up_date, remarks, assigned_to, client_id, lead_id, created_by, updated_by
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14)
      returning *`,
     [
       f.kind, f.company, f.client_name ?? null, f.contact ?? null, f.description ?? null, f.pdf_pg_url ?? null,
       f.stage ?? "Open", f.lost_reason ?? null, f.follow_up_date ?? null, f.remarks ?? null,
-      f.assigned_to ?? null, req.user!.id,
+      f.assigned_to ?? null, f.client_id ?? null, f.lead_id ?? null, req.user!.id,
     ]
   );
   const opportunity = result.rows[0];
@@ -148,8 +203,8 @@ router.post("/", async (req, res) => {
     await linkTypes(opportunity.id, f.opportunity_type_ids);
   }
 
-  const [withTypes] = await attachTypeNames([opportunity]);
-  res.status(201).json(withTypes);
+  const [enriched] = await enrichOpportunities([opportunity]);
+  res.status(201).json(enriched);
 });
 
 // --- Opportunity Types (admin-editable tag list, same pattern as Services) ---
@@ -349,6 +404,29 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
   res.json({ imported, skipped, duplicates });
 });
 
+// GET /api/opportunities/companies/search — thin id+company-only lookup
+// against Clients and Leads, so the Company field in the Add/Edit modal can
+// link an opportunity to an existing account instead of it being a free-text
+// island. Deliberately narrower than GET /api/clients (which Sales can't
+// call at all — clients carries pricing/GST) so this stays safe to expose to
+// the same admin+sales audience as the rest of this router.
+router.get("/companies/search", async (req, res) => {
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  const clientsResult = await pool.query(
+    q
+      ? `select id, company from clients where deleted_at is null and company ilike $1 order by company limit 50`
+      : `select id, company from clients where deleted_at is null order by company limit 50`,
+    q ? [`%${q}%`] : []
+  );
+  const leadsResult = await pool.query(
+    q
+      ? `select id, company from leads where deleted_at is null and company ilike $1 order by company limit 50`
+      : `select id, company from leads where deleted_at is null order by company limit 50`,
+    q ? [`%${q}%`] : []
+  );
+  res.json({ clients: clientsResult.rows, leads: leadsResult.rows });
+});
+
 // --- Single-opportunity routes (":id" is a catch-all for this router's
 // remaining single-segment paths, so everything above must stay above it) ---
 
@@ -358,8 +436,8 @@ router.get("/:id", async (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
-  const [withTypes] = await attachTypeNames(result.rows);
-  res.json(withTypes);
+  const [enriched] = await enrichOpportunities(result.rows);
+  res.json(enriched);
 });
 
 const updateSchema = z.object({
@@ -375,6 +453,8 @@ const updateSchema = z.object({
   follow_up_date: z.string().nullable().optional(),
   remarks: z.string().nullable().optional(),
   assigned_to: z.string().uuid().nullable().optional(),
+  client_id: z.string().uuid().nullable().optional(),
+  lead_id: z.string().uuid().nullable().optional(),
 });
 
 router.patch("/:id", async (req, res) => {
@@ -397,6 +477,12 @@ router.patch("/:id", async (req, res) => {
       error: "invalid_input",
       details: { lost_reason: "lost_reason is required when stage is set to Lost" },
     });
+    return;
+  }
+
+  const linkError = await validateLinkedIds(f);
+  if (linkError) {
+    res.status(400).json({ error: "invalid_input", details: { client_id: linkError } });
     return;
   }
 
@@ -428,8 +514,8 @@ router.patch("/:id", async (req, res) => {
     await linkTypes(req.params.id, opportunity_type_ids);
   }
 
-  const [withTypes] = await attachTypeNames([updated]);
-  res.json(withTypes);
+  const [enriched] = await enrichOpportunities([updated]);
+  res.json(enriched);
 });
 
 router.delete("/:id", requireRole("admin"), async (req, res) => {
@@ -442,6 +528,96 @@ router.delete("/:id", requireRole("admin"), async (req, res) => {
     return;
   }
   res.json({ ok: true });
+});
+
+// POST /api/opportunities/:id/convert — atomic, mirrors Leads'
+// POST /:id/convert: a Won opportunity becomes a real Client. Reuses an
+// existing client with the same company name instead of creating a
+// duplicate (same natural key the bulk-import de-dupe already relies on);
+// only inserts a new one when no match exists.
+router.post("/:id/convert", requireRole("admin", "sales"), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const existingResult = await client.query(`select * from opportunities where id = $1 and deleted_at is null`, [req.params.id]);
+    if (existingResult.rows.length === 0) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const opportunity = existingResult.rows[0];
+
+    if (opportunity.stage !== "Won") {
+      res.status(400).json({ error: "invalid_state", message: "Only a Won opportunity can be converted to a client." });
+      return;
+    }
+    if (opportunity.client_id) {
+      res.status(409).json({ error: "already_linked" });
+      return;
+    }
+
+    await client.query("begin");
+
+    const matchResult = await client.query(
+      `select * from clients where lower(company) = lower($1) and deleted_at is null limit 1`,
+      [opportunity.company]
+    );
+    let targetClient = matchResult.rows[0];
+    const reusedExisting = !!targetClient;
+
+    if (!targetClient) {
+      const insertResult = await client.query(
+        `insert into clients (company, converted_from_opportunity_id, created_by, updated_by)
+         values ($1, $2, $3, $3)
+         returning *`,
+        [opportunity.company, opportunity.id, req.user!.id]
+      );
+      targetClient = insertResult.rows[0];
+
+      if (opportunity.client_name) {
+        await client.query(
+          `insert into client_contacts (client_id, name, mobile, is_primary, created_by, updated_by)
+           values ($1, $2, $3, true, $4, $4)`,
+          [targetClient.id, opportunity.client_name, opportunity.contact, req.user!.id]
+        );
+      }
+    }
+
+    const updateResult = await client.query(
+      `update opportunities set client_id = $1, updated_by = $2, updated_at = now() where id = $3 returning *`,
+      [targetClient.id, req.user!.id, opportunity.id]
+    );
+
+    await writeActivityLog(client, {
+      entityType: "opportunity",
+      entityId: opportunity.id,
+      actorId: req.user!.id,
+      action: "converted_to_client",
+      detail: { client_id: targetClient.id, reused_existing: reusedExisting },
+    });
+    if (!reusedExisting) {
+      await writeActivityLog(client, {
+        entityType: "client",
+        entityId: targetClient.id,
+        actorId: req.user!.id,
+        action: "created",
+        detail: { converted_from_opportunity_id: opportunity.id },
+      });
+    }
+
+    await client.query("commit");
+    fireWebhook("opportunity.converted", { opportunity_id: opportunity.id, company: opportunity.company, client_id: targetClient.id });
+
+    const [enriched] = await enrichOpportunities([updateResult.rows[0]]);
+    res.status(201).json(enriched);
+  } catch (err) {
+    await client.query("rollback");
+    if (err instanceof Error && "code" in err && (err as { code?: string }).code === "23505") {
+      res.status(409).json({ error: "client_already_exists", message: err.message });
+      return;
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 export default router;

@@ -12,6 +12,8 @@ import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate, formatMoney } from "../lib/format";
 import { IconClients, IconPlus, IconInbox } from "../components/Icons";
+import { CustomSelect } from "../components/CustomSelect";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 type Client = {
   id: string; company: string; gstin: string | null; tally_ledger_name: string | null; status: string;
@@ -128,9 +130,12 @@ export function Clients() {
 
       <div className="filter-bar">
         <input className="filter-input" placeholder="Search client..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-        <select className="filter-select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-          <option value="">All Status</option><option value="Active">Active</option><option value="Inactive">Inactive</option>
-        </select>
+        <CustomSelect
+          value={status}
+          onChange={(v) => { setStatus(v); setPage(1); }}
+          placeholder="All Status"
+          options={[{ value: "", label: "All Status" }, { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }]}
+        />
       </div>
 
       <div className="card" style={{ padding: 0 }}>
@@ -249,13 +254,15 @@ export function Clients() {
           </div>
           {canEdit && (
             <div className="filter-bar">
-              <select className="filter-select" value={contractForm.service_id} onChange={(e) => setContractForm({ ...contractForm, service_id: e.target.value })}>
-                <option value="">Service…</option>
-                {services?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <CustomSelect
+                value={contractForm.service_id}
+                onChange={(v) => setContractForm({ ...contractForm, service_id: v })}
+                placeholder="Service…"
+                options={services?.map((s) => ({ value: s.id, label: s.name })) ?? []}
+              />
               <input className="filter-input" placeholder="Value ₹" type="number" value={contractForm.value} onChange={(e) => setContractForm({ ...contractForm, value: e.target.value })} />
-              <input className="filter-input" type="date" value={contractForm.start_date} onChange={(e) => setContractForm({ ...contractForm, start_date: e.target.value })} />
-              <input className="filter-input" type="date" value={contractForm.end_date} onChange={(e) => setContractForm({ ...contractForm, end_date: e.target.value })} />
+              <CustomDatePicker value={contractForm.start_date} onChange={(v) => setContractForm({ ...contractForm, start_date: v })} placeholder="Start date" />
+              <CustomDatePicker value={contractForm.end_date} onChange={(v) => setContractForm({ ...contractForm, end_date: v })} placeholder="End date" />
               <button type="button" className="btn btn-ghost btn-sm" onClick={addContract}>+ Add Contract</button>
             </div>
           )}

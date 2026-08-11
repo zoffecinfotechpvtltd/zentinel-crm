@@ -5,6 +5,7 @@ import { Pagination } from "../components/Pagination";
 import { TableSkeleton } from "../components/Skeleton";
 import { formatDateTime } from "../lib/format";
 import { IconFollowups, IconInbox } from "../components/Icons";
+import { CustomSelect } from "../components/CustomSelect";
 
 type LogRow = {
   id: string; entity_type: string; entity_id: string; action: string;
@@ -12,7 +13,7 @@ type LogRow = {
 };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
-const ENTITY_TYPES = ["lead", "client", "project", "invoice"];
+const ENTITY_TYPES = ["lead", "client", "project", "invoice", "opportunity"];
 
 function describe(row: LogRow): string {
   const who = row.actor_name ?? "System";
@@ -42,10 +43,12 @@ export function AuditLog() {
     <div>
       <PageHeader icon={<IconFollowups size={19} />} title="Audit Log" subtitle="Every status change and record creation, company-wide" />
       <div className="filter-bar">
-        <select className="filter-select" value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(1); }}>
-          <option value="">All record types</option>
-          {ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <CustomSelect
+          value={entityType}
+          onChange={(v) => { setEntityType(v); setPage(1); }}
+          placeholder="All record types"
+          options={[{ value: "", label: "All record types" }, ...ENTITY_TYPES.map((t) => ({ value: t, label: t }))]}
+        />
       </div>
       <div className="card" style={{ padding: 0 }}>
         <div className="table-wrap">

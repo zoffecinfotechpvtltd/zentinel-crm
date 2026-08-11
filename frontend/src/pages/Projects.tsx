@@ -12,6 +12,8 @@ import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate } from "../lib/format";
 import { IconProjects, IconPlus, IconInbox, IconCalendar } from "../components/Icons";
+import { CustomSelect } from "../components/CustomSelect";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 const STATUSES = ["Not Started", "In Progress", "Awaiting Client", "Completed", "On Hold"];
 
@@ -113,10 +115,12 @@ export function Projects() {
 
       <div className="filter-bar">
         <input className="filter-input" placeholder="Search project / client..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="filter-select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-          <option value="">All Status</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <CustomSelect
+          value={status}
+          onChange={(v) => { setStatus(v); setPage(1); }}
+          placeholder="All Status"
+          options={[{ value: "", label: "All Status" }, ...STATUSES.map((s) => ({ value: s, label: s }))]}
+        />
       </div>
 
       <div className="card" style={{ padding: 0 }}>
@@ -171,27 +175,33 @@ export function Projects() {
             {!editing && (
               <div className="form-group full">
                 <label className="form-label">Client *</label>
-                <select className="form-select" value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })}>
-                  <option value="">Select client…</option>
-                  {clientsResp?.data.map((c) => <option key={c.id} value={c.id}>{c.company}</option>)}
-                </select>
+                <CustomSelect
+                  value={form.client_id}
+                  onChange={(v) => setForm({ ...form, client_id: v })}
+                  placeholder="Select client…"
+                  options={clientsResp?.data.map((c) => ({ value: c.id, label: c.company })) ?? []}
+                />
               </div>
             )}
             <div className="form-group">
               <label className="form-label">Assigned To</label>
-              <select className="form-select" value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}>
-                <option value="">Unassigned</option>
-                {assignable?.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
-              </select>
+              <CustomSelect
+                value={form.assigned_to}
+                onChange={(v) => setForm({ ...form, assigned_to: v })}
+                placeholder="Unassigned"
+                options={assignable?.map((u) => ({ value: u.id, label: `${u.name} (${u.role})` })) ?? []}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Status</label>
-              <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <CustomSelect
+                value={form.status}
+                onChange={(v) => setForm({ ...form, status: v })}
+                options={STATUSES.map((s) => ({ value: s, label: s }))}
+              />
             </div>
-            <div className="form-group"><label className="form-label">Start Date</label><input className="form-input" type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-            <div className="form-group"><label className="form-label">Due Date</label><input className="form-input" type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Start Date</label><CustomDatePicker value={form.start_date} onChange={(v) => setForm({ ...form, start_date: v })} /></div>
+            <div className="form-group"><label className="form-label">Due Date</label><CustomDatePicker value={form.due_date} onChange={(v) => setForm({ ...form, due_date: v })} /></div>
             <div className="form-group"><label className="form-label">Progress (%)</label><input className="form-input" type="number" min={0} max={100} value={form.progress} onChange={(e) => setForm({ ...form, progress: e.target.value })} /></div>
             <div className="form-group full"><label className="form-label">Remarks</label><textarea className="form-textarea" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} /></div>
           </div>

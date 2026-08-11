@@ -12,6 +12,8 @@ import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate, formatMoney, toDateInputValue } from "../lib/format";
 import { IconLeads, IconPlus, IconInbox, IconCheck } from "../components/Icons";
+import { CustomSelect } from "../components/CustomSelect";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 const INDUSTRIES = ["Banking & Finance", "IT/Software", "Healthcare", "Government", "Manufacturing", "E-commerce", "Telecom", "Other"];
 const SOURCES = ["Website", "Referral", "LinkedIn", "Cold Call", "Event", "Email Campaign"];
@@ -296,15 +298,19 @@ export function Leads() {
       <div className="filter-bar">
         <input className="filter-input" placeholder="Search company / contact..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         {view === "list" && (
-          <select className="filter-select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-            <option value="">All Status</option>
-            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <CustomSelect
+            value={status}
+            onChange={(v) => { setStatus(v); setPage(1); }}
+            placeholder="All Status"
+            options={[{ value: "", label: "All Status" }, ...STATUSES.map((s) => ({ value: s, label: s }))]}
+          />
         )}
-        <select className="filter-select" value={serviceId} onChange={(e) => { setServiceId(e.target.value); setPage(1); }}>
-          <option value="">All Services</option>
-          {services?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        <CustomSelect
+          value={serviceId}
+          onChange={(v) => { setServiceId(v); setPage(1); }}
+          placeholder="All Services"
+          options={[{ value: "", label: "All Services" }, ...(services?.map((s) => ({ value: s.id, label: s.name })) ?? [])]}
+        />
       </div>
 
       {error && <div className="banner banner-error">{error}</div>}
@@ -350,14 +356,12 @@ export function Leads() {
                     </td>
                     <td>
                       {canEdit ? (
-                        <select
-                          className="filter-select"
-                          style={{ padding: "3px 8px", fontSize: 11.5 }}
+                        <CustomSelect
+                          className="sm"
                           value={l.status}
-                          onChange={(e) => moveStatus(l, e.target.value)}
-                        >
-                          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                          onChange={(v) => moveStatus(l, v)}
+                          options={STATUSES.map((s) => ({ value: s, label: s }))}
+                        />
                       ) : <Badge status={l.status} />}
                     </td>
                     <td style={{ fontSize: 12 }}>{formatDate(l.next_followup_date)}</td>
@@ -465,24 +469,27 @@ export function Leads() {
             </div>
             <div className="form-group">
               <label className="form-label">Industry</label>
-              <select className="form-select" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}>
-                <option value="">—</option>
-                {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
-              </select>
+              <CustomSelect
+                value={form.industry}
+                onChange={(v) => setForm({ ...form, industry: v })}
+                options={INDUSTRIES.map((i) => ({ value: i, label: i }))}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Lead Source</label>
-              <select className="form-select" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-                <option value="">—</option>
-                {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <CustomSelect
+                value={form.source}
+                onChange={(v) => setForm({ ...form, source: v })}
+                options={SOURCES.map((s) => ({ value: s, label: s }))}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Service Interested In</label>
-              <select className="form-select" value={form.service_id} onChange={(e) => setForm({ ...form, service_id: e.target.value })}>
-                <option value="">—</option>
-                {services?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <CustomSelect
+                value={form.service_id}
+                onChange={(v) => setForm({ ...form, service_id: v })}
+                options={services?.map((s) => ({ value: s.id, label: s.name })) ?? []}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Value Estimate (₹)</label>
@@ -490,7 +497,7 @@ export function Leads() {
             </div>
             <div className="form-group">
               <label className="form-label">Follow-up Date</label>
-              <input className="form-input" type="date" value={form.next_followup_date} onChange={(e) => setForm({ ...form, next_followup_date: e.target.value })} />
+              <CustomDatePicker value={form.next_followup_date} onChange={(v) => setForm({ ...form, next_followup_date: v })} />
             </div>
             <div className="form-group full">
               <label className="form-label">Notes</label>
@@ -524,7 +531,7 @@ export function Leads() {
           {!interactionDone && (
             <div className="form-group">
               <label className="form-label">Next Follow-up Date *</label>
-              <input className="form-input" type="date" value={interactionDate} onChange={(e) => setInteractionDate(e.target.value)} />
+              <CustomDatePicker value={interactionDate} onChange={setInteractionDate} />
             </div>
           )}
         </Modal>

@@ -6,6 +6,7 @@ import { useToast } from "../components/Toast";
 import { PageHeader } from "../components/PageHeader";
 import { formatDate, formatMoneyExact, isOverdue } from "../lib/format";
 import { IconFollowups, IconInbox, IconCheck, IconCalendar } from "../components/Icons";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 type Lead = {
   id: string; company: string; contact_person: string; email: string; mobile: string | null;
@@ -185,12 +186,10 @@ function FinanceFollowups() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                <input
-                  type="date"
-                  className="form-input"
-                  style={{ width: 150, padding: "6px 8px", fontSize: 12 }}
+                <CustomDatePicker
+                  className="sm"
                   value={draftDates[inv.id] ?? inv.next_followup_date ?? ""}
-                  onChange={(e) => setDraftDates({ ...draftDates, [inv.id]: e.target.value })}
+                  onChange={(v) => setDraftDates({ ...draftDates, [inv.id]: v })}
                 />
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFollowup(inv, draftDates[inv.id] || null)}>Save</button>
                 {inv.next_followup_date && (

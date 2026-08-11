@@ -6,6 +6,7 @@ import { useToast } from "./Toast";
 import { useConfirm } from "./ConfirmDialog";
 import { formatDateTime } from "../lib/format";
 import { IconPaperclip, IconTrash, IconPlus } from "./Icons";
+import { CustomSelect } from "./CustomSelect";
 
 type EntityType = "lead" | "client" | "project" | "invoice";
 type Note = { id: string; body: string; created_at: string; created_by: string | null; author_name: string | null };
@@ -126,9 +127,12 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
         <div className="card-title">
           Files
           <div style={{ display: "flex", gap: 6 }}>
-            <select className="filter-select" style={{ padding: "4px 8px", fontSize: 11.5 }} value={docType} onChange={(e) => setDocType(e.target.value)}>
-              {DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <CustomSelect
+              className="sm"
+              value={docType}
+              onChange={setDocType}
+              options={DOCUMENT_TYPES.map((t) => ({ value: t, label: t }))}
+            />
             <label className="btn btn-ghost btn-sm" style={{ cursor: uploading ? "wait" : "pointer" }}>
               <IconPlus size={12} /> {uploading ? "Uploading…" : "Attach"}
               <input

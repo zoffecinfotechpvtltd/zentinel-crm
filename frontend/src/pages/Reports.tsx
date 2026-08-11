@@ -5,6 +5,8 @@ import { formatMoney, formatMoneyExact, formatDate } from "../lib/format";
 import { Badge } from "../components/Badge";
 import { PageHeader } from "../components/PageHeader";
 import { IconReports } from "../components/Icons";
+import { CustomSelect } from "../components/CustomSelect";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 const TABS = [
   { key: "conversion", label: "Lead Conversion" },
@@ -55,8 +57,8 @@ export function Reports() {
 
       {(tab === "conversion" || tab === "revenue" || tab === "service") && (
         <div className="filter-bar">
-          <input className="filter-input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} title="From" />
-          <input className="filter-input" type="date" value={to} onChange={(e) => setTo(e.target.value)} title="To" />
+          <CustomDatePicker value={from} onChange={setFrom} placeholder="From" />
+          <CustomDatePicker value={to} onChange={setTo} placeholder="To" />
         </div>
       )}
 
@@ -118,9 +120,12 @@ export function Reports() {
       {tab === "payment" && (
         <div>
           <div className="filter-bar">
-            <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All Pending</option><option value="Overdue">Overdue only</option><option value="Sent">Sent</option><option value="Partial">Partial</option>
-            </select>
+            <CustomSelect
+              value={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="All Pending"
+              options={[{ value: "", label: "All Pending" }, { value: "Overdue", label: "Overdue only" }, { value: "Sent", label: "Sent" }, { value: "Partial", label: "Partial" }]}
+            />
             <button type="button" className="btn btn-ghost" onClick={exportPending}>⭳ Export Excel</button>
           </div>
           <div className="card" style={{ padding: 0 }}>

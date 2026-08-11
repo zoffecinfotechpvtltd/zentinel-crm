@@ -13,6 +13,8 @@ import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate, formatMoneyExact, formatMoney } from "../lib/format";
 import { IconInvoices, IconPlus, IconInbox } from "../components/Icons";
+import { CustomSelect } from "../components/CustomSelect";
+import { CustomDatePicker } from "../components/CustomDatePicker";
 
 type Invoice = {
   id: string; invoice_number: string | null; client_id: string; status: string;
@@ -216,10 +218,12 @@ export function Invoices() {
 
       <div className="filter-bar">
         <input className="filter-input" placeholder="Search invoice / client..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="filter-select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-          <option value="">All Status</option>
-          {["Draft", "Final", "Sent", "Partial", "Paid", "Overdue", "Cancelled"].map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <CustomSelect
+          value={status}
+          onChange={(v) => { setStatus(v); setPage(1); }}
+          placeholder="All Status"
+          options={[{ value: "", label: "All Status" }, ...["Draft", "Final", "Sent", "Partial", "Paid", "Overdue", "Cancelled"].map((s) => ({ value: s, label: s }))]}
+        />
       </div>
 
       <div className="card" style={{ padding: 0 }}>
@@ -281,12 +285,17 @@ export function Invoices() {
           <div className="form-grid" style={{ marginBottom: 16 }}>
             <div className="form-group">
               <label className="form-label">Client *</label>
-              <select className="form-select" value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                <option value="">Select client…</option>
-                {clientsResp?.data.map((c) => <option key={c.id} value={c.id} disabled={!c.tally_ledger_name}>{c.company}{!c.tally_ledger_name ? " (needs Tally ledger name)" : ""}</option>)}
-              </select>
+              <CustomSelect
+                value={clientId}
+                onChange={setClientId}
+                placeholder="Select client…"
+                options={clientsResp?.data.map((c) => ({
+                  value: c.id, disabled: !c.tally_ledger_name,
+                  label: `${c.company}${!c.tally_ledger_name ? " (needs Tally ledger name)" : ""}`,
+                })) ?? []}
+              />
             </div>
-            <div className="form-group"><label className="form-label">Due Date</label><input className="form-input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+            <div className="form-group"><label className="form-label">Due Date</label><CustomDatePicker value={dueDate} onChange={setDueDate} /></div>
           </div>
 
           <div className="card-title">Line Items</div>
@@ -365,7 +374,7 @@ export function Invoices() {
         </>}>
           {payError && <div className="banner banner-error">{payError}</div>}
           <div className="form-group" style={{ marginBottom: 12 }}><label className="form-label">Amount (₹) *</label><input className="form-input" type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} /></div>
-          <div className="form-group" style={{ marginBottom: 12 }}><label className="form-label">Payment Date *</label><input className="form-input" type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} /></div>
+          <div className="form-group" style={{ marginBottom: 12 }}><label className="form-label">Payment Date *</label><CustomDatePicker value={payDate} onChange={setPayDate} /></div>
           <div className="form-group"><label className="form-label">Method</label><input className="form-input" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} placeholder="Bank transfer, cheque..." /></div>
         </Modal>
       )}
