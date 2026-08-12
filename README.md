@@ -12,12 +12,14 @@ hidden in the UI: a role that can't see a page can't hit its API either.
 |---|---|---|---|---|
 | Dashboard / Reports / Notifications | ✅ | ✅ | ✅ | ✅ |
 | Leads | ✅ | ✅ | ❌ | ❌ |
+| Opportunities | ✅ | ✅ | ❌ | ❌ |
 | Clients (incl. pricing) | ✅ | ❌ | ✅ | ✅ |
 | Projects | ✅ | ❌ | ✅ | ✅ |
 | Invoices | ✅ | ❌ | ✅ | ❌ |
 | Follow-ups — Sales track | ✅ | ✅ | ❌ | ❌ |
 | Follow-ups — Finance track | ✅ | ❌ | ✅ | ❌ |
 | Users, Templates, Settings, Audit Log | ✅ | ❌ | ❌ | ❌ |
+| Automation Rules, Custom Fields, API Keys | ✅ | ❌ | ❌ | ❌ |
 
 Sales is walled off from Clients entirely once a lead is Won — from there
 the client, its contract, and its money belong to Finance and Ops.
@@ -27,23 +29,37 @@ the client, its contract, and its money belong to Finance and Ops.
 - **Leads** — full pipeline (New → Contacted → Qualified → Proposal Sent →
   Negotiation → Won/Lost), lead score (0–100), duplicate detection,
   lead→client conversion.
+- **Opportunities** — service/product sales pipeline separate from Leads,
+  multi-type tags, Excel bulk import/export with duplicate detection,
+  deal value on every stage, pipeline trend report, follow-up→client
+  conversion.
 - **Clients** — multiple contacts, multiple contracts per client, computed
-  Active/Inactive status, onboarding docs with e-signature requests
-  (no external e-sign vendor needed).
-- **Projects** — tracker with status, progress %, due-date/overdue detection.
+  Active/Inactive status, parent/subsidiary account hierarchy, onboarding
+  docs with e-signature requests (no external e-sign vendor needed),
+  document versioning.
+- **Projects** — tracker with status, progress %, due-date/overdue
+  detection, task checklists, per-user time logging, linked to the
+  Opportunity that produced them.
 - **Invoices** — GST-correct line items, Draft→Final locking with
   gap-free sequential numbering, PDF import (reads a Tally-exported PDF and
-  pre-fills the form), credit notes.
+  pre-fills the form), credit notes, recurring/subscription templates that
+  auto-generate on schedule.
 - **Payments** — manual recording (multiple partial payments per invoice)
   plus "Export for Tally" for TallyPrime import.
 - **Follow-up automation** — Today/Upcoming/Overdue tracking per role,
   escalation alerts, reusable message templates, `.ics` calendar export,
   WhatsApp (`wa.me`) prefilled links.
+- **Automation rules** — admin-configurable "when a lead/opportunity/
+  invoice/project reaches status X, notify role or person Y" rules, no
+  code required. Manage under **Admin → Automation Rules**.
+- **Custom fields** — admin-defined extra fields (text/number/date/
+  boolean/dropdown) on Leads, Opportunities, and Clients, shown inline on
+  each record's form. Manage under **Admin → Custom Fields**.
 - **Notifications** — in-app + optional email (any SMTP provider,
   configured in-app under Settings), daily digest, weekly business summary
   for Admin/Finance.
-- **Reporting** — live dashboard, conversion funnel, revenue trend,
-  service-wise breakdown, Excel export.
+- **Reporting** — live dashboard, conversion funnel, pipeline trend,
+  revenue trend, service-wise breakdown, Excel export.
 - **Security/account** — session list with device/location, "log out
   other sessions," optional 2FA, custom delete-confirmation dialogs on
   every destructive action.
@@ -51,6 +67,16 @@ the client, its contract, and its money belong to Finance and Ops.
   to create a lead (`POST /api/public/leads`), and an outbound webhook
   (Slack/Make/n8n/Zapier) that fires on lead Won/Lost, invoice paid, or
   project completion.
+- **Public REST API** — token-authenticated, read-only `/api/v1/leads`,
+  `/api/v1/clients`, `/api/v1/invoices` for external tools (Zapier, a BI
+  dashboard, a script). Keys are created and revoked under
+  **Admin → API Keys**; the raw key is shown once at creation and never
+  again.
+- **Backup & restore** — full JSON export of every table from
+  **Admin → Settings**, and a restore path that wipes and replaces all
+  data from an uploaded backup file (typed confirmation required).
+- **Duplicate & data tools** — duplicate lead/client merge, bulk Excel
+  value import for historical records.
 - **PWA** — installable from the browser (desktop address-bar icon or
   mobile "Add to Home Screen"), opens without browser chrome.
 

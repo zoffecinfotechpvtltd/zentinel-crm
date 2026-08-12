@@ -26,17 +26,23 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Verified against every `create table` in backend/migrations/*.sql as of this
-// plan being written (26 tables) — if a later migration adds a table, add it
-// here too, or that table's rows will leak between tests.
+// Verified against every `create table` in backend/migrations/*.sql — if a
+// later migration adds a table, add it here too, or that table's rows will
+// leak between tests. (This list drifted out of sync with the schema once
+// already — project_tasks, project_time_entries, recurring_invoice_templates,
+// custom_field_definitions, automation_rules, and api_keys were all added by
+// migrations but never added here; fixed after being caught during the
+// Phase 4 test-coverage pass.)
 const APP_TABLES = [
   "activity_log", "attachments", "notes", "signature_requests",
   "payments", "unmatched_payments", "tally_sync_log",
   "credit_notes", "invoice_line_items", "invoices", "invoice_number_counters",
-  "projects", "contracts", "client_contacts", "clients",
+  "recurring_invoice_templates",
+  "project_tasks", "project_time_entries", "projects",
+  "contracts", "client_contacts", "clients",
   "leads", "message_templates", "services",
   "notifications", "password_reset_tokens", "sessions", "users",
-  "settings",
+  "settings", "automation_rules", "custom_field_definitions", "api_keys",
   // Opportunities module, added after this harness was first written —
   // merged in from a sibling branch (docs/superpowers/specs/2026-08-10-opportunities-module-design.md).
   "opportunity_type_links", "opportunities", "opportunity_types",
