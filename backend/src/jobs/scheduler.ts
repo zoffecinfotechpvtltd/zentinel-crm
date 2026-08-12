@@ -6,6 +6,7 @@ import { runDailyDigestJob } from "./dailyDigest";
 import { runCleanupOldRecordsJob } from "./cleanupOldRecords";
 import { runAutomatedBackupJob } from "./automatedBackup";
 import { runWeeklyReportDigestJob } from "./weeklyReportDigest";
+import { runRecurringInvoicesJob } from "./recurringInvoices";
 
 type ScheduledJob = {
   name: string;
@@ -73,6 +74,14 @@ const jobs: ScheduledJob[] = [
     task: async () => {
       const { sent } = await runWeeklyReportDigestJob();
       console.log(`Weekly report digest job: sent ${sent} email(s).`);
+    },
+  },
+  {
+    name: "recurring-invoices",
+    cronExpr: "0 5 * * *", // daily 05:00, ahead of the 07:00/07:30 digest jobs so today's generated invoices show up in them
+    task: async () => {
+      const { created, skipped } = await runRecurringInvoicesJob();
+      if (created > 0 || skipped > 0) console.log(`Recurring invoices job: created ${created}, skipped ${skipped}.`);
     },
   },
 ];

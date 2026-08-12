@@ -29,6 +29,15 @@ type Client = { id: string; company: string; tally_ledger_name: string | null };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
 type DraftLine = { description: string; quantity: string; rate: string; gst_rate: string };
+type RecurringTemplate = {
+  id: string; client_id: string; client_company: string; frequency: string; next_run_date: string; is_active: boolean;
+  line_items: { description: string; quantity: number; rate: number; gst_rate: number }[];
+};
+const FREQUENCIES = [
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "yearly", label: "Yearly" },
+];
 
 export function Invoices() {
   const { user } = useAuth();
@@ -62,6 +71,44 @@ export function Invoices() {
   const [payDate, setPayDate] = useState("");
   const [payMethod, setPayMethod] = useState("");
   const [payError, setPayError] = useState<string | null>(null);
+
+  const [recurringOpen, setRecurringOpen] = useState(false);
+  const { data: recurringTemplates, reload: reloadRecurring } = useFetch<RecurringTemplate[]>(recurringOpen ? "/invoices/recurring" : "");
+  const [rClientId, setRClientId] = useState("");
+  const [rFrequency, setRFrequency] = useState("monthly");
+  const [rNextRun, setRNextRun] = useState("");
+  const [rLine, setRLine] = useState<DraftLine>({ description: "", quantity: "1", rate: "", gst_rate: "18" });
+  const [rError, setRError] = useState<string | null>(null);
+
+  async function createRecurring() {
+    setRError(null);
+    try {
+      await api.post("/invoices/recurring", {
+        client_id: rClientId,
+        frequency: rFrequency,
+        next_run_date: rNextRun,
+        line_items: [{
+          description: rLine.description, quantity: Number(rLine.quantity), rate: Number(rLine.rate), gst_rate: Number(rLine.gst_rate),
+        }],
+      });
+      setRClientId(""); setRFrequency("monthly"); setRNextRun(""); setRLine({ description: "", quantity: "1", rate: "", gst_rate: "18" });
+      reloadRecurring();
+      push("Recurring template created", "success");
+    } catch (err) {
+      setRError(err instanceof ApiError ? err.message : "Failed to create template");
+    }
+  }
+
+  async function toggleRecurringActive(t: RecurringTemplate) {
+    await api.patch(`/invoices/recurring/${t.id}`, { is_active: !t.is_active });
+    reloadRecurring();
+  }
+
+  async function deleteRecurring(t: RecurringTemplate) {
+    if (!(await confirm({ message: `Delete this recurring template for ${t.client_company}?`, confirmLabel: "Delete", danger: true }))) return;
+    await api.delete(`/invoices/recurring/${t.id}`);
+    reloadRecurring();
+  }
 
   const canEdit = user?.role === "admin" || user?.role === "finance";
   const canViewOnly = user?.role === "sales";
@@ -203,6 +250,7 @@ export function Invoices() {
               onChange={(e) => { const f = e.target.files?.[0]; if (f) importPdf(f); e.target.value = ""; }}
             />
           </label>
+          <button type="button" className="btn btn-ghost" onClick={() => setRecurringOpen(true)}>Recurring</button>
           <button type="button" className="btn btn-primary" onClick={() => { setImportNote(null); setCreateOpen(true); }}><IconPlus size={14} /> Create Invoice</button>
         </>}
       />
@@ -376,6 +424,63 @@ export function Invoices() {
           <div className="form-group" style={{ marginBottom: 12 }}><label className="form-label">Amount (₹) *</label><input className="form-input" type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} /></div>
           <div className="form-group" style={{ marginBottom: 12 }}><label className="form-label">Payment Date *</label><CustomDatePicker value={payDate} onChange={setPayDate} /></div>
           <div className="form-group"><label className="form-label">Method</label><input className="form-input" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} placeholder="Bank transfer, cheque..." /></div>
+        </Modal>
+      )}
+
+      {recurringOpen && (
+        <Modal title="Recurring Invoice Templates" onClose={() => setRecurringOpen(false)} wide
+          footer={<button type="button" className="btn btn-ghost" onClick={() => setRecurringOpen(false)}>Close</button>}>
+          <div className="card-title">Existing Templates</div>
+          {(recurringTemplates?.length ?? 0) === 0 && <div className="empty" style={{ padding: 16 }}>No recurring templates yet</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+            {recurringTemplates?.map((t) => (
+              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg3)", borderRadius: 8, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 160px" }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{t.client_company}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text2)" }}>
+                    {t.line_items[0]?.description ?? "—"} · {formatMoneyExact(t.line_items.reduce((s, l) => s + l.quantity * l.rate, 0))}
+                  </div>
+                </div>
+                <span style={{ fontSize: 12, color: "var(--text3)", textTransform: "capitalize" }}>{t.frequency}</span>
+                <span style={{ fontSize: 12, color: "var(--text3)" }}>next {formatDate(t.next_run_date)}</span>
+                <Badge status={t.is_active ? "Active" : "Inactive"} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleRecurringActive(t)}>{t.is_active ? "Pause" : "Resume"}</button>
+                <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => deleteRecurring(t)}>Delete</button>
+              </div>
+            ))}
+          </div>
+
+          <div className="card-title">New Template</div>
+          {rError && <div className="banner banner-error">{rError}</div>}
+          <div className="form-grid" style={{ marginBottom: 12 }}>
+            <div className="form-group">
+              <label className="form-label">Client *</label>
+              <CustomSelect
+                value={rClientId} onChange={setRClientId} placeholder="Select client…"
+                options={clientsResp?.data.map((c) => ({
+                  value: c.id, disabled: !c.tally_ledger_name,
+                  label: `${c.company}${!c.tally_ledger_name ? " (needs Tally ledger name)" : ""}`,
+                })) ?? []}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Frequency</label>
+              <CustomSelect value={rFrequency} onChange={setRFrequency} options={FREQUENCIES} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">First Run Date *</label>
+              <CustomDatePicker value={rNextRun} onChange={setRNextRun} />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+            <input className="form-input" placeholder="Description" value={rLine.description} onChange={(e) => setRLine({ ...rLine, description: e.target.value })} />
+            <input className="form-input" type="number" placeholder="Qty" value={rLine.quantity} onChange={(e) => setRLine({ ...rLine, quantity: e.target.value })} />
+            <input className="form-input" type="number" placeholder="Rate" value={rLine.rate} onChange={(e) => setRLine({ ...rLine, rate: e.target.value })} />
+            <input className="form-input" type="number" placeholder="GST%" value={rLine.gst_rate} onChange={(e) => setRLine({ ...rLine, gst_rate: e.target.value })} />
+          </div>
+          <button type="button" className="btn btn-primary btn-sm" onClick={createRecurring} disabled={!rClientId || !rNextRun || !rLine.description || !rLine.rate}>
+            + Create Template
+          </button>
         </Modal>
       )}
     </div>

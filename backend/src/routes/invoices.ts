@@ -190,6 +190,107 @@ async function assertInvoiceReadAccess(req: import("express").Request, invoice: 
   return true;
 }
 
+// --- Recurring invoice templates ---
+// Registered before "/:id" for the same route-ordering reason as elsewhere
+// in this codebase — "/recurring" would otherwise be swallowed as an :id
+// value. Generation itself happens in the daily recurringInvoices job, not
+// here — these routes only manage the template.
+
+router.get("/recurring", async (_req, res) => {
+  const result = await pool.query(
+    `select rt.*, c.company as client_company from recurring_invoice_templates rt
+     join clients c on c.id = rt.client_id
+     where rt.deleted_at is null order by rt.next_run_date`
+  );
+  res.json(result.rows);
+});
+
+const recurringLineItemSchema = z.object({
+  description: z.string().min(1),
+  quantity: z.number().positive(),
+  rate: z.number().nonnegative(),
+  gst_rate: z.number().nonnegative(),
+});
+
+const createRecurringSchema = z.object({
+  client_id: z.string().uuid(),
+  project_id: z.string().uuid().optional(),
+  contract_id: z.string().uuid().optional(),
+  line_items: z.array(recurringLineItemSchema).min(1),
+  frequency: z.enum(["monthly", "quarterly", "yearly"]),
+  next_run_date: z.string(),
+});
+
+router.post("/recurring", requireRole("admin", "finance"), async (req, res) => {
+  const parsed = createRecurringSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const f = parsed.data;
+  const clientResult = await pool.query(`select 1 from clients where id = $1 and deleted_at is null`, [f.client_id]);
+  if (clientResult.rows.length === 0) {
+    res.status(404).json({ error: "client_not_found" });
+    return;
+  }
+  const result = await pool.query(
+    `insert into recurring_invoice_templates (client_id, project_id, contract_id, line_items, frequency, next_run_date, created_by)
+     values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+    [f.client_id, f.project_id ?? null, f.contract_id ?? null, JSON.stringify(f.line_items), f.frequency, f.next_run_date, req.user!.id]
+  );
+  res.status(201).json(result.rows[0]);
+});
+
+const updateRecurringSchema = z.object({
+  line_items: z.array(recurringLineItemSchema).min(1).optional(),
+  frequency: z.enum(["monthly", "quarterly", "yearly"]).optional(),
+  next_run_date: z.string().optional(),
+  is_active: z.boolean().optional(),
+});
+
+router.patch("/recurring/:id", requireRole("admin", "finance"), async (req, res) => {
+  const parsed = updateRecurringSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const f = parsed.data;
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  if (f.line_items !== undefined) { setClauses.push(`line_items = $${i++}`); values.push(JSON.stringify(f.line_items)); }
+  if (f.frequency !== undefined) { setClauses.push(`frequency = $${i++}`); values.push(f.frequency); }
+  if (f.next_run_date !== undefined) { setClauses.push(`next_run_date = $${i++}`); values.push(f.next_run_date); }
+  if (f.is_active !== undefined) { setClauses.push(`is_active = $${i++}`); values.push(f.is_active); }
+  if (setClauses.length === 0) {
+    res.status(400).json({ error: "no_fields_to_update" });
+    return;
+  }
+  setClauses.push(`updated_at = now()`);
+  values.push(req.params.id);
+  const result = await pool.query(
+    `update recurring_invoice_templates set ${setClauses.join(", ")} where id = $${i} and deleted_at is null returning *`,
+    values
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json(result.rows[0]);
+});
+
+router.delete("/recurring/:id", requireRole("admin", "finance"), async (req, res) => {
+  const result = await pool.query(
+    `update recurring_invoice_templates set deleted_at = now(), updated_at = now() where id = $1 and deleted_at is null returning id`,
+    [req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 router.get("/:id", async (req, res) => {
   const result = await pool.query(
     `select i.*, ${BALANCE_EXPR} as balance from invoices i where i.id = $1 and i.deleted_at is null`,
