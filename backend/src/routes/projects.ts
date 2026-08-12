@@ -49,10 +49,11 @@ router.get("/", async (req, res) => {
   const countResult = await pool.query(`select count(*) from projects p where ${whereClause}`, values);
   const dataResult = await pool.query(
     `select p.*, ${OVERDUE_EXPR} as is_overdue, ${DUE_THIS_WEEK_EXPR} as is_due_this_week,
-       u.name as assigned_to_name, s.name as service_name
+       u.name as assigned_to_name, s.name as service_name, o.company as opportunity_company
      from projects p
      left join users u on u.id = p.assigned_to
      left join services s on s.id = p.service_id
+     left join opportunities o on o.id = p.opportunity_id
      where ${whereClause}
      order by p.due_date nulls last, p.created_at desc
      limit $${i} offset $${i + 1}`,
@@ -117,6 +118,7 @@ const createProjectSchema = z.object({
   client_id: z.string().uuid(),
   service_id: z.string().uuid().optional(),
   contract_id: z.string().uuid().optional(),
+  opportunity_id: z.string().uuid().optional(),
   assigned_to: z.string().uuid().optional(),
   start_date: z.string().optional(),
   due_date: z.string().optional(),
@@ -147,16 +149,24 @@ router.post("/", requireRole("admin", "ops"), async (req, res) => {
     return;
   }
 
+  if (f.opportunity_id) {
+    const r = await pool.query(`select 1 from opportunities where id = $1 and deleted_at is null`, [f.opportunity_id]);
+    if (r.rows.length === 0) {
+      res.status(400).json({ error: "invalid_input", details: { opportunity_id: "opportunity_id does not refer to an existing opportunity" } });
+      return;
+    }
+  }
+
   const progress = normalizeProgress(f.status, f.progress) ?? 0;
 
   const result = await pool.query(
     `insert into projects (
-       name, client_id, service_id, contract_id, assigned_to,
+       name, client_id, service_id, contract_id, opportunity_id, assigned_to,
        start_date, due_date, status, progress, remarks, created_by, updated_by
-     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)
      returning *`,
     [
-      f.name, f.client_id, f.service_id ?? null, f.contract_id ?? null, f.assigned_to ?? null,
+      f.name, f.client_id, f.service_id ?? null, f.contract_id ?? null, f.opportunity_id ?? null, f.assigned_to ?? null,
       f.start_date ?? null, f.due_date ?? null, f.status, progress, f.remarks ?? null, req.user!.id,
     ]
   );
@@ -186,6 +196,7 @@ const updateProjectSchema = z.object({
   name: z.string().min(1).optional(),
   service_id: z.string().uuid().nullable().optional(),
   contract_id: z.string().uuid().nullable().optional(),
+  opportunity_id: z.string().uuid().nullable().optional(),
   assigned_to: z.string().uuid().nullable().optional(),
   start_date: z.string().nullable().optional(),
   due_date: z.string().nullable().optional(),

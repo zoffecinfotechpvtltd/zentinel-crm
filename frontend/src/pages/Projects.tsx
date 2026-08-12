@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api, ApiError, API_BASE } from "../lib/api";
@@ -21,12 +22,14 @@ type Project = {
   id: string; name: string; client_id: string; status: string; progress: number;
   due_date: string | null; is_overdue: boolean; is_due_this_week: boolean;
   assigned_to: string | null; assigned_to_name: string | null; service_name: string | null;
+  opportunity_id: string | null; opportunity_company: string | null;
 };
 type Client = { id: string; company: string };
 type Assignable = { id: string; name: string; role: string };
+type LinkedOpportunity = { id: string; kind: string; company: string; stage: string };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
-const emptyForm = { name: "", client_id: "", assigned_to: "", start_date: "", due_date: "", status: "Not Started", progress: "0", remarks: "" };
+const emptyForm = { name: "", client_id: "", opportunity_id: "", assigned_to: "", start_date: "", due_date: "", status: "Not Started", progress: "0", remarks: "" };
 
 export function Projects() {
   const { user } = useAuth();
@@ -48,6 +51,12 @@ export function Projects() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
 
+  const activeClientId = editing ? editing.client_id : form.client_id;
+  const { data: clientOpportunities } = useFetch<ListResponse<LinkedOpportunity>>(
+    activeClientId ? `/opportunities?client_id=${activeClientId}&per_page=100` : "",
+    [activeClientId]
+  );
+
   const canEdit = user?.role === "admin" || user?.role === "ops";
   const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "—";
   const filtered = search
@@ -63,7 +72,7 @@ export function Projects() {
   function openEdit(p: Project) {
     setEditing(p);
     setForm({
-      name: p.name, client_id: p.client_id, assigned_to: p.assigned_to ?? "", start_date: "", due_date: p.due_date ?? "",
+      name: p.name, client_id: p.client_id, opportunity_id: p.opportunity_id ?? "", assigned_to: p.assigned_to ?? "", start_date: "", due_date: p.due_date ?? "",
       status: p.status, progress: String(p.progress), remarks: "",
     });
     setError(null);
@@ -73,7 +82,8 @@ export function Projects() {
   async function save() {
     setError(null);
     const payload = {
-      name: form.name, client_id: form.client_id || undefined, assigned_to: form.assigned_to || (editing ? null : undefined),
+      name: form.name, client_id: form.client_id || undefined, opportunity_id: form.opportunity_id || (editing ? null : undefined),
+      assigned_to: form.assigned_to || (editing ? null : undefined),
       start_date: form.start_date || undefined, due_date: form.due_date || (editing ? null : undefined),
       status: form.status, progress: Number(form.progress), remarks: form.remarks || undefined,
     };
@@ -138,7 +148,14 @@ export function Projects() {
                     <div style={{ fontWeight: 550, color: "var(--text)" }}>{p.name}</div>
                     {p.service_name && <div style={{ fontSize: 11, color: "var(--text3)" }}>{p.service_name}</div>}
                   </td>
-                  <td>{clientName(p.client_id)}</td>
+                  <td>
+                    <div>{clientName(p.client_id)}</div>
+                    {p.opportunity_company && (
+                      <Link to={`/opportunities?q=${encodeURIComponent(p.opportunity_company)}`} style={{ fontSize: 10.5, color: "var(--info)", fontWeight: 600, textDecoration: "none" }}>
+                        ↳ from opportunity
+                      </Link>
+                    )}
+                  </td>
                   <td style={{ fontSize: 12 }}>{p.assigned_to_name ?? <span style={{ color: "var(--text3)" }}>Unassigned</span>}</td>
                   <td style={{ fontSize: 12, color: p.is_overdue ? "var(--danger)" : p.is_due_this_week ? "var(--warning)" : undefined }}>
                     {formatDate(p.due_date)}{p.is_overdue ? " (overdue)" : ""}
@@ -177,9 +194,20 @@ export function Projects() {
                 <label className="form-label">Client *</label>
                 <CustomSelect
                   value={form.client_id}
-                  onChange={(v) => setForm({ ...form, client_id: v })}
+                  onChange={(v) => setForm({ ...form, client_id: v, opportunity_id: "" })}
                   placeholder="Select client…"
                   options={clientsResp?.data.map((c) => ({ value: c.id, label: c.company })) ?? []}
+                />
+              </div>
+            )}
+            {activeClientId && (clientOpportunities?.data.length ?? 0) > 0 && (
+              <div className="form-group full">
+                <label className="form-label">Link to Opportunity</label>
+                <CustomSelect
+                  value={form.opportunity_id}
+                  onChange={(v) => setForm({ ...form, opportunity_id: v })}
+                  placeholder="Not linked to an opportunity"
+                  options={clientOpportunities?.data.map((o) => ({ value: o.id, label: `${o.kind} — ${o.company} (${o.stage})` })) ?? []}
                 />
               </div>
             )}

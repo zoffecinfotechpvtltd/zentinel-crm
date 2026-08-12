@@ -97,6 +97,10 @@ router.get("/", async (req, res) => {
     conditions.push(`o.kind = $${i++}`);
     values.push(req.query.kind);
   }
+  if (req.query.client_id) {
+    conditions.push(`o.client_id = $${i++}`);
+    values.push(req.query.client_id);
+  }
   if (req.query.stage) {
     conditions.push(`o.stage = $${i++}`);
     values.push(req.query.stage);
@@ -120,8 +124,13 @@ router.get("/", async (req, res) => {
   // originating_opportunity) and clutters the pipeline if it stays listed
   // here too. Opportunities merely *linked* to an existing client while
   // still open (via the company picker) are unaffected — only the
-  // Won+converted combination is hidden.
-  conditions.push(`not (o.stage = 'Won' and o.client_id is not null)`);
+  // Won+converted combination is hidden. Skipped when explicitly filtering
+  // by client_id (e.g. Projects' "link to the opportunity that produced
+  // this" picker) — that's exactly the Won+converted row callers want to
+  // find in that case.
+  if (!req.query.client_id) {
+    conditions.push(`not (o.stage = 'Won' and o.client_id is not null)`);
+  }
 
   const whereClause = conditions.join(" and ");
 
