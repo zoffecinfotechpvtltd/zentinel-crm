@@ -22,26 +22,11 @@ router.use(requireAuth, requireRole("admin", "finance"));
 
 const BALANCE_EXPR = `(i.total - coalesce((select sum(p.amount) from payments p where p.invoice_id = i.id), 0))`;
 
-async function isClientOwnedBySales(clientId: string, userId: string): Promise<boolean> {
-  const result = await pool.query(
-    `select 1 from clients c join leads l on l.id = c.converted_from_lead_id
-     where c.id = $1 and l.assigned_to = $2`,
-    [clientId, userId]
-  );
-  return result.rows.length > 0;
-}
-
 router.get("/", async (req, res) => {
   const conditions: string[] = ["i.deleted_at is null"];
   const values: unknown[] = [];
   let i = 1;
 
-  if (req.user!.role === "sales") {
-    conditions.push(
-      `i.client_id in (select c.id from clients c join leads l on l.id = c.converted_from_lead_id where l.assigned_to = $${i++})`
-    );
-    values.push(req.user!.id);
-  }
   if (req.query.status) {
     conditions.push(`i.status = $${i++}`);
     values.push(req.query.status);
@@ -80,17 +65,9 @@ router.get("/", async (req, res) => {
   res.json({ data: dataResult.rows, total: Number(countResult.rows[0].count), page, per_page: perPage });
 });
 
-router.get("/summary", async (req, res) => {
+router.get("/summary", async (_req, res) => {
   const conditions: string[] = ["i.deleted_at is null"];
   const values: unknown[] = [];
-  let i = 1;
-
-  if (req.user!.role === "sales") {
-    conditions.push(
-      `i.client_id in (select c.id from clients c join leads l on l.id = c.converted_from_lead_id where l.assigned_to = $${i++})`
-    );
-    values.push(req.user!.id);
-  }
   const whereClause = conditions.join(" and ");
 
   const result = await pool.query(
@@ -181,14 +158,6 @@ router.post("/import-pdf", requireRole("admin", "finance"), pdfUpload.single("fi
     duplicate,
   });
 });
-
-async function assertInvoiceReadAccess(req: import("express").Request, invoice: { client_id: string }, res: import("express").Response): Promise<boolean> {
-  if (req.user!.role === "sales" && !(await isClientOwnedBySales(invoice.client_id, req.user!.id))) {
-    res.status(403).json({ error: "forbidden" });
-    return false;
-  }
-  return true;
-}
 
 // --- Recurring invoice templates ---
 // Registered before "/:id" for the same route-ordering reason as elsewhere
@@ -301,7 +270,6 @@ router.get("/:id", async (req, res) => {
     return;
   }
   const invoice = result.rows[0];
-  if (!(await assertInvoiceReadAccess(req, invoice, res))) return;
 
   const lineItemsResult = await pool.query(`select * from invoice_line_items where invoice_id = $1 order by created_at`, [
     req.params.id,
