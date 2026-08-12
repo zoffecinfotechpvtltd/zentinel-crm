@@ -4,13 +4,14 @@ import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api, API_BASE, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
+import { StatCard } from "../components/StatCard";
 import { Modal } from "../components/Modal";
 import { Pagination } from "../components/Pagination";
 import { PageHeader } from "../components/PageHeader";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
-import { formatDate } from "../lib/format";
+import { formatDate, formatMoney } from "../lib/format";
 import { IconOpportunities, IconPlus, IconInbox, IconUpload, IconDownload, IconCheck } from "../components/Icons";
 import { CustomSelect, type SelectOption } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
@@ -23,7 +24,7 @@ type LinkedCompany = { id: string; company: string };
 type Opportunity = {
   id: string; kind: "service" | "product"; company: string; client_name: string | null; contact: string | null;
   description: string | null; pdf_pg_url: string | null; stage: string; lost_reason: string | null;
-  follow_up_date: string | null; lead_date: string | null; remarks: string | null; assigned_to: string | null;
+  value: string | null; follow_up_date: string | null; lead_date: string | null; remarks: string | null; assigned_to: string | null;
   client_id: string | null; lead_id: string | null; client: LinkedCompany | null; lead: LinkedCompany | null;
   opportunity_types: OpportunityType[];
 };
@@ -34,7 +35,7 @@ type CompanySearchResponse = { clients: LinkedCompany[]; leads: LinkedCompany[] 
 const emptyForm = {
   kind: "service" as (typeof KINDS)[number], company: "", client_name: "", contact: "",
   opportunity_type_ids: [] as string[], description: "", pdf_pg_url: "",
-  stage: "Open" as (typeof STAGES)[number], lost_reason: "", follow_up_date: "", lead_date: "", remarks: "",
+  stage: "Open" as (typeof STAGES)[number], lost_reason: "", value: "", follow_up_date: "", lead_date: "", remarks: "",
   client_id: "", lead_id: "",
 };
 
@@ -57,6 +58,7 @@ export function Opportunities() {
 
   const { data, loading, error, reload } = useFetch<ListResponse<Opportunity>>(`/opportunities?${query.toString()}`, [page, search, kind, stage, typeId]);
   const { data: types, reload: reloadTypes } = useFetch<OpportunityType[]>("/opportunities/types");
+  const { data: pipelineValue, reload: reloadPipelineValue } = useFetch<{ open_pipeline: number; won: number }>("/opportunities/pipeline-value");
   const { data: companies } = useFetch<CompanySearchResponse>("/opportunities/companies/search");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -112,7 +114,7 @@ export function Opportunities() {
       kind: o.kind, company: o.company, client_name: o.client_name ?? "", contact: o.contact ?? "",
       opportunity_type_ids: o.opportunity_types.map((t) => t.id), description: o.description ?? "",
       pdf_pg_url: o.pdf_pg_url ?? "", stage: o.stage as (typeof STAGES)[number], lost_reason: o.lost_reason ?? "",
-      follow_up_date: o.follow_up_date ?? "", lead_date: o.lead_date ?? "", remarks: o.remarks ?? "",
+      value: o.value ?? "", follow_up_date: o.follow_up_date ?? "", lead_date: o.lead_date ?? "", remarks: o.remarks ?? "",
       client_id: o.client_id ?? "", lead_id: o.lead_id ?? "",
     });
     setFieldErrors({});
@@ -149,6 +151,7 @@ export function Opportunities() {
       contact: nullable(form.contact), opportunity_type_ids: form.opportunity_type_ids,
       description: nullable(form.description), pdf_pg_url: nullable(form.pdf_pg_url),
       stage: form.stage, lost_reason: form.stage === "Lost" ? nullable(form.lost_reason) : (editing ? null : undefined),
+      value: form.value ? Number(form.value) : (editing ? null : undefined),
       follow_up_date: nullable(form.follow_up_date), lead_date: nullable(form.lead_date), remarks: nullable(form.remarks),
       client_id: nullable(form.client_id), lead_id: nullable(form.lead_id),
     };
@@ -162,6 +165,7 @@ export function Opportunities() {
       }
       setModalOpen(false);
       reload();
+      reloadPipelineValue();
     } catch (err) {
       if (err instanceof ApiError && err.body && typeof err.body === "object" && "details" in err.body) {
         const details = (err.body as { details?: Record<string, string> | { fieldErrors?: Record<string, string[]> } }).details;
@@ -186,6 +190,7 @@ export function Opportunities() {
       await api.delete(`/opportunities/${o.id}`);
       push("Opportunity deleted", "success");
       reload();
+      reloadPipelineValue();
     } catch (err) {
       push(err instanceof Error ? err.message : "Failed to delete", "error");
     }
@@ -200,6 +205,7 @@ export function Opportunities() {
       await api.post(`/opportunities/${o.id}/convert`, {});
       push("Converted to Client", "success");
       reload();
+      reloadPipelineValue();
     } catch (err) {
       push(err instanceof Error ? err.message : "Conversion failed", "error");
     }
@@ -221,6 +227,7 @@ export function Opportunities() {
       const result = await api.postForm<ImportResult>("/opportunities/import", form2);
       setImportResult(result);
       reload();
+      reloadPipelineValue();
       reloadTypes();
       push(`Imported ${result.imported} opportunit${result.imported === 1 ? "y" : "ies"}`, result.skipped.length ? "info" : "success");
     } catch (err) {
@@ -241,6 +248,13 @@ export function Opportunities() {
           {canEdit && <button type="button" className="btn btn-primary" onClick={openAdd}><IconPlus size={14} /> Add Opportunity</button>}
         </>}
       />
+
+      {pipelineValue && (
+        <div className="stat-grid">
+          <StatCard label="Open Pipeline Value" value={formatMoney(pipelineValue.open_pipeline)} color="var(--accent)" />
+          <StatCard label="Won Value" value={formatMoney(pipelineValue.won)} color="var(--success)" />
+        </div>
+      )}
 
       <div className="filter-bar">
         <input className="filter-input" placeholder="Search company / client..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
@@ -271,13 +285,13 @@ export function Opportunities() {
           <table>
             <thead>
               <tr>
-                <th>Company</th><th>Contact</th><th>Kind</th><th>Lead Date</th><th>Types</th><th>Stage</th><th>Follow-up</th><th>Actions</th>
+                <th>Company</th><th>Contact</th><th>Kind</th><th>Value</th><th>Lead Date</th><th>Types</th><th>Stage</th><th>Follow-up</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <TableSkeleton rows={6} cols={8} />}
+              {loading && <TableSkeleton rows={6} cols={9} />}
               {!loading && data?.data.length === 0 && (
-                <tr><td colSpan={8}>
+                <tr><td colSpan={9}>
                   <div className="empty">
                     <div className="empty-icon"><IconInbox size={30} /></div>
                     No opportunities match these filters yet.
@@ -302,6 +316,7 @@ export function Opportunities() {
                   </td>
                   <td style={{ fontSize: 12 }}>{o.contact ?? "—"}</td>
                   <td style={{ fontSize: 12, textTransform: "capitalize" }}>{o.kind}</td>
+                  <td style={{ fontSize: 12 }}>{o.value ? formatMoney(Number(o.value)) : "—"}</td>
                   <td style={{ fontSize: 12 }}>{formatDate(o.lead_date)}</td>
                   <td>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 220 }}>
@@ -387,6 +402,10 @@ export function Opportunities() {
                 {fieldErrors.lost_reason && <div className="form-error">{fieldErrors.lost_reason}</div>}
               </div>
             )}
+            <div className="form-group">
+              <label className="form-label">Value (₹)</label>
+              <input className="form-input" type="number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} />
+            </div>
             <div className="form-group">
               <label className="form-label">Lead Date</label>
               <CustomDatePicker value={form.lead_date} onChange={(v) => setForm({ ...form, lead_date: v })} placeholder="When this lead came in…" />

@@ -139,6 +139,22 @@ router.get("/", async (req, res) => {
   });
 });
 
+// Registered before "/:id" for the same route-ordering reason as /types.
+router.get("/pipeline-value", async (_req, res) => {
+  const result = await pool.query(
+    `select stage, coalesce(sum(value), 0) as total
+     from opportunities
+     where deleted_at is null and not (stage = 'Won' and client_id is not null)
+     group by stage`
+  );
+  const byStage: Record<string, number> = { Open: 0, "Proposal Sent": 0, Won: 0, Lost: 0 };
+  for (const row of result.rows) byStage[row.stage] = Number(row.total);
+  res.json({
+    open_pipeline: byStage["Open"] + byStage["Proposal Sent"],
+    won: byStage["Won"],
+  });
+});
+
 const createSchema = z.object({
   kind: z.enum(KINDS),
   company: z.string().min(1),
@@ -149,6 +165,7 @@ const createSchema = z.object({
   opportunity_type_ids: z.array(z.string().uuid()).optional(),
   stage: z.enum(STAGES).optional(),
   lost_reason: z.string().optional(),
+  value: z.number().nonnegative().optional(),
   follow_up_date: z.string().optional(),
   lead_date: z.string().optional(),
   remarks: z.string().optional(),
@@ -197,12 +214,12 @@ router.post("/", async (req, res) => {
   const result = await pool.query(
     `insert into opportunities (
        kind, company, client_name, contact, description, pdf_pg_url,
-       stage, lost_reason, follow_up_date, lead_date, remarks, assigned_to, client_id, lead_id, created_by, updated_by
-     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15)
+       stage, lost_reason, value, follow_up_date, lead_date, remarks, assigned_to, client_id, lead_id, created_by, updated_by
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)
      returning *`,
     [
       f.kind, f.company, f.client_name ?? null, f.contact ?? null, f.description ?? null, f.pdf_pg_url ?? null,
-      f.stage ?? "Open", f.lost_reason ?? null, f.follow_up_date ?? null, f.lead_date ?? null, f.remarks ?? null,
+      f.stage ?? "Open", f.lost_reason ?? null, f.value ?? null, f.follow_up_date ?? null, f.lead_date ?? null, f.remarks ?? null,
       f.assigned_to ?? null, f.client_id ?? null, f.lead_id ?? null, req.user!.id,
     ]
   );
@@ -466,6 +483,7 @@ const updateSchema = z.object({
   opportunity_type_ids: z.array(z.string().uuid()).optional(),
   stage: z.enum(STAGES).optional(),
   lost_reason: z.string().nullable().optional(),
+  value: z.number().nonnegative().nullable().optional(),
   follow_up_date: z.string().nullable().optional(),
   lead_date: z.string().nullable().optional(),
   remarks: z.string().nullable().optional(),
