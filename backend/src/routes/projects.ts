@@ -49,7 +49,10 @@ router.get("/", async (req, res) => {
   const countResult = await pool.query(`select count(*) from projects p where ${whereClause}`, values);
   const dataResult = await pool.query(
     `select p.*, ${OVERDUE_EXPR} as is_overdue, ${DUE_THIS_WEEK_EXPR} as is_due_this_week,
-       u.name as assigned_to_name, s.name as service_name, o.company as opportunity_company
+       u.name as assigned_to_name, s.name as service_name, o.company as opportunity_company,
+       (select count(*) from project_tasks t where t.project_id = p.id and t.deleted_at is null) as tasks_total,
+       (select count(*) from project_tasks t where t.project_id = p.id and t.deleted_at is null and t.is_done) as tasks_done,
+       (select coalesce(sum(te.hours), 0) from project_time_entries te where te.project_id = p.id and te.deleted_at is null) as hours_logged
      from projects p
      left join users u on u.id = p.assigned_to
      left join services s on s.id = p.service_id
@@ -314,6 +317,139 @@ router.delete("/:id", requireRole("admin"), async (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
+  res.json({ ok: true });
+});
+
+// --- Checklist ---
+// A simple per-project task list — deliberately separate from the existing
+// manual `progress` percentage (not auto-synced to it), so a delivery lead
+// can track discrete "what's left" items without changing what that field
+// means for anyone already relying on it.
+
+router.get("/:id/tasks", async (req, res) => {
+  const result = await pool.query(
+    `select id, title, is_done, position, created_at, completed_at from project_tasks
+     where project_id = $1 and deleted_at is null order by position, created_at`,
+    [req.params.id]
+  );
+  res.json(result.rows);
+});
+
+const createTaskSchema = z.object({ title: z.string().min(1) });
+
+router.post("/:id/tasks", async (req, res) => {
+  const parsed = createTaskSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const projectExists = await pool.query(`select 1 from projects where id = $1 and deleted_at is null`, [req.params.id]);
+  if (projectExists.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const maxPositionResult = await pool.query(`select coalesce(max(position), -1) as max from project_tasks where project_id = $1`, [req.params.id]);
+  const result = await pool.query(
+    `insert into project_tasks (project_id, title, position, created_by) values ($1,$2,$3,$4)
+     returning id, title, is_done, position, created_at, completed_at`,
+    [req.params.id, parsed.data.title, Number(maxPositionResult.rows[0].max) + 1, req.user!.id]
+  );
+  res.status(201).json(result.rows[0]);
+});
+
+const updateTaskSchema = z.object({ title: z.string().min(1).optional(), is_done: z.boolean().optional() });
+
+router.patch("/:id/tasks/:taskId", async (req, res) => {
+  const parsed = updateTaskSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const existing = await pool.query(`select 1 from project_tasks where id = $1 and project_id = $2 and deleted_at is null`, [req.params.taskId, req.params.id]);
+  if (existing.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const result = await pool.query(
+    `update project_tasks set
+       title = coalesce($1, title),
+       is_done = coalesce($2, is_done),
+       completed_at = case when $2 = true then now() when $2 = false then null else completed_at end
+     where id = $3
+     returning id, title, is_done, position, created_at, completed_at`,
+    [parsed.data.title ?? null, parsed.data.is_done ?? null, req.params.taskId]
+  );
+  res.json(result.rows[0]);
+});
+
+router.delete("/:id/tasks/:taskId", async (req, res) => {
+  const result = await pool.query(
+    `update project_tasks set deleted_at = now() where id = $1 and project_id = $2 and deleted_at is null returning id`,
+    [req.params.taskId, req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+// --- Time entries ---
+// Simple per-project hours logging — who, how much, which day, optional
+// note. No billing rate or approval workflow; this is utilization
+// visibility, not a timesheet/invoicing system.
+
+router.get("/:id/time-entries", async (req, res) => {
+  const result = await pool.query(
+    `select te.id, te.hours, te.entry_date, te.notes, te.created_at, te.user_id, u.name as user_name
+     from project_time_entries te left join users u on u.id = te.user_id
+     where te.project_id = $1 and te.deleted_at is null
+     order by te.entry_date desc, te.created_at desc`,
+    [req.params.id]
+  );
+  res.json(result.rows);
+});
+
+const createTimeEntrySchema = z.object({
+  hours: z.number().positive(),
+  entry_date: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+router.post("/:id/time-entries", async (req, res) => {
+  const parsed = createTimeEntrySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const projectExists = await pool.query(`select 1 from projects where id = $1 and deleted_at is null`, [req.params.id]);
+  if (projectExists.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const f = parsed.data;
+  const result = await pool.query(
+    `insert into project_time_entries (project_id, user_id, hours, entry_date, notes)
+     values ($1,$2,$3,$4,$5) returning id, hours, entry_date, notes, created_at, user_id`,
+    [req.params.id, req.user!.id, f.hours, f.entry_date ?? new Date().toISOString().slice(0, 10), f.notes ?? null]
+  );
+  res.status(201).json({ ...result.rows[0], user_name: req.user!.name });
+});
+
+router.delete("/:id/time-entries/:entryId", async (req, res) => {
+  const result = await pool.query(
+    `select user_id from project_time_entries where id = $1 and project_id = $2 and deleted_at is null`,
+    [req.params.entryId, req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (req.user!.role !== "admin" && result.rows[0].user_id !== req.user!.id) {
+    res.status(403).json({ error: "forbidden", message: "You can only delete your own time entries." });
+    return;
+  }
+  await pool.query(`update project_time_entries set deleted_at = now() where id = $1`, [req.params.entryId]);
   res.json({ ok: true });
 });
 

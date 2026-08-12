@@ -158,6 +158,29 @@ router.get("/:id", async (req, res) => {
     [req.params.id]
   );
 
+  // One merged timeline across this client's whole chain — its own
+  // activity, the lead it converted from, every linked opportunity,
+  // project, and invoice — instead of clicking through four separate
+  // pages to piece the story together.
+  const timelineResult = await pool.query(
+    `select a.id, a.entity_type, a.entity_id, a.action, a.detail, a.created_at, u.name as actor_name
+     from activity_log a left join users u on u.id = a.actor_id
+     where (a.entity_type = 'client' and a.entity_id = $1)
+        or (a.entity_type = 'lead' and a.entity_id = any($2::uuid[]))
+        or (a.entity_type = 'opportunity' and a.entity_id = any($3::uuid[]))
+        or (a.entity_type = 'project' and a.entity_id = any($4::uuid[]))
+        or (a.entity_type = 'invoice' and a.entity_id = any($5::uuid[]))
+     order by a.created_at desc
+     limit 100`,
+    [
+      req.params.id,
+      client.converted_from_lead_id ? [client.converted_from_lead_id] : [],
+      opportunitiesResult.rows.map((o: { id: string }) => o.id),
+      projectsResult.rows.map((p: { id: string }) => p.id),
+      invoicesResult.rows.map((i: { id: string }) => i.id),
+    ]
+  );
+
   let parentClient = null;
   if (client.parent_client_id) {
     const parentResult = await pool.query(`select id, company from clients where id = $1 and deleted_at is null`, [client.parent_client_id]);
@@ -180,6 +203,7 @@ router.get("/:id", async (req, res) => {
     invoices: invoicesResult.rows,
     parent_client: parentClient,
     child_clients: childClientsResult.rows,
+    timeline: timelineResult.rows,
   });
 });
 

@@ -11,7 +11,7 @@ import { NotesAndFiles } from "../components/NotesAndFiles";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
-import { formatDate, formatMoney } from "../lib/format";
+import { formatDate, formatMoney, formatDateTime } from "../lib/format";
 import { IconClients, IconPlus, IconInbox, IconCheck } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
@@ -26,6 +26,10 @@ type Contract = { id: string; service_id: string | null; value: string | null; s
 type LinkedOpportunity = { id: string; kind: string; company: string; stage: string; follow_up_date: string | null; lead_date: string | null };
 type LinkedProject = { id: string; name: string; status: string; progress: number; due_date: string | null };
 type LinkedInvoice = { id: string; invoice_number: string | null; status: string; total: string | number; due_date: string | null };
+type TimelineEntry = {
+  id: string; entity_type: string; entity_id: string; action: string;
+  detail: Record<string, unknown>; created_at: string; actor_name: string | null;
+};
 type ClientDetail = Client & {
   billing_address: string | null; is_archived: boolean; parent_client_id: string | null;
   contacts: Contact[]; contracts: Contract[]; contract_value_total: number;
@@ -34,7 +38,27 @@ type ClientDetail = Client & {
   opportunities: LinkedOpportunity[]; projects: LinkedProject[]; invoices: LinkedInvoice[];
   parent_client: { id: string; company: string } | null;
   child_clients: { id: string; company: string; status: string }[];
+  timeline: TimelineEntry[];
 };
+
+function describeTimelineEntry(row: TimelineEntry): string {
+  const who = row.actor_name ?? "Someone";
+  if (row.action === "status_changed") {
+    const d = row.detail as { from?: string; to?: string };
+    return `${who} changed ${row.entity_type} status from "${d.from}" to "${d.to}"`;
+  }
+  if (row.action === "created") return `${who} created a new ${row.entity_type}`;
+  if (row.action === "merged") {
+    const d = row.detail as { merged_company?: string };
+    return `${who} merged a duplicate${d.merged_company ? ` ("${d.merged_company}")` : ""} in`;
+  }
+  if (row.action === "converted_to_client") return `${who} converted this to a client`;
+  if (row.action === "message_sent") {
+    const d = row.detail as { template_name?: string };
+    return `${who} sent a "${d.template_name ?? "message"}" message`;
+  }
+  return `${who} — ${row.action} on ${row.entity_type}`;
+}
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type Service = { id: string; name: string };
 type DuplicateClientSummary = { id: string; company: string; gstin: string | null; created_at: string };
@@ -466,6 +490,20 @@ export function Clients() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {detail.timeline.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div className="card-title">Timeline</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+                {detail.timeline.map((row) => (
+                  <div key={row.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)" }}>
+                    <span style={{ color: "var(--text2)" }}>{describeTimelineEntry(row)}</span>
+                    <span style={{ color: "var(--text3)", flexShrink: 0 }}>{formatDateTime(row.created_at)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
