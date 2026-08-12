@@ -265,11 +265,14 @@ router.post("/types", requireRole("admin"), async (req, res) => {
 // --- Excel template + bulk import ---
 // Also registered before "/:id" for the same route-ordering reason.
 
+// Value is appended at the end rather than inserted among the existing
+// columns so a template downloaded before this field existed still lines
+// up correctly — cell 12 just reads blank on older files.
 const TEMPLATE_HEADERS = [
   "Kind (service/product)", "Company", "Client Name", "Contact",
   "Opportunity Types (comma-separated)", "Description", "PDF/PG & URL",
   "Stage (Open/Proposal Sent/Won/Lost)", "Follow-up Date (YYYY-MM-DD)", "Remarks",
-  "Lead Date (YYYY-MM-DD)",
+  "Lead Date (YYYY-MM-DD)", "Value (₹)",
 ];
 
 router.get("/import-template", async (_req, res) => {
@@ -281,7 +284,7 @@ router.get("/import-template", async (_req, res) => {
   sheet.addRow([
     "service", "Example Client Pvt Ltd", "Jane Doe", "9999999999",
     "Accessibility, CSCRF", "SEBI CSCRF compliance audit", "https://example.com/proposal.pdf",
-    "Open", "2026-09-01", "Follow up after Diwali", "2026-08-15",
+    "Open", "2026-09-01", "Follow up after Diwali", "2026-08-15", "150000",
   ]);
 
   const reference = workbook.addWorksheet("Reference — do not import");
@@ -398,6 +401,17 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
       continue;
     }
 
+    const valueRaw = row.getCell(12).text.trim();
+    let value: number | null = null;
+    if (valueRaw) {
+      const parsed = Number(valueRaw.replace(/,/g, ""));
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        skipped.push({ row: r, reason: `Value must be a non-negative number, got "${valueRaw}"` });
+        continue;
+      }
+      value = parsed;
+    }
+
     try {
       const typeNames = row.getCell(5).text.split(",").map((s) => s.trim()).filter(Boolean);
       const typeIds: string[] = [];
@@ -418,13 +432,13 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
       const opportunityResult = await pool.query(
         `insert into opportunities (
            kind, company, client_name, contact, description, pdf_pg_url,
-           stage, follow_up_date, lead_date, remarks, created_by, updated_by
-         ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
+           stage, follow_up_date, lead_date, remarks, value, created_by, updated_by
+         ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)
          returning id`,
         [
           kindRaw, company, row.getCell(3).text.trim() || null, row.getCell(4).text.trim() || null,
           row.getCell(6).text.trim() || null, row.getCell(7).text.trim() || null,
-          stageRaw, followUpRaw || null, leadDateRaw || null, row.getCell(10).text.trim() || null, req.user!.id,
+          stageRaw, followUpRaw || null, leadDateRaw || null, row.getCell(10).text.trim() || null, value, req.user!.id,
         ]
       );
 

@@ -75,6 +75,34 @@ router.get("/", async (req, res) => {
   res.json({ data: dataResult.rows, total: Number(countResult.rows[0].count), page, per_page: perPage });
 });
 
+// Registered before "/:id" for the same route-ordering reason as elsewhere
+// in this codebase. company has a DB-level unique constraint, so exact
+// duplicates can't exist here the way they can for Leads — this instead
+// catches near-duplicates: same GSTIN, or the same company name once
+// punctuation/spacing/case differences are stripped out ("Acme Pvt. Ltd."
+// vs "Acme Pvt Ltd").
+router.get("/duplicates", requireRole("admin"), async (_req, res) => {
+  const result = await pool.query(
+    `select
+       c1.id as id1, c1.company as company1, c1.gstin as gstin1, c1.created_at as created_at1,
+       c2.id as id2, c2.company as company2, c2.gstin as gstin2, c2.created_at as created_at2
+     from clients c1
+     join clients c2 on c1.id < c2.id
+       and c1.deleted_at is null and c2.deleted_at is null
+       and (
+         (c1.gstin is not null and c1.gstin = c2.gstin)
+         or regexp_replace(lower(c1.company), '[^a-z0-9]', '', 'g') = regexp_replace(lower(c2.company), '[^a-z0-9]', '', 'g')
+       )
+     order by c1.created_at desc`
+  );
+  res.json(
+    result.rows.map((r) => ({
+      client1: { id: r.id1, company: r.company1, gstin: r.gstin1, created_at: r.created_at1 },
+      client2: { id: r.id2, company: r.company2, gstin: r.gstin2, created_at: r.created_at2 },
+    }))
+  );
+});
+
 router.get("/:id", async (req, res) => {
   const clientResult = await pool.query(
     `select c.*, (${STATUS_EXPR}) as status from clients c where c.id = $1 and c.deleted_at is null`,
@@ -217,6 +245,81 @@ router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
     return;
   }
   res.json(result.rows[0]);
+});
+
+const mergeSchema = z.object({ merge_id: z.string().uuid() });
+
+// Folds a duplicate client into this one: contacts, contracts, projects,
+// invoices, opportunities, notes, attachments, and its lead-conversion
+// history all move to the kept client, then the duplicate is soft-deleted.
+router.post("/:id/merge", requireRole("admin"), async (req, res) => {
+  const parsed = mergeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const keepId = req.params.id;
+  const mergeId = parsed.data.merge_id;
+  if (keepId === mergeId) {
+    res.status(400).json({ error: "invalid_input", details: { merge_id: "Cannot merge a client into itself" } });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    const rowsResult = await client.query(
+      `select id, company, converted_from_lead_id, converted_from_opportunity_id from clients where id = any($1) and deleted_at is null for update`,
+      [[keepId, mergeId]]
+    );
+    if (rowsResult.rows.length !== 2) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const mergedClient = rowsResult.rows.find((r) => r.id === mergeId)!;
+
+    // Only one contact per client can be flagged primary (DB-enforced) —
+    // clear the merged client's flag before moving its contacts over so
+    // that constraint doesn't reject the update if the kept client already
+    // has its own primary contact.
+    await client.query(`update client_contacts set is_primary = false where client_id = $1 and is_primary = true`, [mergeId]);
+    await client.query(`update client_contacts set client_id = $1 where client_id = $2`, [keepId, mergeId]);
+    await client.query(`update contracts set client_id = $1 where client_id = $2`, [keepId, mergeId]);
+    await client.query(`update projects set client_id = $1 where client_id = $2`, [keepId, mergeId]);
+    await client.query(`update invoices set client_id = $1 where client_id = $2`, [keepId, mergeId]);
+    await client.query(`update opportunities set client_id = $1 where client_id = $2`, [keepId, mergeId]);
+    await client.query(`update notes set entity_id = $1 where entity_type = 'client' and entity_id = $2`, [keepId, mergeId]);
+    await client.query(`update attachments set entity_id = $1 where entity_type = 'client' and entity_id = $2`, [keepId, mergeId]);
+    await client.query(`update notifications set entity_id = $1 where entity_type = 'client' and entity_id = $2`, [keepId, mergeId]);
+    await client.query(`update activity_log set entity_id = $1 where entity_type = 'client' and entity_id = $2`, [keepId, mergeId]);
+    await client.query(`update leads set converted_to_client_id = $1 where converted_to_client_id = $2`, [keepId, mergeId]);
+    await client.query(
+      `update clients set converted_from_lead_id = coalesce(converted_from_lead_id, $2), converted_from_opportunity_id = coalesce(converted_from_opportunity_id, $3) where id = $1`,
+      [keepId, mergedClient.converted_from_lead_id, mergedClient.converted_from_opportunity_id]
+    );
+    await client.query(
+      `update clients set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2`,
+      [req.user!.id, mergeId]
+    );
+
+    await writeActivityLog(client, {
+      entityType: "client",
+      entityId: keepId,
+      actorId: req.user!.id,
+      action: "merged",
+      detail: { merged_client_id: mergeId, merged_company: mergedClient.company },
+    });
+
+    await client.query("commit");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("rollback");
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 router.delete("/:id", requireRole("admin"), async (req, res) => {

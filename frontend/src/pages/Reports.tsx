@@ -13,6 +13,7 @@ const TABS = [
   { key: "revenue", label: "Revenue" },
   { key: "payment", label: "Payment Pending" },
   { key: "service", label: "Service-wise" },
+  { key: "opportunity", label: "Opportunity Pipeline" },
 ];
 
 type ConversionReport = {
@@ -30,6 +31,10 @@ type ServiceReport = {
   revenue_by_service: { service_id: string; name: string; revenue: string }[];
   lead_volume_by_service: { service_id: string; name: string; lead_count: string }[];
 };
+type OpportunityPipelineReport = {
+  won_by_month: { month: string; total: string }[];
+  open_by_rep: { assigned_to: string | null; rep_name: string; total: number; count: number }[];
+};
 
 export function Reports() {
   const [tab, setTab] = useState("conversion");
@@ -43,6 +48,7 @@ export function Reports() {
   const { data: revenue } = useFetch<RevenueReport>(`/reports/revenue?x${range}`, [tab, from, to]);
   const { data: pending } = useFetch<{ data: PendingRow[] }>(`/reports/payment-pending${statusFilter ? `?status=${statusFilter}` : ""}`, [tab, statusFilter]);
   const { data: service } = useFetch<ServiceReport>(`/reports/service-wise?x${range}`, [tab, from, to]);
+  const { data: opportunityPipeline } = useFetch<OpportunityPipelineReport>(`/reports/opportunity-pipeline?x${range}`, [tab, from, to]);
 
   function exportPending() {
     window.open(`${API_BASE}/api/reports/payment-pending/export${statusFilter ? `?status=${statusFilter}` : ""}`, "_blank");
@@ -55,7 +61,7 @@ export function Reports() {
         {TABS.map((t) => <button type="button" key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
 
-      {(tab === "conversion" || tab === "revenue" || tab === "service") && (
+      {(tab === "conversion" || tab === "revenue" || tab === "service" || tab === "opportunity") && (
         <div className="filter-bar">
           <CustomDatePicker value={from} onChange={setFrom} placeholder="From" />
           <CustomDatePicker value={to} onChange={setTo} placeholder="To" />
@@ -159,6 +165,39 @@ export function Reports() {
             <div className="table-wrap">
               <table><thead><tr><th>Service</th><th>Leads</th></tr></thead>
                 <tbody>{service.lead_volume_by_service.map((s) => <tr key={s.service_id}><td>{s.name}</td><td>{s.lead_count}</td></tr>)}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "opportunity" && opportunityPipeline && (
+        <div className="grid2">
+          <div className="card">
+            <div className="card-title">Won Value by Month</div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Month</th><th>Won Value</th></tr></thead>
+                <tbody>
+                  {opportunityPipeline.won_by_month.length === 0 && <tr><td colSpan={2}><div className="empty">No Won opportunities in this range</div></td></tr>}
+                  {opportunityPipeline.won_by_month.map((m) => (
+                    <tr key={m.month}><td>{new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</td><td className="mono">{formatMoney(m.total)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">Open Pipeline by Rep</div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Rep</th><th>Open Deals</th><th>Pipeline Value</th></tr></thead>
+                <tbody>
+                  {opportunityPipeline.open_by_rep.length === 0 && <tr><td colSpan={3}><div className="empty">No open opportunities</div></td></tr>}
+                  {opportunityPipeline.open_by_rep.map((r) => (
+                    <tr key={r.assigned_to ?? "unassigned"}><td>{r.rep_name}</td><td>{r.count}</td><td className="mono">{formatMoney(r.total)}</td></tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           </div>

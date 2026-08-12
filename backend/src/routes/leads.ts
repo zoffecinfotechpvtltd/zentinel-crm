@@ -164,6 +164,32 @@ router.get("/", async (req, res) => {
   });
 });
 
+// Registered before "/:id" for the same route-ordering reason as other
+// fixed-path routes in this file — "/duplicates" would otherwise be
+// swallowed as an :id value.
+//
+// Pairs, not groups: if three leads share a company/email, this returns
+// three pairs (A-B, A-C, B-C). Merging A+B soft-deletes B, so a refetch
+// naturally drops any pair involving B — no separate grouping logic needed.
+router.get("/duplicates", requireRole("admin"), async (_req, res) => {
+  const result = await pool.query(
+    `select
+       l1.id as id1, l1.company as company1, l1.contact_person as contact_person1, l1.email as email1, l1.status as status1, l1.created_at as created_at1,
+       l2.id as id2, l2.company as company2, l2.contact_person as contact_person2, l2.email as email2, l2.status as status2, l2.created_at as created_at2
+     from leads l1
+     join leads l2 on l1.id < l2.id
+       and l1.deleted_at is null and l2.deleted_at is null
+       and (lower(l1.company) = lower(l2.company) or lower(l1.email) = lower(l2.email))
+     order by l1.created_at desc`
+  );
+  res.json(
+    result.rows.map((r) => ({
+      lead1: { id: r.id1, company: r.company1, contact_person: r.contact_person1, email: r.email1, status: r.status1, created_at: r.created_at1 },
+      lead2: { id: r.id2, company: r.company2, contact_person: r.contact_person2, email: r.email2, status: r.status2, created_at: r.created_at2 },
+    }))
+  );
+});
+
 router.get("/:id", async (req, res) => {
   if (!assertLeadsAccess(req.user!.role, res)) return;
 
@@ -360,6 +386,69 @@ router.patch("/:id", requireRole("admin", "sales"), async (req, res) => {
     }
 
     res.json(updateResult.rows[0]);
+  } catch (err) {
+    await client.query("rollback");
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+
+const mergeSchema = z.object({ merge_id: z.string().uuid() });
+
+// Folds a duplicate lead into this one: every Opportunity, note,
+// attachment, and activity-log entry that pointed at the duplicate now
+// points at the kept lead, then the duplicate is soft-deleted. Admin-only —
+// this rewrites another record's history, a step up from the per-field
+// edits Sales can already make.
+router.post("/:id/merge", requireRole("admin"), async (req, res) => {
+  const parsed = mergeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const keepId = req.params.id;
+  const mergeId = parsed.data.merge_id;
+  if (keepId === mergeId) {
+    res.status(400).json({ error: "invalid_input", details: { merge_id: "Cannot merge a lead into itself" } });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    const rowsResult = await client.query(
+      `select id, company from leads where id = any($1) and deleted_at is null for update`,
+      [[keepId, mergeId]]
+    );
+    if (rowsResult.rows.length !== 2) {
+      await client.query("rollback");
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const mergedLead = rowsResult.rows.find((r) => r.id === mergeId)!;
+
+    await client.query(`update opportunities set lead_id = $1 where lead_id = $2`, [keepId, mergeId]);
+    await client.query(`update notes set entity_id = $1 where entity_type = 'lead' and entity_id = $2`, [keepId, mergeId]);
+    await client.query(`update attachments set entity_id = $1 where entity_type = 'lead' and entity_id = $2`, [keepId, mergeId]);
+    await client.query(`update notifications set entity_id = $1 where entity_type = 'lead' and entity_id = $2`, [keepId, mergeId]);
+    await client.query(`update activity_log set entity_id = $1 where entity_type = 'lead' and entity_id = $2`, [keepId, mergeId]);
+    await client.query(
+      `update leads set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2`,
+      [req.user!.id, mergeId]
+    );
+
+    await writeActivityLog(client, {
+      entityType: "lead",
+      entityId: keepId,
+      actorId: req.user!.id,
+      action: "merged",
+      detail: { merged_lead_id: mergeId, merged_company: mergedLead.company },
+    });
+
+    await client.query("commit");
+    res.json({ ok: true });
   } catch (err) {
     await client.query("rollback");
     throw err;

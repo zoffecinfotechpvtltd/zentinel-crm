@@ -38,6 +38,8 @@ function scoreColor(score: number): string {
   return "var(--text3)";
 }
 type LinkedOpportunity = { id: string; kind: string; company: string; stage: string; follow_up_date: string | null; lead_date: string | null; created_at: string };
+type DuplicateLeadSummary = { id: string; company: string; contact_person: string; email: string; status: string; created_at: string };
+type DuplicatePair = { lead1: DuplicateLeadSummary; lead2: DuplicateLeadSummary };
 type Service = { id: string; name: string };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
@@ -90,6 +92,24 @@ export function Leads() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+  const { data: duplicates, reload: reloadDuplicates } = useFetch<DuplicatePair[]>(duplicatesOpen ? "/leads/duplicates" : "");
+  const [mergingId, setMergingId] = useState<string | null>(null);
+
+  async function mergeInto(keepId: string, mergeId: string) {
+    setMergingId(mergeId);
+    try {
+      await api.post(`/leads/${keepId}/merge`, { merge_id: mergeId });
+      push("Leads merged", "success");
+      reloadDuplicates();
+      reload();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Failed to merge", "error");
+    } finally {
+      setMergingId(null);
+    }
+  }
 
   const canEdit = user?.role === "admin" || user?.role === "sales";
   const canDelete = user?.role === "admin";
@@ -295,6 +315,7 @@ export function Leads() {
             <button type="button" className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
             <button type="button" className={view === "board" ? "active" : ""} onClick={() => setView("board")}>Board</button>
           </div>
+          {user?.role === "admin" && <button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(true)}>Duplicates</button>}
           {canEdit && <button type="button" className="btn btn-primary" onClick={openAdd}><IconPlus size={14} /> Add Lead</button>}
         </>}
       />
@@ -563,6 +584,39 @@ export function Leads() {
               <CustomDatePicker value={interactionDate} onChange={setInteractionDate} />
             </div>
           )}
+        </Modal>
+      )}
+
+      {duplicatesOpen && (
+        <Modal title="Possible Duplicate Leads" onClose={() => setDuplicatesOpen(false)} wide
+          footer={<button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(false)}>Close</button>}>
+          {!duplicates && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Loading…</div>}
+          {duplicates?.length === 0 && <div className="empty"><div className="empty-icon"><IconCheck size={26} /></div>No duplicates found.</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {duplicates?.map((pair) => (
+              <div key={`${pair.lead1.id}-${pair.lead2.id}`} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center", padding: 12, borderRadius: 10, background: "var(--bg3)" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{pair.lead1.company}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text2)" }}>{pair.lead1.contact_person} · {pair.lead1.email}</div>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>{pair.lead1.status} · added {formatDate(pair.lead1.created_at)}</div>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} disabled={mergingId !== null}
+                    onClick={() => mergeInto(pair.lead1.id, pair.lead2.id)}>
+                    {mergingId === pair.lead2.id ? "Merging…" : "Keep this one"}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text3)", textAlign: "center" }}>vs</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{pair.lead2.company}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text2)" }}>{pair.lead2.contact_person} · {pair.lead2.email}</div>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>{pair.lead2.status} · added {formatDate(pair.lead2.created_at)}</div>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} disabled={mergingId !== null}
+                    onClick={() => mergeInto(pair.lead2.id, pair.lead1.id)}>
+                    {mergingId === pair.lead1.id ? "Merging…" : "Keep this one"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </Modal>
       )}
     </div>

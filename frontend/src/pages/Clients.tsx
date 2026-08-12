@@ -12,7 +12,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate, formatMoney } from "../lib/format";
-import { IconClients, IconPlus, IconInbox } from "../components/Icons";
+import { IconClients, IconPlus, IconInbox, IconCheck } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
 
@@ -35,6 +35,8 @@ type ClientDetail = Client & {
 };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type Service = { id: string; name: string };
+type DuplicateClientSummary = { id: string; company: string; gstin: string | null; created_at: string };
+type DuplicatePair = { client1: DuplicateClientSummary; client2: DuplicateClientSummary };
 
 export function Clients() {
   const { user } = useAuth();
@@ -62,6 +64,24 @@ export function Clients() {
   const [contactForm, setContactForm] = useState({ name: "", email: "", mobile: "", designation: "" });
   const [contractForm, setContractForm] = useState({ service_id: "", value: "", start_date: "", end_date: "" });
   const [ledgerDraft, setLedgerDraft] = useState("");
+
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+  const { data: duplicates, reload: reloadDuplicates } = useFetch<DuplicatePair[]>(duplicatesOpen ? "/clients/duplicates" : "");
+  const [mergingId, setMergingId] = useState<string | null>(null);
+
+  async function mergeInto(keepId: string, mergeId: string) {
+    setMergingId(mergeId);
+    try {
+      await api.post(`/clients/${keepId}/merge`, { merge_id: mergeId });
+      push("Clients merged", "success");
+      reloadDuplicates();
+      reloadList();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Failed to merge", "error");
+    } finally {
+      setMergingId(null);
+    }
+  }
 
   const canEdit = user?.role === "admin";
 
@@ -160,7 +180,10 @@ export function Clients() {
         icon={<IconClients size={19} />}
         title="Client Management"
         subtitle={data ? `${data.total} client${data.total === 1 ? "" : "s"} on file` : undefined}
-        actions={canEdit && <button type="button" className="btn btn-primary" onClick={() => setAddOpen(true)}><IconPlus size={14} /> Add Client</button>}
+        actions={canEdit && <>
+          <button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(true)}>Duplicates</button>
+          <button type="button" className="btn btn-primary" onClick={() => setAddOpen(true)}><IconPlus size={14} /> Add Client</button>
+        </>}
       />
 
       <div className="filter-bar">
@@ -403,6 +426,39 @@ export function Clients() {
           )}
 
           <NotesAndFiles entityType="client" entityId={detail.id} />
+        </Modal>
+      )}
+
+      {duplicatesOpen && (
+        <Modal title="Possible Duplicate Clients" onClose={() => setDuplicatesOpen(false)} xwide
+          footer={<button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(false)}>Close</button>}>
+          {!duplicates && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Loading…</div>}
+          {duplicates?.length === 0 && <div className="empty"><div className="empty-icon"><IconCheck size={26} /></div>No duplicates found.</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {duplicates?.map((pair) => (
+              <div key={`${pair.client1.id}-${pair.client2.id}`} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center", padding: 12, borderRadius: 10, background: "var(--bg3)" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{pair.client1.company}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text2)" }}>{pair.client1.gstin ?? "no GSTIN"}</div>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>added {formatDate(pair.client1.created_at)}</div>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} disabled={mergingId !== null}
+                    onClick={() => mergeInto(pair.client1.id, pair.client2.id)}>
+                    {mergingId === pair.client2.id ? "Merging…" : "Keep this one"}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text3)", textAlign: "center" }}>vs</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{pair.client2.company}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text2)" }}>{pair.client2.gstin ?? "no GSTIN"}</div>
+                  <div style={{ fontSize: 11, color: "var(--text3)" }}>added {formatDate(pair.client2.created_at)}</div>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} disabled={mergingId !== null}
+                    onClick={() => mergeInto(pair.client2.id, pair.client1.id)}>
+                    {mergingId === pair.client1.id ? "Merging…" : "Keep this one"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </Modal>
       )}
     </div>

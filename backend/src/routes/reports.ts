@@ -68,6 +68,45 @@ router.get("/lead-conversion", async (req, res) => {
   });
 });
 
+// --- Opportunity Pipeline ---
+// Gated the same as opportunities.ts itself (admin + sales only — Finance/Ops
+// have no access to Opportunities at all, so a report about it shouldn't
+// leak the data through a different door).
+
+router.get("/opportunity-pipeline", requireRole("admin", "sales"), async (req, res) => {
+  const { from, to } = dateRangeFromQuery(req.query);
+
+  // Opportunities has no dedicated "won_at" column — updated_at is the best
+  // available proxy for "when this was marked Won" and is documented here
+  // as an approximation, not an exact closed-date.
+  const wonByMonthResult = await pool.query(
+    `select date_trunc('month', updated_at) as month, coalesce(sum(value), 0) as total
+     from opportunities
+     where stage = 'Won' and deleted_at is null and updated_at::date between $1 and $2
+     group by month order by month`,
+    [from, to]
+  );
+
+  const openByRepResult = await pool.query(
+    `select o.assigned_to, u.name as rep_name, coalesce(sum(o.value), 0) as total, count(*) as count
+     from opportunities o left join users u on u.id = o.assigned_to
+     where o.stage in ('Open', 'Proposal Sent') and o.deleted_at is null
+     group by o.assigned_to, u.name
+     order by total desc`
+  );
+
+  res.json({
+    from, to,
+    won_by_month: wonByMonthResult.rows,
+    open_by_rep: openByRepResult.rows.map((r) => ({
+      assigned_to: r.assigned_to,
+      rep_name: r.rep_name ?? "Unassigned",
+      total: Number(r.total),
+      count: Number(r.count),
+    })),
+  });
+});
+
 // --- Revenue ---
 
 router.get("/revenue", NOT_SALES, async (req, res) => {
