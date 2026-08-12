@@ -19,6 +19,7 @@ import { Invoices } from "./pages/Invoices";
 import { Followups } from "./pages/Followups";
 import { Reports } from "./pages/Reports";
 import { Notifications } from "./pages/Notifications";
+import { Activity } from "./pages/Activity";
 import { Users } from "./pages/Users";
 import { MessageTemplates } from "./pages/MessageTemplates";
 import { Settings } from "./pages/Settings";
@@ -108,6 +109,7 @@ function App() {
                 }
               />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/activity" element={<Activity />} />
               <Route path="/account" element={<MyAccount />} />
               <Route
                 path="/users"

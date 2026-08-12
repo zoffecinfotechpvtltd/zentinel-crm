@@ -799,13 +799,15 @@ tr.row-selected td { background: var(--accent-soft); }
 
 /* Wraps to a second row instead of scrolling sideways — a wide pipeline
    (7 lead stages) should never make the whole page pan horizontally. */
-/* A kanban board's columns are pipeline stages in a fixed order — wrapping
-   the last one onto an orphaned new row (flex-wrap's default behavior once
-   columns run out of row width) breaks that left-to-right reading order.
-   Scrolling sideways instead keeps every column in one line, same as
-   Trello/Jira. */
-.kanban-board { display: flex; flex-wrap: nowrap; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
-.kanban-col { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); flex: 0 0 260px; width: 260px; max-height: 70vh; display: flex; flex-direction: column; }
+/* A real grid (not flex-wrap) so columns that don't fit one row wrap into
+   a clean second row instead of either forcing the whole page to scroll
+   sideways or leaving one column orphaned alone on its own row — every row
+   packs left-to-right and stays readable while dragging a card, without a
+   scrollbar competing for the same drag gesture. minmax's fixed upper
+   bound (not 1fr) keeps columns from stretching to fill a half-empty last
+   row; auto-fit collapses tracks that have nothing to hold. */
+.kanban-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 260px)); justify-content: start; gap: 14px; align-items: start; }
+.kanban-col { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); min-width: 0; max-height: 70vh; display: flex; flex-direction: column; }
 .kanban-col-head { padding: 12px 14px; border-bottom: 1px solid var(--border); border-top: 3px solid var(--col-accent, var(--accent)); border-radius: var(--radius-lg) var(--radius-lg) 0 0; display: flex; align-items: center; justify-content: space-between; }
 .kanban-col-title { font-size: 12.5px; font-weight: 650; }
 .kanban-col-count { font-size: 11px; color: var(--text3); background: var(--bg2); border-radius: 10px; padding: 1px 8px; }

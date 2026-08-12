@@ -142,13 +142,14 @@ export function Opportunities() {
   async function save() {
     setSaving(true);
     setFieldErrors({});
+    const nullable = (v: string) => v || (editing ? null : undefined);
     const payload: Record<string, unknown> = {
-      kind: form.kind, company: form.company, client_name: form.client_name || undefined,
-      contact: form.contact || undefined, opportunity_type_ids: form.opportunity_type_ids,
-      description: form.description || undefined, pdf_pg_url: form.pdf_pg_url || undefined,
-      stage: form.stage, lost_reason: form.stage === "Lost" ? form.lost_reason || undefined : undefined,
-      follow_up_date: form.follow_up_date || undefined, lead_date: form.lead_date || undefined, remarks: form.remarks || undefined,
-      client_id: form.client_id || undefined, lead_id: form.lead_id || undefined,
+      kind: form.kind, company: form.company, client_name: nullable(form.client_name),
+      contact: nullable(form.contact), opportunity_type_ids: form.opportunity_type_ids,
+      description: nullable(form.description), pdf_pg_url: nullable(form.pdf_pg_url),
+      stage: form.stage, lost_reason: form.stage === "Lost" ? nullable(form.lost_reason) : (editing ? null : undefined),
+      follow_up_date: nullable(form.follow_up_date), lead_date: nullable(form.lead_date), remarks: nullable(form.remarks),
+      client_id: nullable(form.client_id), lead_id: nullable(form.lead_id),
     };
     try {
       if (editing) {

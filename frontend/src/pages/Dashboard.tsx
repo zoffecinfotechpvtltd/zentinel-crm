@@ -4,7 +4,7 @@ import { useFetch } from "../lib/useFetch";
 import { StatCard } from "../components/StatCard";
 import { StatCardSkeleton } from "../components/Skeleton";
 import { PageHeader } from "../components/PageHeader";
-import { formatMoney, formatDateTime, formatDate, isOverdue } from "../lib/format";
+import { formatMoney, formatDate, isOverdue } from "../lib/format";
 import { Link } from "react-router-dom";
 import { IconDashboard, IconInbox } from "../components/Icons";
 import { useAuth } from "../context/AuthContext";
@@ -18,24 +18,11 @@ type DashboardData = {
     new_leads_this_month: number; new_leads_change_pct: number | null;
     followups_today: number; conversion_rate_pct: number;
   };
-  recent_activity: { id: string; entity_type: string; action: string; detail: Record<string, unknown>; created_at: string; actor_name: string | null }[];
   upcoming_followups: { id: string; company: string; contact_person: string; next_followup_date: string }[];
 };
 
 type RevenueReport = { monthly_trend: { month: string; total: string }[] };
 type ConversionReport = { funnel: { status: string; count: string }[] };
-
-function describeActivity(a: DashboardData["recent_activity"][number]): string {
-  const who = a.actor_name ?? "Someone";
-  if (a.action === "status_changed") {
-    const d = a.detail as { from?: string; to?: string; invoice_number?: string };
-    return `${who} changed ${a.entity_type} status from ${d.from} to ${d.to}${d.invoice_number ? ` (${d.invoice_number})` : ""}`;
-  }
-  if (a.action === "created") return `${who} created a new ${a.entity_type}`;
-  if (a.action === "reassigned") return `${who} reassigned a ${a.entity_type}`;
-  if (a.action === "note_added") return `${who} logged an interaction`;
-  return `${who} — ${a.action} on ${a.entity_type}`;
-}
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -128,32 +115,22 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid2">
-        <div className="card">
-          <div className="card-title">Upcoming Follow-ups <Link className="btn btn-primary btn-sm" to="/followups">View All</Link></div>
-          <div className="followup-list">
-            {data.upcoming_followups.length === 0 && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Nothing due</div>}
-            {data.upcoming_followups.map((f) => (
-              <div className={`followup-item${isOverdue(f.next_followup_date) ? " overdue" : ""}`} key={f.id}>
-                <div className="followup-company">{f.company}</div>
-                <div className="followup-detail">{f.contact_person} — due {formatDate(f.next_followup_date)}</div>
-              </div>
-            ))}
+      <div className="card">
+        <div className="card-title">
+          Upcoming Follow-ups
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link className="btn btn-ghost btn-sm" to="/activity">View Activity</Link>
+            <Link className="btn btn-primary btn-sm" to="/followups">View All</Link>
           </div>
         </div>
-        <div className="card">
-          <div className="card-title">Recent Activity</div>
-          <div className="timeline">
-            {data.recent_activity.map((a) => (
-              <div className="timeline-item" key={a.id}>
-                <div className={`timeline-dot${a.action === "status_changed" && (a.detail as { to?: string }).to === "Won" ? " won" : ""}${a.action === "status_changed" && (a.detail as { to?: string }).to === "Lost" ? " lost" : ""}`} />
-                <div>
-                  <div className="timeline-text">{describeActivity(a)}</div>
-                  <div className="timeline-time">{formatDateTime(a.created_at)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="followup-list">
+          {data.upcoming_followups.length === 0 && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Nothing due</div>}
+          {data.upcoming_followups.map((f) => (
+            <div className={`followup-item${isOverdue(f.next_followup_date) ? " overdue" : ""}`} key={f.id}>
+              <div className="followup-company">{f.company}</div>
+              <div className="followup-detail">{f.contact_person} — due {formatDate(f.next_followup_date)}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

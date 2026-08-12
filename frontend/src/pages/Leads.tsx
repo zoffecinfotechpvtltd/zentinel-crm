@@ -163,13 +163,14 @@ export function Leads() {
   async function save() {
     setSaving(true);
     setFieldErrors({});
+    const nullable = (v: string) => v || (editing ? null : undefined);
     const payload: Record<string, unknown> = {
       company: form.company, contact_person: form.contact_person, email: form.email,
-      designation: form.designation || undefined, mobile: form.mobile || undefined,
-      industry: form.industry || undefined, source: form.source || undefined,
-      service_id: form.service_id || undefined,
-      value_estimate: form.value_estimate ? Number(form.value_estimate) : undefined,
-      next_followup_date: form.next_followup_date || undefined, notes: form.notes || undefined,
+      designation: nullable(form.designation), mobile: nullable(form.mobile),
+      industry: nullable(form.industry), source: nullable(form.source),
+      service_id: nullable(form.service_id),
+      value_estimate: form.value_estimate ? Number(form.value_estimate) : (editing ? null : undefined),
+      next_followup_date: nullable(form.next_followup_date), notes: nullable(form.notes),
     };
     try {
       if (editing) {

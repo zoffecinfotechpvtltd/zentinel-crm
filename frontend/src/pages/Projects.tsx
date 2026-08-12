@@ -73,8 +73,8 @@ export function Projects() {
   async function save() {
     setError(null);
     const payload = {
-      name: form.name, client_id: form.client_id || undefined, assigned_to: form.assigned_to || undefined,
-      start_date: form.start_date || undefined, due_date: form.due_date || undefined,
+      name: form.name, client_id: form.client_id || undefined, assigned_to: form.assigned_to || (editing ? null : undefined),
+      start_date: form.start_date || undefined, due_date: form.due_date || (editing ? null : undefined),
       status: form.status, progress: Number(form.progress), remarks: form.remarks || undefined,
     };
     try {

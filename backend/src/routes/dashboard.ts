@@ -89,22 +89,6 @@ router.get("/", async (req, res) => {
   const revenueChangePct = revenueLastMonth > 0 ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100 : null;
   const leadsChangePct = newLeadsLastMonth > 0 ? ((newLeadsThisMonth - newLeadsLastMonth) / newLeadsLastMonth) * 100 : null;
 
-  const recentActivityResult = isSales
-    ? await pool.query(
-        `select a.id, a.entity_type, a.entity_id, a.action, a.detail, a.created_at, u.name as actor_name
-         from activity_log a
-         left join users u on u.id = a.actor_id
-         join leads l on l.id = a.entity_id and a.entity_type = 'lead'
-         where l.assigned_to = $1
-         order by a.created_at desc limit 20`,
-        [req.user!.id]
-      )
-    : await pool.query(
-        `select a.id, a.entity_type, a.entity_id, a.action, a.detail, a.created_at, u.name as actor_name
-         from activity_log a left join users u on u.id = a.actor_id
-         order by a.created_at desc limit 20`
-      );
-
   const upcomingFollowupsResult = await pool.query(
     `select id, company, contact_person, next_followup_date, assigned_to
      from leads where deleted_at is null and status not in ('Won','Lost') and next_followup_date <= current_date
@@ -128,9 +112,49 @@ router.get("/", async (req, res) => {
       followups_today: followupsToday,
       conversion_rate_pct: Math.round(conversionRate * 100) / 100,
     },
-    recent_activity: recentActivityResult.rows,
     upcoming_followups: upcomingFollowupsResult.rows,
   });
+});
+
+// GET /api/dashboard/activity — the full, paginated version of what the
+// dashboard's "Recent Activity" widget used to show inline (moved to its
+// own page instead of a capped-at-20, no-pagination card). Same scoping as
+// before: a Sales rep only sees activity on leads assigned to them,
+// everyone else sees the company-wide feed.
+router.get("/activity", async (req, res) => {
+  const isSales = req.user!.role === "sales";
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const perPage = Math.min(100, Math.max(1, Number(req.query.per_page) || 25));
+  const offset = (page - 1) * perPage;
+
+  if (isSales) {
+    const countResult = await pool.query(
+      `select count(*) from activity_log a
+       join leads l on l.id = a.entity_id and a.entity_type = 'lead'
+       where l.assigned_to = $1`,
+      [req.user!.id]
+    );
+    const dataResult = await pool.query(
+      `select a.id, a.entity_type, a.entity_id, a.action, a.detail, a.created_at, u.name as actor_name
+       from activity_log a
+       left join users u on u.id = a.actor_id
+       join leads l on l.id = a.entity_id and a.entity_type = 'lead'
+       where l.assigned_to = $1
+       order by a.created_at desc limit $2 offset $3`,
+      [req.user!.id, perPage, offset]
+    );
+    res.json({ data: dataResult.rows, total: Number(countResult.rows[0].count), page, per_page: perPage });
+    return;
+  }
+
+  const countResult = await pool.query(`select count(*) from activity_log`);
+  const dataResult = await pool.query(
+    `select a.id, a.entity_type, a.entity_id, a.action, a.detail, a.created_at, u.name as actor_name
+     from activity_log a left join users u on u.id = a.actor_id
+     order by a.created_at desc limit $1 offset $2`,
+    [perPage, offset]
+  );
+  res.json({ data: dataResult.rows, total: Number(countResult.rows[0].count), page, per_page: perPage });
 });
 
 export default router;

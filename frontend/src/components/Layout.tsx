@@ -9,7 +9,7 @@ import { useIdleLogout } from "../lib/useIdleLogout";
 import {
   IconDashboard, IconLeads, IconClients, IconProjects, IconInvoices, IconFollowups,
   IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconSun,
-  IconMoon, IconLogout, IconMenu, IconChevronDown, IconOpportunities,
+  IconMoon, IconLogout, IconMenu, IconChevronDown, IconOpportunities, IconActivity,
 } from "./Icons";
 
 type NavItem = { to: string; label: string; icon: React.ReactNode; roles?: string[] };
@@ -37,6 +37,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { to: "/reports", label: "Reports", icon: <IconReports />, roles: ["admin", "finance", "ops"] },
       { to: "/notifications", label: "Notifications", icon: <IconBell /> },
+      { to: "/activity", label: "Activity", icon: <IconActivity /> },
     ],
   },
 ];

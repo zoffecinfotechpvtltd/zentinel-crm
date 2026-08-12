@@ -109,6 +109,9 @@ export const IconOpportunities = ({ size = 17, ...p }: IconProps) => (
 export const IconUpload = ({ size = 17, ...p }: IconProps) => (
   <svg {...base(size, p)}><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" /></svg>
 );
+export const IconActivity = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}><path d="M3 12h4l2.5-7L14 19l2.5-7H21" /></svg>
+);
 export const IconDownload = ({ size = 17, ...p }: IconProps) => (
   <svg {...base(size, p)}><path d="M12 4v12M7 11l5 5 5-5" /><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" /></svg>
 );
