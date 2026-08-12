@@ -674,6 +674,41 @@ router.get("/:id/templates/:templateId/render", async (req, res) => {
   });
 });
 
+const logMessageSentSchema = z.object({ template_id: z.string().uuid() });
+
+// Templates here are copy-to-clipboard / wa.me deep links, not a server-side
+// send (see Followups.tsx's own comment on that) — there's no delivery or
+// open event this app can ever observe. This is the honest version of that:
+// a record that someone actually used a template against this lead, so
+// there's at least an audit trail of outreach attempts in Activity/Audit
+// Log, even though "did they receive it" stays outside what's knowable here.
+router.post("/:id/log-message-sent", async (req, res) => {
+  if (!assertLeadsAccess(req.user!.role, res)) return;
+  const parsed = logMessageSentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const leadResult = await pool.query(`select id from leads where id = $1 and deleted_at is null`, [req.params.id]);
+  if (leadResult.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const templateResult = await pool.query(`select name, channel from message_templates where id = $1`, [parsed.data.template_id]);
+  if (templateResult.rows.length === 0) {
+    res.status(404).json({ error: "template_not_found" });
+    return;
+  }
+  await writeActivityLog(pool, {
+    entityType: "lead",
+    entityId: req.params.id,
+    actorId: req.user!.id,
+    action: "message_sent",
+    detail: { template_name: templateResult.rows[0].name, channel: templateResult.rows[0].channel },
+  });
+  res.json({ ok: true });
+});
+
 router.get("/:id/followup.ics", async (req, res) => {
   if (!assertLeadsAccess(req.user!.role, res)) return;
 

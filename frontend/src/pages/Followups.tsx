@@ -75,6 +75,9 @@ function SalesFollowups() {
         await navigator.clipboard.writeText(rendered.rendered);
         push("Message copied — paste it wherever you're sending it", "success");
       }
+      // Best-effort audit trail — there's no real send to confirm delivery
+      // of, just a record that this template was used against this lead.
+      api.post(`/leads/${lead.id}/log-message-sent`, { template_id: templateId }).catch(() => {});
     } catch (err) {
       push(err instanceof Error ? err.message : "Couldn't render that template", "error");
     }

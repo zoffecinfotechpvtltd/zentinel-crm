@@ -158,6 +158,16 @@ router.get("/:id", async (req, res) => {
     [req.params.id]
   );
 
+  let parentClient = null;
+  if (client.parent_client_id) {
+    const parentResult = await pool.query(`select id, company from clients where id = $1 and deleted_at is null`, [client.parent_client_id]);
+    parentClient = parentResult.rows[0] ?? null;
+  }
+  const childClientsResult = await pool.query(
+    `select id, company, (${STATUS_EXPR}) as status from clients c where parent_client_id = $1 and deleted_at is null order by company`,
+    [req.params.id]
+  );
+
   res.json({
     ...client,
     contacts: contactsResult.rows,
@@ -168,6 +178,8 @@ router.get("/:id", async (req, res) => {
     opportunities: opportunitiesResult.rows,
     projects: projectsResult.rows,
     invoices: invoicesResult.rows,
+    parent_client: parentClient,
+    child_clients: childClientsResult.rows,
   });
 });
 
@@ -206,6 +218,7 @@ const updateClientSchema = z.object({
   billing_address: z.string().nullable().optional(),
   tally_ledger_name: z.string().nullable().optional(),
   is_archived: z.boolean().optional(),
+  parent_client_id: z.string().uuid().nullable().optional(),
 });
 
 router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
@@ -219,6 +232,33 @@ router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
   if (f.is_archived !== undefined && req.user!.role !== "admin") {
     res.status(403).json({ error: "forbidden", message: "Only Admin can archive/unarchive a client." });
     return;
+  }
+
+  if (f.parent_client_id) {
+    if (f.parent_client_id === req.params.id) {
+      res.status(400).json({ error: "invalid_input", details: { parent_client_id: "A client cannot be its own parent" } });
+      return;
+    }
+    const parentExists = await pool.query(`select 1 from clients where id = $1 and deleted_at is null`, [f.parent_client_id]);
+    if (parentExists.rows.length === 0) {
+      res.status(400).json({ error: "invalid_input", details: { parent_client_id: "parent_client_id does not refer to an existing client" } });
+      return;
+    }
+    // Walks up from the proposed parent — if this client shows up as one of
+    // its own ancestors, the assignment would create a cycle.
+    const cycleCheck = await pool.query(
+      `with recursive ancestors as (
+         select id, parent_client_id from clients where id = $1
+         union all
+         select c.id, c.parent_client_id from clients c join ancestors a on c.id = a.parent_client_id
+       )
+       select 1 from ancestors where id = $2`,
+      [f.parent_client_id, req.params.id]
+    );
+    if (cycleCheck.rows.length > 0) {
+      res.status(400).json({ error: "invalid_input", details: { parent_client_id: "This would create a circular parent/child relationship" } });
+      return;
+    }
   }
 
   const setClauses: string[] = [];

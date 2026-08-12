@@ -24,6 +24,14 @@ function describe(row: ActivityRow): string {
   if (row.action === "contact_added") return `${who} added a contact`;
   if (row.action === "contract_added") return `${who} added a contract`;
   if (row.action === "converted_to_client") return `${who} converted an opportunity to a client`;
+  if (row.action === "merged") {
+    const d = row.detail as { merged_company?: string };
+    return `${who} merged a duplicate ${row.entity_type}${d.merged_company ? ` ("${d.merged_company}")` : ""} into this one`;
+  }
+  if (row.action === "message_sent") {
+    const d = row.detail as { template_name?: string; channel?: string };
+    return `${who} sent a "${d.template_name ?? "message"}" ${d.channel ?? ""} message`;
+  }
   return `${who} — ${row.action} on ${row.entity_type}`;
 }
 

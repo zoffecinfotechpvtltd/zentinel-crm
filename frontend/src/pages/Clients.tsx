@@ -27,11 +27,13 @@ type LinkedOpportunity = { id: string; kind: string; company: string; stage: str
 type LinkedProject = { id: string; name: string; status: string; progress: number; due_date: string | null };
 type LinkedInvoice = { id: string; invoice_number: string | null; status: string; total: string | number; due_date: string | null };
 type ClientDetail = Client & {
-  billing_address: string | null; is_archived: boolean;
+  billing_address: string | null; is_archived: boolean; parent_client_id: string | null;
   contacts: Contact[]; contracts: Contract[]; contract_value_total: number;
   originating_lead: { id: string; company: string; status: string } | null;
   originating_opportunity: { id: string; kind: string; company: string; stage: string; lead_date: string | null } | null;
   opportunities: LinkedOpportunity[]; projects: LinkedProject[]; invoices: LinkedInvoice[];
+  parent_client: { id: string; company: string } | null;
+  child_clients: { id: string; company: string; status: string }[];
 };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type Service = { id: string; name: string };
@@ -55,6 +57,7 @@ export function Clients() {
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const { data: detail, reload: reloadDetail } = useFetch<ClientDetail>(detailId ? `/clients/${detailId}` : "", [detailId]);
+  const { data: allClients } = useFetch<ListResponse<Client>>(detailId ? "/clients?per_page=200" : "", [detailId]);
 
   const [addOpen, setAddOpen] = useState(false);
   const [newCompany, setNewCompany] = useState("");
@@ -116,6 +119,16 @@ export function Clients() {
     if (!detailId) return;
     await api.patch(`/clients/${detailId}`, { tally_ledger_name: ledgerDraft || null });
     reloadDetail();
+  }
+
+  async function setParentClient(parentClientId: string) {
+    if (!detailId) return;
+    try {
+      await api.patch(`/clients/${detailId}`, { parent_client_id: parentClientId || null });
+      reloadDetail();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Couldn't update parent account", "error");
+    }
   }
 
   async function addContact() {
@@ -252,7 +265,7 @@ export function Clients() {
 
       {detailId && detail && (
         <Modal title={detail.company} onClose={() => setDetailId(null)} xwide footer={<button type="button" className="btn btn-ghost" onClick={() => setDetailId(null)}>Close</button>}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
             <Badge status={detail.status} />
             {detail.originating_lead && <span style={{ fontSize: 12, color: "var(--text3)" }}>Converted from lead: {detail.originating_lead.company}</span>}
             {detail.originating_opportunity && (
@@ -260,6 +273,11 @@ export function Clients() {
                 Converted from opportunity: {detail.originating_opportunity.company}
                 {detail.originating_opportunity.lead_date && ` (lead date ${formatDate(detail.originating_opportunity.lead_date)})`}
               </span>
+            )}
+            {detail.parent_client && (
+              <button type="button" onClick={() => setDetailId(detail.parent_client!.id)} style={{ fontSize: 12, color: "var(--info)", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                ↳ branch of {detail.parent_client.company}
+              </button>
             )}
           </div>
 
@@ -274,6 +292,18 @@ export function Clients() {
                 <input className="form-input" value={ledgerDraft} onChange={(e) => setLedgerDraft(e.target.value)} />
                 <button type="button" className="btn btn-ghost btn-sm" onClick={saveLedger}>Save</button>
               </div>
+            </div>
+          )}
+
+          {canEdit && (
+            <div className="form-group full" style={{ marginBottom: 20 }}>
+              <label className="form-label">Parent Account</label>
+              <CustomSelect
+                value={detail.parent_client_id ?? ""}
+                onChange={setParentClient}
+                placeholder="No parent — this is a standalone account"
+                options={(allClients?.data ?? []).filter((c) => c.id !== detail.id).map((c) => ({ value: c.id, label: c.company }))}
+              />
             </div>
           )}
 
@@ -378,7 +408,7 @@ export function Clients() {
             </div>
           )}
 
-          {(detail.opportunities.length > 0 || detail.projects.length > 0 || detail.invoices.length > 0) && (
+          {(detail.opportunities.length > 0 || detail.projects.length > 0 || detail.invoices.length > 0 || detail.child_clients.length > 0) && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 14 }}>
               {detail.opportunities.length > 0 && (
                 <div>
@@ -418,6 +448,20 @@ export function Clients() {
                         <span>{inv.invoice_number ?? "Draft"} — {formatMoney(Number(inv.total))}</span>
                         <Badge status={inv.status} />
                       </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {detail.child_clients.length > 0 && (
+                <div>
+                  <div className="card-title">Branches / Locations</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {detail.child_clients.map((c) => (
+                      <button key={c.id} type="button" onClick={() => setDetailId(c.id)}
+                        style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)", color: "var(--text)", border: "none", cursor: "pointer", textAlign: "left" }}>
+                        <span>{c.company}</span>
+                        <Badge status={c.status} />
+                      </button>
                     ))}
                   </div>
                 </div>

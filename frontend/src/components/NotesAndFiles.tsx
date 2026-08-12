@@ -11,9 +11,13 @@ import { CustomSelect } from "./CustomSelect";
 type EntityType = "lead" | "client" | "project" | "invoice";
 type Note = { id: string; body: string; created_at: string; created_by: string | null; author_name: string | null };
 type Attachment = {
-  id: string; filename: string; mime_type: string; size_bytes: number; document_type: string | null;
+  id: string; filename: string; mime_type: string; size_bytes: number; document_type: string | null; version: number;
   created_at: string; uploaded_by: string | null; uploader_name: string | null;
   signature_status: "pending" | "signed" | "cancelled" | null; signer_name: string | null; signed_at: string | null;
+};
+type AttachmentVersion = {
+  id: string; filename: string; mime_type: string; size_bytes: number; version: number;
+  created_at: string; uploaded_by: string | null; uploader_name: string | null;
 };
 
 const BILL_INVOICE_DOC_TYPE = "Bill/Invoice";
@@ -37,6 +41,9 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [docType, setDocType] = useState(DOCUMENT_TYPES[0]);
+  const [replacingId, setReplacingId] = useState<string | null>(null);
+  const [historyId, setHistoryId] = useState<string | null>(null);
+  const { data: history } = useFetch<AttachmentVersion[]>(historyId ? `${base}/${entityId}/attachments/${historyId}/versions` : "", [historyId]);
 
   const canManage = (ownerId: string | null) => user?.role === "admin" || (!!ownerId && ownerId === user?.id);
 
@@ -73,6 +80,21 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
       push(err instanceof Error ? err.message : "Upload failed", "error");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function uploadNewVersion(attId: string, file: File) {
+    setReplacingId(attId);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await api.postForm(`${base}/${entityId}/attachments/${attId}/versions`, form);
+      push("New version uploaded", "success");
+      reloadAttachments();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Upload failed", "error");
+    } finally {
+      setReplacingId(null);
     }
   }
 
@@ -157,7 +179,8 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
         {(attachments?.length ?? 0) === 0 && <div className="empty" style={{ padding: 16 }}>No files yet</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {attachments?.map((a) => (
-            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)", flexWrap: "wrap" }}>
+            <div key={a.id}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)", flexWrap: "wrap" }}>
               <IconPaperclip size={14} style={{ color: "var(--text3)", flexShrink: 0 }} />
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <a
@@ -179,6 +202,11 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
                   ) : (
                     a.document_type && <span className="badge badge-draft">{a.document_type}</span>
                   )}
+                  {a.version > 1 && (
+                    <button type="button" className="badge badge-draft" style={{ border: "none", cursor: "pointer" }} onClick={() => setHistoryId(historyId === a.id ? null : a.id)}>
+                      v{a.version} · history
+                    </button>
+                  )}
                   {a.signature_status === "signed" && (
                     <span className="badge" style={{ background: "var(--success-soft)", color: "var(--success)" }} title={a.signed_at ? new Date(a.signed_at).toLocaleString() : undefined}>
                       Signed by {a.signer_name}
@@ -188,12 +216,39 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
                 </div>
               </div>
               <span style={{ fontSize: 11, color: "var(--text3)", flexShrink: 0 }}>{formatSize(a.size_bytes)}</span>
+              {canManage(a.uploaded_by) && !a.signature_status && (
+                <label className="btn btn-ghost btn-sm" style={{ flexShrink: 0, cursor: replacingId === a.id ? "wait" : "pointer" }}>
+                  {replacingId === a.id ? "Uploading…" : "Replace"}
+                  <input
+                    type="file"
+                    style={{ display: "none" }}
+                    disabled={replacingId !== null}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadNewVersion(a.id, f); e.target.value = ""; }}
+                  />
+                </label>
+              )}
               {!a.signature_status && (
                 <button type="button" className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }} onClick={() => requestSignature(a.id)}>Request signature</button>
               )}
               {canManage(a.uploaded_by) && (
                 <button type="button" className="icon-btn" style={{ width: 20, height: 20, flexShrink: 0 }} onClick={() => deleteAttachment(a.id)} title="Delete"><IconTrash size={11} /></button>
               )}
+            </div>
+            {historyId === a.id && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 10px 10px 34px" }}>
+                {!history && <div style={{ fontSize: 11, color: "var(--text3)" }}>Loading history…</div>}
+                {history?.map((v) => (
+                  <a
+                    key={v.id}
+                    href={`${API_BASE}/api${base}/${entityId}/attachments/${v.id}/file`}
+                    style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "var(--text2)", textDecoration: "none" }}
+                  >
+                    <span>v{v.version} — {v.filename} ({v.uploader_name ?? "Someone"})</span>
+                    <span style={{ color: "var(--text3)" }}>{formatDateTime(v.created_at)}</span>
+                  </a>
+                ))}
+              </div>
+            )}
             </div>
           ))}
         </div>

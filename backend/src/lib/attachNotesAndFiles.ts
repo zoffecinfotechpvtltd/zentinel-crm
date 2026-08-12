@@ -116,8 +116,12 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       res.status(404).json({ error: "not_found" });
       return;
     }
+    // Only the current head of each version chain shows in the main list —
+    // a row that something else's supersedes_id points at is an older
+    // version, reachable via the /versions endpoint instead of cluttering
+    // the primary file list.
     const result = await pool.query(
-      `select a.id, a.filename, a.mime_type, a.size_bytes, a.document_type, a.created_at, a.uploaded_by, u.name as uploader_name,
+      `select a.id, a.filename, a.mime_type, a.size_bytes, a.document_type, a.version, a.created_at, a.uploaded_by, u.name as uploader_name,
          sr.status as signature_status, sr.signer_name, sr.signed_at
        from attachments a
        left join users u on u.id = a.uploaded_by
@@ -126,6 +130,7 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
          where attachment_id = a.id order by created_at desc limit 1
        ) sr on true
        where a.entity_type = $1 and a.entity_id = $2 and a.deleted_at is null
+         and not exists (select 1 from attachments a2 where a2.supersedes_id = a.id and a2.deleted_at is null)
        order by a.created_at desc`,
       [entityType, req.params.id]
     );
@@ -175,10 +180,75 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
 
     const result = await pool.query(
       `insert into attachments (entity_type, entity_id, filename, mime_type, size_bytes, storage_path, document_type, uploaded_by)
-       values ($1,$2,$3,$4,$5,$6,$7,$8) returning id, filename, mime_type, size_bytes, document_type, created_at, uploaded_by`,
+       values ($1,$2,$3,$4,$5,$6,$7,$8) returning id, filename, mime_type, size_bytes, document_type, version, created_at, uploaded_by`,
       [entityType, req.params.id, req.file.originalname, req.file.mimetype, req.file.size, storagePath, documentType, req.user!.id]
     );
     res.status(201).json({ ...result.rows[0], uploader_name: req.user!.name });
+  });
+
+  // Uploads a new version of an existing attachment: the old file, and any
+  // signature request already tied to it, stay intact and reachable through
+  // /versions — this row just becomes the new current head of the chain.
+  router.post(`/:id/attachments/:attId/versions`, handleUpload, async (req, res) => {
+    if (!(await entityExists(req.params.id))) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: "no_file" });
+      return;
+    }
+    const predecessorResult = await pool.query(
+      `select document_type, version from attachments where id = $1 and entity_type = $2 and entity_id = $3 and deleted_at is null`,
+      [req.params.attId, entityType, req.params.id]
+    );
+    if (predecessorResult.rows.length === 0) {
+      res.status(404).json({ error: "not_found", message: "The file being replaced no longer exists." });
+      return;
+    }
+    const predecessor = predecessorResult.rows[0];
+    const documentType = typeof req.body?.document_type === "string" && req.body.document_type.trim()
+      ? req.body.document_type.trim()
+      : predecessor.document_type;
+
+    let storagePath: string;
+    if (isObjectStorageConfigured) {
+      const safeName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_").slice(-100);
+      const key = `${entityType}/${req.params.id}/${crypto.randomUUID()}-${safeName}`;
+      storagePath = await uploadObject(key, req.file.buffer, req.file.mimetype);
+    } else {
+      storagePath = req.file.path;
+    }
+
+    const result = await pool.query(
+      `insert into attachments (entity_type, entity_id, filename, mime_type, size_bytes, storage_path, document_type, uploaded_by, supersedes_id, version)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id, filename, mime_type, size_bytes, document_type, version, created_at, uploaded_by`,
+      [entityType, req.params.id, req.file.originalname, req.file.mimetype, req.file.size, storagePath, documentType, req.user!.id, req.params.attId, predecessor.version + 1]
+    );
+    res.status(201).json({ ...result.rows[0], uploader_name: req.user!.name });
+  });
+
+  // Full version history for a file, regardless of which version's id you
+  // start from — walks supersedes_id in both directions from that node.
+  router.get(`/:id/attachments/:attId/versions`, async (req, res) => {
+    const result = await pool.query(
+      `with recursive chain as (
+         select * from attachments where id = $1 and entity_type = $2 and entity_id = $3
+         union
+         select att.* from attachments att
+         join chain c on att.id = c.supersedes_id or att.supersedes_id = c.id
+       )
+       select c.id, c.filename, c.mime_type, c.size_bytes, c.version, c.created_at, c.uploaded_by, u.name as uploader_name
+       from chain c left join users u on u.id = c.uploaded_by
+       where c.deleted_at is null
+       order by c.version desc`,
+      [req.params.attId, entityType, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    res.json(result.rows);
   });
 
   const updateAttachmentSchema = z.object({ document_type: z.string().min(1).nullable() });
