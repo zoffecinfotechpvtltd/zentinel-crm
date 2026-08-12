@@ -22,6 +22,10 @@ import systemRoutes from "./routes/system";
 import publicIntakeRoutes from "./routes/publicIntake";
 import publicSignRoutes from "./routes/publicSign";
 import opportunityRoutes from "./routes/opportunities";
+import automationRuleRoutes from "./routes/automationRules";
+import customFieldRoutes from "./routes/customFields";
+import apiKeyRoutes from "./routes/apiKeys";
+import publicApiRoutes from "./routes/publicApi";
 import { getAllowedOrigins } from "./lib/appUrl";
 import { STATUS_PAGE_HTML, STATUS_PAGE_SCRIPT } from "./lib/statusPage";
 
@@ -94,6 +98,14 @@ export function createApp(): express.Application {
   app.use("/api/settings", settingsRoutes);
   app.use("/api/system", systemRoutes);
   app.use("/api/opportunities", opportunityRoutes);
+  app.use("/api/automation-rules", automationRuleRoutes);
+  app.use("/api/custom-fields", customFieldRoutes);
+  app.use("/api/api-keys", apiKeyRoutes);
+  // External tools authenticate with a Bearer API key (requireApiKey), not
+  // the browser session cookie — rate-limited separately since a key isn't
+  // subject to the same per-IP login throttling the cookie-auth routes get.
+  const publicApiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false });
+  app.use("/api/v1", publicApiLimiter, publicApiRoutes);
   // Same-origin only (the /sign/:token page is part of this app's own
   // frontend, not an external site) — unauthenticated by design, but no
   // special CORS treatment needed, unlike /api/public above.

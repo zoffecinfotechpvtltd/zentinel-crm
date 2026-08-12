@@ -1,5 +1,6 @@
 import { pool } from "../db/pool";
 import { createNotification } from "../lib/notifications";
+import { runAutomationRules } from "../lib/automationRules";
 
 // Overdue is computed by this job, not a manually set dropdown: any Final+
 // invoice whose due_date has passed and still carries a balance flips to
@@ -31,6 +32,7 @@ export async function runInvoiceOverdueJob(): Promise<{ affected: number }> {
           title: `Invoice ${invoice.invoice_number ?? invoice.id} is now overdue`,
         });
       }
+      await runAutomationRules("invoice", invoice.id, "Overdue", invoice.invoice_number ?? invoice.id);
     }
   }
 

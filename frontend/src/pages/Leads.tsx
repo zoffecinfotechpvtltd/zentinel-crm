@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
@@ -29,7 +30,7 @@ type Lead = {
   mobile: string | null; industry: string | null; source: string | null; service_id: string | null;
   status: string; lost_reason: string | null; value_estimate: string | null; assigned_to: string | null;
   next_followup_date: string | null; notes: string | null; converted_to_client_id: string | null;
-  lead_score: number; opportunity_count: number;
+  lead_score: number; opportunity_count: number; custom_fields: Record<string, unknown>;
 };
 
 function scoreColor(score: number): string {
@@ -46,6 +47,7 @@ type ListResponse<T> = { data: T[]; total: number; page: number; per_page: numbe
 const emptyForm = {
   company: "", contact_person: "", designation: "", email: "", mobile: "", website: "",
   industry: "", source: "", service_id: "", value_estimate: "", next_followup_date: "", notes: "",
+  custom_fields: {} as Record<string, unknown>,
 };
 
 export function Leads() {
@@ -178,6 +180,7 @@ export function Leads() {
       email: l.email, mobile: l.mobile ?? "", website: "", industry: l.industry ?? "", source: l.source ?? "",
       service_id: l.service_id ?? "", value_estimate: l.value_estimate ?? "",
       next_followup_date: toDateInputValue(l.next_followup_date), notes: l.notes ?? "",
+      custom_fields: l.custom_fields ?? {},
     });
     setFieldErrors({});
     setModalOpen(true);
@@ -194,6 +197,7 @@ export function Leads() {
       service_id: nullable(form.service_id),
       value_estimate: form.value_estimate ? Number(form.value_estimate) : (editing ? null : undefined),
       next_followup_date: nullable(form.next_followup_date), notes: nullable(form.notes),
+      custom_fields: form.custom_fields,
     };
     try {
       if (editing) {
@@ -537,6 +541,7 @@ export function Leads() {
               <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
           </div>
+          <CustomFieldsSection entityType="lead" values={form.custom_fields} onChange={(v) => setForm({ ...form, custom_fields: v })} />
           {editing && leadDetail && leadDetail.opportunities.length > 0 && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
               <div className="form-label" style={{ marginBottom: 8 }}>Linked Opportunities</div>

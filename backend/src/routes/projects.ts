@@ -7,6 +7,7 @@ import { createNotification } from "../lib/notifications";
 import { buildSingleEventIcs } from "../lib/ics";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 import { fireWebhook } from "../lib/outboundWebhook";
+import { runAutomationRules } from "../lib/automationRules";
 
 const router = Router();
 
@@ -284,6 +285,10 @@ router.patch("/:id", requireRole("admin", "ops"), async (req, res) => {
     }
 
     await client.query("commit");
+
+    if (f.status && f.status !== existing.status) {
+      await runAutomationRules("project", req.params.id, f.status, existing.name);
+    }
 
     if (f.assigned_to !== undefined && f.assigned_to && f.assigned_to !== existing.assigned_to) {
       await createNotification(pool, {

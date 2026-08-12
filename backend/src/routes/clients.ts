@@ -212,6 +212,7 @@ const createClientSchema = z.object({
   gstin: z.string().optional(),
   billing_address: z.string().optional(),
   tally_ledger_name: z.string().optional(),
+  custom_fields: z.record(z.unknown()).optional(),
 });
 
 router.post("/", requireRole("admin"), async (req, res) => {
@@ -222,9 +223,9 @@ router.post("/", requireRole("admin"), async (req, res) => {
   }
   const f = parsed.data;
   const result = await pool.query(
-    `insert into clients (company, gstin, billing_address, tally_ledger_name, created_by, updated_by)
-     values ($1,$2,$3,$4,$5,$5) returning *`,
-    [f.company, f.gstin ?? null, f.billing_address ?? null, f.tally_ledger_name ?? null, req.user!.id]
+    `insert into clients (company, gstin, billing_address, tally_ledger_name, custom_fields, created_by, updated_by)
+     values ($1,$2,$3,$4,$5,$6,$6) returning *`,
+    [f.company, f.gstin ?? null, f.billing_address ?? null, f.tally_ledger_name ?? null, JSON.stringify(f.custom_fields ?? {}), req.user!.id]
   );
   await writeActivityLog(pool, {
     entityType: "client",
@@ -243,6 +244,7 @@ const updateClientSchema = z.object({
   tally_ledger_name: z.string().nullable().optional(),
   is_archived: z.boolean().optional(),
   parent_client_id: z.string().uuid().nullable().optional(),
+  custom_fields: z.record(z.unknown()).optional(),
 });
 
 router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
@@ -290,7 +292,7 @@ router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
   let i = 1;
   for (const [key, value] of Object.entries(f)) {
     setClauses.push(`${key} = $${i++}`);
-    values.push(value);
+    values.push(key === "custom_fields" ? JSON.stringify(value) : value);
   }
   if (setClauses.length === 0) {
     res.status(400).json({ error: "no_fields_to_update" });

@@ -7,6 +7,7 @@ import { createNotification } from "../lib/notifications";
 import { buildSingleEventIcs } from "../lib/ics";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 import { fireWebhook } from "../lib/outboundWebhook";
+import { runAutomationRules } from "../lib/automationRules";
 
 const router = Router();
 
@@ -224,6 +225,7 @@ const createLeadSchema = z.object({
   assigned_to: z.string().uuid().optional(),
   next_followup_date: z.string().optional(),
   notes: z.string().optional(),
+  custom_fields: z.record(z.unknown()).optional(),
 });
 
 router.post("/", requireRole("admin", "sales"), async (req, res) => {
@@ -248,13 +250,13 @@ router.post("/", requireRole("admin", "sales"), async (req, res) => {
     `insert into leads (
        company, contact_person, email, designation, mobile, website,
        industry, source, service_id, value_estimate, assigned_to,
-       next_followup_date, notes, status, created_by, updated_by
-     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'New',$14,$14)
+       next_followup_date, notes, custom_fields, status, created_by, updated_by
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'New',$15,$15)
      returning *`,
     [
       f.company, f.contact_person, f.email, f.designation ?? null, f.mobile ?? null, f.website ?? null,
       f.industry ?? null, f.source ?? null, f.service_id ?? null, f.value_estimate ?? null,
-      assignedTo, f.next_followup_date ?? null, f.notes ?? null, req.user!.id,
+      assignedTo, f.next_followup_date ?? null, f.notes ?? null, JSON.stringify(f.custom_fields ?? {}), req.user!.id,
     ]
   );
 
@@ -299,6 +301,7 @@ const updateLeadSchema = z.object({
   assigned_to: z.string().uuid().nullable().optional(),
   next_followup_date: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  custom_fields: z.record(z.unknown()).optional(),
 });
 
 router.patch("/:id", requireRole("admin", "sales"), async (req, res) => {
@@ -338,7 +341,7 @@ router.patch("/:id", requireRole("admin", "sales"), async (req, res) => {
     let i = 1;
     for (const [key, value] of Object.entries(f)) {
       setClauses.push(`${key} = $${i++}`);
-      values.push(value);
+      values.push(key === "custom_fields" ? JSON.stringify(value) : value);
     }
     if (setClauses.length === 0) {
       res.status(400).json({ error: "no_fields_to_update" });
@@ -366,6 +369,10 @@ router.patch("/:id", requireRole("admin", "sales"), async (req, res) => {
     }
 
     await client.query("commit");
+
+    if (f.status && f.status !== existing.status) {
+      await runAutomationRules("lead", req.params.id, f.status, existing.company);
+    }
 
     if (f.assigned_to !== undefined && f.assigned_to && f.assigned_to !== existing.assigned_to) {
       await createNotification(pool, {
@@ -546,6 +553,7 @@ router.post("/:id/convert", requireRole("admin", "sales"), async (req, res) => {
 
     await client.query("commit");
     fireWebhook("lead.won", { lead_id: lead.id, company: lead.company, value_estimate: wonValue });
+    await runAutomationRules("lead", lead.id, "Won", lead.company);
     res.status(201).json({ client: newClient, lead_id: lead.id });
   } catch (err) {
     await client.query("rollback");

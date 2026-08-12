@@ -9,7 +9,7 @@ import { useIdleLogout } from "../lib/useIdleLogout";
 import {
   IconDashboard, IconLeads, IconClients, IconProjects, IconInvoices, IconFollowups,
   IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconSun,
-  IconMoon, IconLogout, IconMenu, IconChevronDown, IconOpportunities, IconActivity,
+  IconMoon, IconLogout, IconMenu, IconChevronDown, IconOpportunities, IconActivity, IconSparkle, IconKey,
 } from "./Icons";
 
 type NavItem = { to: string; label: string; icon: React.ReactNode; roles?: string[] };
@@ -157,6 +157,9 @@ export function Layout() {
             <NavLink to="/templates" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconTemplate />Message Templates</NavLink>
             <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Settings</NavLink>
             <NavLink to="/audit-log" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconFollowups />Audit Log</NavLink>
+            <NavLink to="/automation-rules" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSparkle />Automation Rules</NavLink>
+            <NavLink to="/custom-fields" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Custom Fields</NavLink>
+            <NavLink to="/api-keys" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconKey />API Keys</NavLink>
           </div>
         )}
         <div className="nav-footer">

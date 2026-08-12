@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   IconDashboard, IconLeads, IconClients, IconProjects, IconInvoices, IconFollowups,
-  IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconPlus, IconOpportunities, IconActivity,
+  IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconPlus, IconOpportunities, IconActivity, IconSparkle, IconKey,
 } from "./Icons";
 
 type Command = { label: string; hint?: string; to?: string; roles?: string[]; icon: React.ReactNode; action?: () => void };
@@ -30,6 +30,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { label: "Users", to: "/users", icon: <IconUsers />, roles: ["admin"] },
     { label: "Message Templates", to: "/templates", icon: <IconTemplate />, roles: ["admin"] },
     { label: "Settings", to: "/settings", icon: <IconSettings />, roles: ["admin"] },
+    { label: "Automation Rules", to: "/automation-rules", icon: <IconSparkle />, roles: ["admin"] },
+    { label: "Custom Fields", to: "/custom-fields", icon: <IconSettings />, roles: ["admin"] },
+    { label: "API Keys", to: "/api-keys", icon: <IconKey />, roles: ["admin"] },
   ], []);
 
   const filtered = useMemo(() => {

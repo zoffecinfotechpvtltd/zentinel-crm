@@ -24,6 +24,9 @@ import { Users } from "./pages/Users";
 import { MessageTemplates } from "./pages/MessageTemplates";
 import { Settings } from "./pages/Settings";
 import { AuditLog } from "./pages/AuditLog";
+import { AutomationRules } from "./pages/AutomationRules";
+import { CustomFields } from "./pages/CustomFields";
+import { ApiKeys } from "./pages/ApiKeys";
 import { MyAccount } from "./pages/MyAccount";
 import { api } from "./lib/api";
 
@@ -140,6 +143,30 @@ function App() {
                 element={
                   <RequireRole roles={["admin"]}>
                     <AuditLog />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/automation-rules"
+                element={
+                  <RequireRole roles={["admin"]}>
+                    <AutomationRules />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/custom-fields"
+                element={
+                  <RequireRole roles={["admin"]}>
+                    <CustomFields />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/api-keys"
+                element={
+                  <RequireRole roles={["admin"]}>
+                    <ApiKeys />
                   </RequireRole>
                 }
               />

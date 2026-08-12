@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api, API_BASE, ApiError } from "../lib/api";
@@ -26,7 +27,7 @@ type Opportunity = {
   description: string | null; pdf_pg_url: string | null; stage: string; lost_reason: string | null;
   value: string | null; follow_up_date: string | null; lead_date: string | null; remarks: string | null; assigned_to: string | null;
   client_id: string | null; lead_id: string | null; client: LinkedCompany | null; lead: LinkedCompany | null;
-  opportunity_types: OpportunityType[];
+  opportunity_types: OpportunityType[]; custom_fields: Record<string, unknown>;
 };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type ImportResult = { imported: number; skipped: { row: number; reason: string }[]; duplicates: number };
@@ -36,7 +37,7 @@ const emptyForm = {
   kind: "service" as (typeof KINDS)[number], company: "", client_name: "", contact: "",
   opportunity_type_ids: [] as string[], description: "", pdf_pg_url: "",
   stage: "Open" as (typeof STAGES)[number], lost_reason: "", value: "", follow_up_date: "", lead_date: "", remarks: "",
-  client_id: "", lead_id: "",
+  client_id: "", lead_id: "", custom_fields: {} as Record<string, unknown>,
 };
 
 export function Opportunities() {
@@ -115,7 +116,7 @@ export function Opportunities() {
       opportunity_type_ids: o.opportunity_types.map((t) => t.id), description: o.description ?? "",
       pdf_pg_url: o.pdf_pg_url ?? "", stage: o.stage as (typeof STAGES)[number], lost_reason: o.lost_reason ?? "",
       value: o.value ?? "", follow_up_date: o.follow_up_date ?? "", lead_date: o.lead_date ?? "", remarks: o.remarks ?? "",
-      client_id: o.client_id ?? "", lead_id: o.lead_id ?? "",
+      client_id: o.client_id ?? "", lead_id: o.lead_id ?? "", custom_fields: o.custom_fields ?? {},
     });
     setFieldErrors({});
     setModalOpen(true);
@@ -153,7 +154,7 @@ export function Opportunities() {
       stage: form.stage, lost_reason: form.stage === "Lost" ? nullable(form.lost_reason) : (editing ? null : undefined),
       value: form.value ? Number(form.value) : (editing ? null : undefined),
       follow_up_date: nullable(form.follow_up_date), lead_date: nullable(form.lead_date), remarks: nullable(form.remarks),
-      client_id: nullable(form.client_id), lead_id: nullable(form.lead_id),
+      client_id: nullable(form.client_id), lead_id: nullable(form.lead_id), custom_fields: form.custom_fields,
     };
     try {
       if (editing) {
@@ -451,6 +452,7 @@ export function Opportunities() {
               <textarea className="form-textarea" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
             </div>
           </div>
+          <CustomFieldsSection entityType="opportunity" values={form.custom_fields} onChange={(v) => setForm({ ...form, custom_fields: v })} />
         </Modal>
       )}
 

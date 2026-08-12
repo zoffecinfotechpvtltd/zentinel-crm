@@ -6,6 +6,7 @@ import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { writeActivityLog } from "../lib/activityLog";
 import { fireWebhook } from "../lib/outboundWebhook";
+import { runAutomationRules } from "../lib/automationRules";
 
 const router = Router();
 
@@ -181,6 +182,7 @@ const createSchema = z.object({
   assigned_to: z.string().uuid().optional(),
   client_id: z.string().uuid().optional(),
   lead_id: z.string().uuid().optional(),
+  custom_fields: z.record(z.unknown()).optional(),
 });
 
 // Confirms a referenced client_id/lead_id actually exists (and isn't
@@ -223,13 +225,13 @@ router.post("/", async (req, res) => {
   const result = await pool.query(
     `insert into opportunities (
        kind, company, client_name, contact, description, pdf_pg_url,
-       stage, lost_reason, value, follow_up_date, lead_date, remarks, assigned_to, client_id, lead_id, created_by, updated_by
-     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16)
+       stage, lost_reason, value, follow_up_date, lead_date, remarks, assigned_to, client_id, lead_id, custom_fields, created_by, updated_by
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17)
      returning *`,
     [
       f.kind, f.company, f.client_name ?? null, f.contact ?? null, f.description ?? null, f.pdf_pg_url ?? null,
       f.stage ?? "Open", f.lost_reason ?? null, f.value ?? null, f.follow_up_date ?? null, f.lead_date ?? null, f.remarks ?? null,
-      f.assigned_to ?? null, f.client_id ?? null, f.lead_id ?? null, req.user!.id,
+      f.assigned_to ?? null, f.client_id ?? null, f.lead_id ?? null, JSON.stringify(f.custom_fields ?? {}), req.user!.id,
     ]
   );
   const opportunity = result.rows[0];
@@ -513,6 +515,7 @@ const updateSchema = z.object({
   assigned_to: z.string().uuid().nullable().optional(),
   client_id: z.string().uuid().nullable().optional(),
   lead_id: z.string().uuid().nullable().optional(),
+  custom_fields: z.record(z.unknown()).optional(),
 });
 
 router.patch("/:id", async (req, res) => {
@@ -549,7 +552,7 @@ router.patch("/:id", async (req, res) => {
   let i = 1;
   for (const [key, value] of Object.entries(f)) {
     setClauses.push(`${key} = $${i++}`);
-    values.push(value);
+    values.push(key === "custom_fields" ? JSON.stringify(value) : value);
   }
   if (setClauses.length === 0 && opportunity_type_ids === undefined) {
     res.status(400).json({ error: "no_fields_to_update" });
@@ -570,6 +573,17 @@ router.patch("/:id", async (req, res) => {
 
   if (opportunity_type_ids !== undefined) {
     await linkTypes(req.params.id, opportunity_type_ids);
+  }
+
+  if (f.stage && f.stage !== existing.stage) {
+    await writeActivityLog(pool, {
+      entityType: "opportunity",
+      entityId: req.params.id,
+      actorId: req.user!.id,
+      action: "status_changed",
+      detail: { from: existing.stage, to: f.stage },
+    });
+    await runAutomationRules("opportunity", req.params.id, f.stage, existing.company);
   }
 
   const [enriched] = await enrichOpportunities([updated]);

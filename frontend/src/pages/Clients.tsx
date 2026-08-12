@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api } from "../lib/api";
@@ -39,6 +40,7 @@ type ClientDetail = Client & {
   parent_client: { id: string; company: string } | null;
   child_clients: { id: string; company: string; status: string }[];
   timeline: TimelineEntry[];
+  custom_fields: Record<string, unknown>;
 };
 
 function describeTimelineEntry(row: TimelineEntry): string {
@@ -139,10 +141,24 @@ export function Clients() {
     setLedgerDraft(detail?.tally_ledger_name ?? "");
   }, [detail?.tally_ledger_name]);
 
+  const { data: clientFieldDefs } = useFetch<{ is_active: boolean }[]>(detailId ? "/custom-fields?entity_type=client" : "");
+  const hasCustomFields = (clientFieldDefs ?? []).some((d) => d.is_active);
+  const [customFieldsDraft, setCustomFieldsDraft] = useState<Record<string, unknown>>({});
+  useEffect(() => {
+    setCustomFieldsDraft(detail?.custom_fields ?? {});
+  }, [detail?.custom_fields]);
+
   async function saveLedger() {
     if (!detailId) return;
     await api.patch(`/clients/${detailId}`, { tally_ledger_name: ledgerDraft || null });
     reloadDetail();
+  }
+
+  async function saveCustomFields() {
+    if (!detailId) return;
+    await api.patch(`/clients/${detailId}`, { custom_fields: customFieldsDraft });
+    reloadDetail();
+    push("Fields saved", "success");
   }
 
   async function setParentClient(parentClientId: string) {
@@ -328,6 +344,13 @@ export function Clients() {
                 placeholder="No parent — this is a standalone account"
                 options={(allClients?.data ?? []).filter((c) => c.id !== detail.id).map((c) => ({ value: c.id, label: c.company }))}
               />
+            </div>
+          )}
+
+          {canEdit && hasCustomFields && (
+            <div style={{ marginBottom: 20 }}>
+              <CustomFieldsSection entityType="client" values={customFieldsDraft} onChange={setCustomFieldsDraft} />
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={saveCustomFields}>Save Fields</button>
             </div>
           )}
 

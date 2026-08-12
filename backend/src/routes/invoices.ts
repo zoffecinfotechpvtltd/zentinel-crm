@@ -11,6 +11,7 @@ import { computeTotals } from "../lib/invoiceMath";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 import { buildSingleEventIcs } from "../lib/ics";
 import { fireWebhook } from "../lib/outboundWebhook";
+import { runAutomationRules } from "../lib/automationRules";
 
 const router = Router();
 const pdfUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -599,6 +600,7 @@ router.post("/:id/finalize", requireRole("admin", "finance"), async (req, res) =
     });
 
     await client.query("commit");
+    await runAutomationRules("invoice", invoice.id, "Final", invoiceNumber);
     res.json(updateResult.rows[0]);
   } catch (err) {
     await client.query("rollback");
@@ -729,6 +731,9 @@ router.post("/:id/payments", requireRole("admin", "finance"), async (req, res) =
     await client.query("commit");
     if (newStatus === "Paid" && invoice.status !== "Paid") {
       fireWebhook("invoice.paid", { invoice_id: invoice.id, invoice_number: invoice.invoice_number, total: invoice.total });
+    }
+    if (newStatus !== invoice.status) {
+      await runAutomationRules("invoice", invoice.id, newStatus, invoice.invoice_number ?? invoice.id);
     }
     res.status(201).json({ payment: paymentResult.rows[0], balance, invoice_status: newStatus });
   } catch (err) {

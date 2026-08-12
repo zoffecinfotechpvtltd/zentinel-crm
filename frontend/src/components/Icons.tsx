@@ -115,3 +115,6 @@ export const IconActivity = ({ size = 17, ...p }: IconProps) => (
 export const IconDownload = ({ size = 17, ...p }: IconProps) => (
   <svg {...base(size, p)}><path d="M12 4v12M7 11l5 5 5-5" /><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" /></svg>
 );
+export const IconKey = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M14 9l2 2" /></svg>
+);
