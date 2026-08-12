@@ -120,7 +120,8 @@ export function Settings() {
     <div>
       <PageHeader icon={<IconSettings size={19} />} title="Settings" subtitle="Company-wide configuration — admin only. For your own sessions and 2FA, see Account & 2FA in the user menu." />
 
-      <div className="card" style={{ maxWidth: 560 }}>
+      <div className="settings-grid">
+      <div className="card">
         <div className="card-title">Email (SMTP)</div>
         <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 16 }}>
           Works with any provider — Gmail, Zoho, Outlook, your own mail server. Used for password-reset links and the daily summary email. Leave unconfigured and emails just get skipped (nothing breaks).
@@ -164,7 +165,7 @@ export function Settings() {
       </div>
 
       {serverInfo && serverInfo.desktop_bind !== "not_desktop" && (
-        <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
+        <div className="card">
           <div className="card-title">Network</div>
           {serverInfo.desktop_bind === "loopback" && (
             <p style={{ fontSize: 12, color: "var(--text2)" }}>
@@ -192,7 +193,7 @@ export function Settings() {
       )}
 
       {serverInfo && serverInfo.desktop_bind === "not_desktop" && (
-        <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
+        <div className="card">
           <div className="card-title">File Storage</div>
           {serverInfo.object_storage_configured ? (
             <div className="banner banner-info">Object storage is active — uploaded files persist across deploys and restarts, and a full database backup is written there automatically every night.</div>
@@ -204,7 +205,7 @@ export function Settings() {
         </div>
       )}
 
-      <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
+      <div className="card">
         <div className="card-title">Backup &amp; Restore</div>
         <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14 }}>
           {serverInfo?.desktop_bind === "lan"
@@ -237,7 +238,7 @@ export function Settings() {
         </div>
       </div>
 
-      <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
+      <div className="card">
         <div className="card-title">Integrations</div>
         <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14 }}>
           Internal automation hooks — not a public API. Use these to connect your own website's contact form or your own Slack/Make.com/n8n/Zapier webhook.
@@ -272,6 +273,7 @@ export function Settings() {
           {webhookSaved && <div className="banner banner-info">Saved.</div>}
           <button type="button" className="btn btn-primary btn-sm" onClick={saveOutboundWebhook}>Save</button>
         </div>
+      </div>
       </div>
     </div>
   );

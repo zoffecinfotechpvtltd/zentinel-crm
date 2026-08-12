@@ -10,7 +10,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { formatDate } from "../lib/format";
-import { IconOpportunities, IconPlus, IconInbox, IconUpload, IconDownload } from "../components/Icons";
+import { IconOpportunities, IconPlus, IconInbox, IconUpload, IconDownload, IconCheck } from "../components/Icons";
 import { CustomSelect, type SelectOption } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
 
@@ -392,12 +392,21 @@ export function Opportunities() {
             <div className="form-group full">
               <label className="form-label">Opportunity Types</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "8px 0" }}>
-                {types?.map((t) => (
-                  <label key={t.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 999, padding: "5px 10px", cursor: "pointer" }}>
-                    <input type="checkbox" checked={form.opportunity_type_ids.includes(t.id)} onChange={() => toggleType(t.id)} />
-                    {t.name}
-                  </label>
-                ))}
+                {types?.map((t) => {
+                  const selected = form.opportunity_type_ids.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`type-chip${selected ? " selected" : ""}`}
+                      aria-pressed={selected}
+                      onClick={() => toggleType(t.id)}
+                    >
+                      {selected && <IconCheck size={11} />}
+                      {t.name}
+                    </button>
+                  );
+                })}
               </div>
               <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                 <input className="filter-input" placeholder="New type name…" value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} style={{ maxWidth: 220 }} />
