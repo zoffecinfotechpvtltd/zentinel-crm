@@ -82,6 +82,15 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
     reloadAttachments();
   }
 
+  async function editAttachmentType(id: string, documentType: string) {
+    try {
+      await api.patch(`${base}/${entityId}/attachments/${id}`, { document_type: documentType });
+      reloadAttachments();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Couldn't update the document type", "error");
+    }
+  }
+
   async function requestSignature(id: string) {
     try {
       const result = await api.post<{ link: string }>(`${base}/${entityId}/attachments/${id}/signature-request`);
@@ -94,7 +103,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
   }
 
   return (
-    <div className="grid2" style={{ marginTop: 4 }}>
+    <div className="notes-files-grid" style={{ marginTop: 4 }}>
       <div className="card">
         <div className="card-title">Activity Notes</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -148,9 +157,9 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
         {(attachments?.length ?? 0) === 0 && <div className="empty" style={{ padding: 16 }}>No files yet</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {attachments?.map((a) => (
-            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)" }}>
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)", flexWrap: "wrap" }}>
               <IconPaperclip size={14} style={{ color: "var(--text3)", flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <a
                   href={`${API_BASE}/api${base}/${entityId}/attachments/${a.id}/file`}
                   style={{ fontSize: 13, color: "var(--text)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
@@ -158,8 +167,18 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
                 >
                   {a.filename}
                 </a>
-                <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
-                  {a.document_type && <span className="badge badge-draft">{a.document_type}</span>}
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  {canManage(a.uploaded_by) ? (
+                    <CustomSelect
+                      className="sm"
+                      value={a.document_type ?? ""}
+                      onChange={(v) => editAttachmentType(a.id, v)}
+                      placeholder="Set type…"
+                      options={DOCUMENT_TYPES.map((t) => ({ value: t, label: t }))}
+                    />
+                  ) : (
+                    a.document_type && <span className="badge badge-draft">{a.document_type}</span>
+                  )}
                   {a.signature_status === "signed" && (
                     <span className="badge" style={{ background: "var(--success-soft)", color: "var(--success)" }} title={a.signed_at ? new Date(a.signed_at).toLocaleString() : undefined}>
                       Signed by {a.signer_name}

@@ -2,6 +2,19 @@ import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import ExcelJS from "exceljs";
 import { resetDb, loginAs } from "../../test-support/testApp";
 
+// pg parses a `date` column into a JS Date at LOCAL midnight, and
+// Express's res.json() then serializes it via toISOString() (always UTC) —
+// so the raw ISO string is shifted away from the intended calendar date by
+// whatever the server process's local UTC offset is. The real frontend
+// undoes this correctly via toLocaleDateString() (also local-zone), and
+// this test runs in the same local zone as the server under test, so
+// reading the date back through local accessors (not toISOString) mirrors
+// what a real browser in this timezone would actually display.
+function localDateStr(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 async function buildImportRow(company: string): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const sheet = wb.addWorksheet("Opportunities");
@@ -158,6 +171,81 @@ describe("opportunities routes", () => {
 
       const second = await agent.post(`/api/opportunities/${createRes.body.id}/convert`);
       expect(second.status).toBe(409);
+    });
+
+    it("removes a converted opportunity from the list, but keeps an open one merely linked to a client visible", async () => {
+      const { agent } = await loginAs("admin");
+
+      // Scenario 1: Won + converted -> must disappear from the list.
+      const converted = await agent.post("/api/opportunities").send({ kind: "service", company: "Vanish After Convert Co" });
+      await agent.patch(`/api/opportunities/${converted.body.id}`).send({ stage: "Won" });
+      const convertRes = await agent.post(`/api/opportunities/${converted.body.id}/convert`);
+      expect(convertRes.status).toBe(201);
+
+      // Scenario 2: Won but NOT yet converted -> must still show (so the
+      // Convert to Client button stays reachable).
+      const wonNotConverted = await agent.post("/api/opportunities").send({ kind: "service", company: "Won Not Converted Co" });
+      await agent.patch(`/api/opportunities/${wonNotConverted.body.id}`).send({ stage: "Won" });
+
+      // Scenario 3: Open but linked to an existing client for reference ->
+      // must still show, since it's still an active pipeline item.
+      const clientRes = await agent.post("/api/clients").send({ company: "Reference Client Co" });
+      const linkedOpen = await agent.post("/api/opportunities").send({
+        kind: "service", company: "Reference Client Co", client_id: clientRes.body.id,
+      });
+
+      const listRes = await agent.get("/api/opportunities");
+      const ids = listRes.body.data.map((o: { id: string }) => o.id);
+      expect(ids).not.toContain(converted.body.id);
+      expect(ids).toContain(wonNotConverted.body.id);
+      expect(ids).toContain(linkedOpen.body.id);
+      expect(listRes.body.total).toBe(2);
+
+      // Confirmed instead on the client it was converted to.
+      const clientCheck = await agent.get(`/api/clients/${convertRes.body.client_id}`);
+      expect(clientCheck.body.originating_opportunity.id).toBe(converted.body.id);
+    });
+  });
+
+  describe("lead date", () => {
+    it("stores lead_date on create and roundtrips it through PATCH", async () => {
+      const { agent } = await loginAs("admin");
+      const createRes = await agent.post("/api/opportunities").send({
+        kind: "service", company: "Lead Date Co", lead_date: "2026-01-15",
+      });
+      expect(createRes.status).toBe(201);
+      expect(localDateStr(createRes.body.lead_date)).toBe("2026-01-15");
+
+      const patchRes = await agent.patch(`/api/opportunities/${createRes.body.id}`).send({ lead_date: "2026-02-20" });
+      expect(patchRes.status).toBe(200);
+      expect(localDateStr(patchRes.body.lead_date)).toBe("2026-02-20");
+    });
+
+    it("leaves lead_date null when omitted on create", async () => {
+      const { agent } = await loginAs("sales");
+      const createRes = await agent.post("/api/opportunities").send({ kind: "product", company: "No Lead Date Co" });
+      expect(createRes.status).toBe(201);
+      expect(createRes.body.lead_date).toBeNull();
+    });
+
+    it("bulk import reads Lead Date from column 11", async () => {
+      const { agent } = await loginAs("admin");
+      const wb = new ExcelJS.Workbook();
+      const sheet = wb.addWorksheet("Opportunities");
+      sheet.addRow([
+        "Kind", "Company", "Client Name", "Contact", "Opportunity Types",
+        "Description", "PDF/PG & URL", "Stage", "Follow-up Date", "Remarks", "Lead Date",
+      ]);
+      const company = `Import Lead Date Co ${Date.now()}`;
+      sheet.addRow(["service", company, "", "", "", "", "", "Open", "", "", "2026-03-10"]);
+      const file = Buffer.from(await wb.xlsx.writeBuffer());
+
+      const importRes = await agent.post("/api/opportunities/import").attach("file", file, "template.xlsx");
+      expect(importRes.status).toBe(200);
+      expect(importRes.body.imported).toBe(1);
+
+      const listRes = await agent.get(`/api/opportunities?search=${encodeURIComponent(company)}`);
+      expect(localDateStr(listRes.body.data[0].lead_date)).toBe("2026-03-10");
     });
   });
 

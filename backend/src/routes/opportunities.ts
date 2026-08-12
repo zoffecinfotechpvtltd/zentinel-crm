@@ -115,6 +115,14 @@ router.get("/", async (req, res) => {
     conditions.push(`o.follow_up_date > current_date and o.stage not in ('Won','Lost')`);
   }
 
+  // Once a Won opportunity has been converted to a Client (client_id set),
+  // it's done — the deal now lives on the Client record (see clients.ts'
+  // originating_opportunity) and clutters the pipeline if it stays listed
+  // here too. Opportunities merely *linked* to an existing client while
+  // still open (via the company picker) are unaffected — only the
+  // Won+converted combination is hidden.
+  conditions.push(`not (o.stage = 'Won' and o.client_id is not null)`);
+
   const whereClause = conditions.join(" and ");
 
   const countResult = await pool.query(`select count(*) from opportunities o where ${whereClause}`, values);
@@ -142,6 +150,7 @@ const createSchema = z.object({
   stage: z.enum(STAGES).optional(),
   lost_reason: z.string().optional(),
   follow_up_date: z.string().optional(),
+  lead_date: z.string().optional(),
   remarks: z.string().optional(),
   assigned_to: z.string().uuid().optional(),
   client_id: z.string().uuid().optional(),
@@ -188,12 +197,12 @@ router.post("/", async (req, res) => {
   const result = await pool.query(
     `insert into opportunities (
        kind, company, client_name, contact, description, pdf_pg_url,
-       stage, lost_reason, follow_up_date, remarks, assigned_to, client_id, lead_id, created_by, updated_by
-     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14)
+       stage, lost_reason, follow_up_date, lead_date, remarks, assigned_to, client_id, lead_id, created_by, updated_by
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15)
      returning *`,
     [
       f.kind, f.company, f.client_name ?? null, f.contact ?? null, f.description ?? null, f.pdf_pg_url ?? null,
-      f.stage ?? "Open", f.lost_reason ?? null, f.follow_up_date ?? null, f.remarks ?? null,
+      f.stage ?? "Open", f.lost_reason ?? null, f.follow_up_date ?? null, f.lead_date ?? null, f.remarks ?? null,
       f.assigned_to ?? null, f.client_id ?? null, f.lead_id ?? null, req.user!.id,
     ]
   );
@@ -234,6 +243,7 @@ const TEMPLATE_HEADERS = [
   "Kind (service/product)", "Company", "Client Name", "Contact",
   "Opportunity Types (comma-separated)", "Description", "PDF/PG & URL",
   "Stage (Open/Proposal Sent/Won/Lost)", "Follow-up Date (YYYY-MM-DD)", "Remarks",
+  "Lead Date (YYYY-MM-DD)",
 ];
 
 router.get("/import-template", async (_req, res) => {
@@ -245,7 +255,7 @@ router.get("/import-template", async (_req, res) => {
   sheet.addRow([
     "service", "Example Client Pvt Ltd", "Jane Doe", "9999999999",
     "Accessibility, CSCRF", "SEBI CSCRF compliance audit", "https://example.com/proposal.pdf",
-    "Open", "2026-09-01", "Follow up after Diwali",
+    "Open", "2026-09-01", "Follow up after Diwali", "2026-08-15",
   ]);
 
   const reference = workbook.addWorksheet("Reference — do not import");
@@ -356,6 +366,12 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
       continue;
     }
 
+    const leadDateRaw = row.getCell(11).text.trim();
+    if (leadDateRaw && !dateFormat.test(leadDateRaw)) {
+      skipped.push({ row: r, reason: `Lead Date must be YYYY-MM-DD, got "${leadDateRaw}"` });
+      continue;
+    }
+
     try {
       const typeNames = row.getCell(5).text.split(",").map((s) => s.trim()).filter(Boolean);
       const typeIds: string[] = [];
@@ -376,13 +392,13 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
       const opportunityResult = await pool.query(
         `insert into opportunities (
            kind, company, client_name, contact, description, pdf_pg_url,
-           stage, follow_up_date, remarks, created_by, updated_by
-         ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
+           stage, follow_up_date, lead_date, remarks, created_by, updated_by
+         ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
          returning id`,
         [
           kindRaw, company, row.getCell(3).text.trim() || null, row.getCell(4).text.trim() || null,
           row.getCell(6).text.trim() || null, row.getCell(7).text.trim() || null,
-          stageRaw, followUpRaw || null, row.getCell(10).text.trim() || null, req.user!.id,
+          stageRaw, followUpRaw || null, leadDateRaw || null, row.getCell(10).text.trim() || null, req.user!.id,
         ]
       );
 
@@ -451,6 +467,7 @@ const updateSchema = z.object({
   stage: z.enum(STAGES).optional(),
   lost_reason: z.string().nullable().optional(),
   follow_up_date: z.string().nullable().optional(),
+  lead_date: z.string().nullable().optional(),
   remarks: z.string().nullable().optional(),
   assigned_to: z.string().uuid().nullable().optional(),
   client_id: z.string().uuid().nullable().optional(),

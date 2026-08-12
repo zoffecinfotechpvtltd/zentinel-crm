@@ -1,5 +1,6 @@
 import type { Router } from "express";
 import multer from "multer";
+import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -131,7 +132,28 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
     res.json(result.rows);
   });
 
-  router.post(`/:id/attachments`, upload.single("file"), async (req, res) => {
+  // multer reports failures (file too large, wrong field name, etc.) via a
+  // callback-style error rather than throwing — left as the router's normal
+  // middleware, that error would fall through to app.ts's generic error
+  // handler as an opaque 500 ("internal_error"), which is exactly the kind
+  // of unhelpful message a user sees as just "a UI error" with no idea what
+  // went wrong. Wrapping it here turns that into a real 400 + message.
+  function handleUpload(req: Parameters<ReturnType<typeof upload.single>>[0], res: Parameters<ReturnType<typeof upload.single>>[1], next: (err?: unknown) => void) {
+    upload.single("file")(req, res, (err: unknown) => {
+      if (!err) {
+        next();
+        return;
+      }
+      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        res.status(400).json({ error: "file_too_large", message: "That file is larger than the 25MB upload limit." });
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Couldn't upload that file.";
+      res.status(400).json({ error: "upload_failed", message });
+    });
+  }
+
+  router.post(`/:id/attachments`, handleUpload, async (req, res) => {
     if (!(await entityExists(req.params.id))) {
       res.status(404).json({ error: "not_found" });
       return;
@@ -157,6 +179,37 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       [entityType, req.params.id, req.file.originalname, req.file.mimetype, req.file.size, storagePath, documentType, req.user!.id]
     );
     res.status(201).json({ ...result.rows[0], uploader_name: req.user!.name });
+  });
+
+  const updateAttachmentSchema = z.object({ document_type: z.string().min(1).nullable() });
+
+  // Lets a mis-tagged upload (wrong document type picked at upload time) be
+  // corrected in place instead of delete-and-reupload — which would also
+  // throw away any signature request already attached to that file.
+  router.patch(`/:id/attachments/:attId`, async (req, res) => {
+    const parsed = updateAttachmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+      return;
+    }
+    const result = await pool.query(
+      `select uploaded_by from attachments where id = $1 and entity_type = $2 and entity_id = $3 and deleted_at is null`,
+      [req.params.attId, entityType, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (req.user!.role !== "admin" && result.rows[0].uploaded_by !== req.user!.id) {
+      res.status(403).json({ error: "forbidden", message: "You can only edit your own uploads." });
+      return;
+    }
+    const updated = await pool.query(
+      `update attachments set document_type = $1 where id = $2
+       returning id, filename, mime_type, size_bytes, document_type, created_at, uploaded_by`,
+      [parsed.data.document_type, req.params.attId]
+    );
+    res.json(updated.rows[0]);
   });
 
   router.get(`/:id/attachments/:attId/file`, async (req, res) => {

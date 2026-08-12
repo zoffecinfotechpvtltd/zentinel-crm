@@ -259,6 +259,13 @@ body.dark .btn-primary:hover { background: var(--accent); filter: brightness(1.1
 .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); }
 .card-title { font-size: 14px; font-weight: 650; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+/* Files carries more per-row content (filename, size, type badge, signature
+   status, Request signature button, delete) than Activity Notes — an even
+   50/50 split squeezes that row until the filename and buttons collide.
+   Skews the split in Files' favor instead of forcing it to fit the same
+   width as Notes. */
+.notes-files-grid { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 14px; margin-bottom: 14px; }
+@media (max-width: 760px) { .notes-files-grid { grid-template-columns: 1fr; } }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 
 /* ----------------------------------------------------------------- table */
@@ -330,6 +337,7 @@ tr.row-selected td { background: var(--accent-soft); }
 .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(2px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fade-in .12s var(--ease); }
 .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-xl); width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: modal-in .16s var(--ease); }
 .modal.wide { width: 780px; }
+.modal.xwide { width: 980px; }
 .modal-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg2); border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
 .modal-title { font-size: 16px; font-weight: 650; }
 .modal-body { padding: 20px; }
@@ -366,6 +374,14 @@ tr.row-selected td { background: var(--accent-soft); }
 }
 .form-textarea { resize: vertical; min-height: 70px; }
 .form-error { font-size: 11px; color: var(--danger); }
+
+/* A small "add a related record" form embedded inside a detail modal
+   (Client -> Contacts / Contracts) — reuses .form-grid/.form-group so it
+   looks like every other form in the app instead of a squeezed filter-bar
+   row of unlabeled inputs. */
+.inline-add-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px 16px; }
+.inline-add-title { font-size: 12px; font-weight: 650; color: var(--text2); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 12px; }
+.inline-add-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
 
 /* ------------------------------------------------------- custom controls */
 /* Drop-in replacements for native <select>/<input type="date">, styled to
@@ -756,8 +772,13 @@ tr.row-selected td { background: var(--accent-soft); }
 
 /* Wraps to a second row instead of scrolling sideways — a wide pipeline
    (7 lead stages) should never make the whole page pan horizontally. */
-.kanban-board { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
-.kanban-col { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); flex: 1 1 240px; min-width: 240px; max-width: 320px; max-height: 70vh; display: flex; flex-direction: column; }
+/* A kanban board's columns are pipeline stages in a fixed order — wrapping
+   the last one onto an orphaned new row (flex-wrap's default behavior once
+   columns run out of row width) breaks that left-to-right reading order.
+   Scrolling sideways instead keeps every column in one line, same as
+   Trello/Jira. */
+.kanban-board { display: flex; flex-wrap: nowrap; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+.kanban-col { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); flex: 0 0 260px; width: 260px; max-height: 70vh; display: flex; flex-direction: column; }
 .kanban-col-head { padding: 12px 14px; border-bottom: 1px solid var(--border); border-top: 3px solid var(--col-accent, var(--accent)); border-radius: var(--radius-lg) var(--radius-lg) 0 0; display: flex; align-items: center; justify-content: space-between; }
 .kanban-col-title { font-size: 12.5px; font-weight: 650; }
 .kanban-col-count { font-size: 11px; color: var(--text3); background: var(--bg2); border-radius: 10px; padding: 1px 8px; }

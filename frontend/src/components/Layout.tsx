@@ -162,7 +162,7 @@ export function Layout() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div className="avatar av-blue">{initials}</div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 550, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
+              <div style={{ fontSize: 13, fontWeight: 550, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
               <div style={{ fontSize: 11, color: "var(--text3)" }}>{user?.email}</div>
             </div>
           </div>

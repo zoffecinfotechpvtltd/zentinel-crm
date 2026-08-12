@@ -26,6 +26,7 @@ type ClientDetail = Client & {
   billing_address: string | null; is_archived: boolean;
   contacts: Contact[]; contracts: Contract[]; contract_value_total: number;
   originating_lead: { id: string; company: string; status: string } | null;
+  originating_opportunity: { id: string; kind: string; company: string; stage: string; lead_date: string | null } | null;
 };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type Service = { id: string; name: string };
@@ -105,16 +106,45 @@ export function Clients() {
     reloadDetail();
   }
 
+  async function deleteContact(contactId: string) {
+    if (!detailId) return;
+    if (!(await confirm({ message: "Remove this contact?", confirmLabel: "Remove", danger: true }))) return;
+    try {
+      await api.delete(`/clients/${detailId}/contacts/${contactId}`);
+      push("Contact removed", "success");
+      reloadDetail();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Failed to remove contact", "error");
+    }
+  }
+
   async function addContract() {
     if (!detailId) return;
-    await api.post(`/clients/${detailId}/contracts`, {
-      service_id: contractForm.service_id || undefined,
-      value: contractForm.value ? Number(contractForm.value) : undefined,
-      start_date: contractForm.start_date || undefined,
-      end_date: contractForm.end_date || undefined,
-    });
-    setContractForm({ service_id: "", value: "", start_date: "", end_date: "" });
-    reloadDetail();
+    try {
+      await api.post(`/clients/${detailId}/contracts`, {
+        service_id: contractForm.service_id || undefined,
+        value: contractForm.value ? Number(contractForm.value) : undefined,
+        start_date: contractForm.start_date || undefined,
+        end_date: contractForm.end_date || undefined,
+      });
+      setContractForm({ service_id: "", value: "", start_date: "", end_date: "" });
+      push("Contract added", "success");
+      reloadDetail();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Failed to add contract", "error");
+    }
+  }
+
+  async function deleteContract(contractId: string) {
+    if (!detailId) return;
+    if (!(await confirm({ message: "Remove this contract? This can't be undone.", confirmLabel: "Remove", danger: true }))) return;
+    try {
+      await api.delete(`/clients/${detailId}/contracts/${contractId}`);
+      push("Contract removed", "success");
+      reloadDetail();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Failed to remove contract", "error");
+    }
   }
 
   const serviceName = (id: string | null) => services?.find((s) => s.id === id)?.name ?? "—";
@@ -193,10 +223,16 @@ export function Clients() {
       )}
 
       {detailId && detail && (
-        <Modal title={detail.company} onClose={() => setDetailId(null)} wide footer={<button type="button" className="btn btn-ghost" onClick={() => setDetailId(null)}>Close</button>}>
+        <Modal title={detail.company} onClose={() => setDetailId(null)} xwide footer={<button type="button" className="btn btn-ghost" onClick={() => setDetailId(null)}>Close</button>}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
             <Badge status={detail.status} />
             {detail.originating_lead && <span style={{ fontSize: 12, color: "var(--text3)" }}>Converted from lead: {detail.originating_lead.company}</span>}
+            {detail.originating_opportunity && (
+              <span style={{ fontSize: 12, color: "var(--text3)" }}>
+                Converted from opportunity: {detail.originating_opportunity.company}
+                {detail.originating_opportunity.lead_date && ` (lead date ${formatDate(detail.originating_opportunity.lead_date)})`}
+              </span>
+            )}
           </div>
 
           {!detail.tally_ledger_name && (
@@ -216,54 +252,101 @@ export function Clients() {
           <div className="card-title">Contacts</div>
           <div className="table-wrap" style={{ marginBottom: 14 }}>
             <table>
-              <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Primary</th><th></th></tr></thead>
+              <thead><tr><th>Name</th><th>Email</th><th>Mobile</th><th>Primary</th>{canEdit && <th></th>}</tr></thead>
               <tbody>
+                {detail.contacts.length === 0 && (
+                  <tr><td colSpan={canEdit ? 5 : 4} style={{ fontSize: 12.5, color: "var(--text3)", textAlign: "center", padding: "18px 0" }}>No contacts yet.</td></tr>
+                )}
                 {detail.contacts.map((c) => (
                   <tr key={c.id}>
                     <td>{c.name}</td><td style={{ fontSize: 12 }}>{c.email ?? "—"}</td><td style={{ fontSize: 12 }}>{c.mobile ?? "—"}</td>
                     <td>{c.is_primary ? <Badge status="Active" /> : ""}</td>
-                    <td>{!c.is_primary && canEdit && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPrimary(c.id)}>Make primary</button>}</td>
+                    {canEdit && (
+                      <td>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {!c.is_primary && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPrimary(c.id)}>Make primary</button>}
+                          <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => deleteContact(c.id)}>Delete</button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {canEdit && (
-            <div className="filter-bar" style={{ marginBottom: 20 }}>
-              <input className="filter-input" placeholder="Name" value={contactForm.name} onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })} />
-              <input className="filter-input" placeholder="Email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
-              <input className="filter-input" placeholder="Mobile" value={contactForm.mobile} onChange={(e) => setContactForm({ ...contactForm, mobile: e.target.value })} />
-              <button type="button" className="btn btn-ghost btn-sm" onClick={addContact} disabled={!contactForm.name}>+ Add Contact</button>
+            <div className="inline-add-card" style={{ marginBottom: 20 }}>
+              <div className="inline-add-title">Add Contact</div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Name *</label>
+                  <input className="form-input" value={contactForm.name} onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Email</label>
+                  <input className="form-input" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Mobile</label>
+                  <input className="form-input" value={contactForm.mobile} onChange={(e) => setContactForm({ ...contactForm, mobile: e.target.value })} />
+                </div>
+              </div>
+              <div className="inline-add-actions">
+                <button type="button" className="btn btn-primary btn-sm" onClick={addContact} disabled={!contactForm.name}>+ Add Contact</button>
+              </div>
             </div>
           )}
 
           <div className="card-title">Contracts <span style={{ fontSize: 12, color: "var(--text3)", fontWeight: 400 }}>Total: {formatMoney(detail.contract_value_total)}</span></div>
           <div className="table-wrap" style={{ marginBottom: 14 }}>
             <table>
-              <thead><tr><th>Service</th><th>Value</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+              <thead><tr><th>Service</th><th>Value</th><th>Start</th><th>End</th><th>Status</th>{canEdit && <th></th>}</tr></thead>
               <tbody>
+                {detail.contracts.length === 0 && (
+                  <tr><td colSpan={canEdit ? 6 : 5} style={{ fontSize: 12.5, color: "var(--text3)", textAlign: "center", padding: "18px 0" }}>No contracts yet.</td></tr>
+                )}
                 {detail.contracts.map((c) => (
                   <tr key={c.id}>
                     <td>{serviceName(c.service_id)}</td><td className="mono">{c.value ? formatMoney(c.value) : "—"}</td>
                     <td style={{ fontSize: 12 }}>{formatDate(c.start_date)}</td><td style={{ fontSize: 12 }}>{formatDate(c.end_date)}</td>
                     <td><Badge status={c.status === "active" ? "Active" : c.status === "completed" ? "Completed" : "Cancelled"} /></td>
+                    {canEdit && (
+                      <td><button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => deleteContract(c.id)}>Delete</button></td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {canEdit && (
-            <div className="filter-bar">
-              <CustomSelect
-                value={contractForm.service_id}
-                onChange={(v) => setContractForm({ ...contractForm, service_id: v })}
-                placeholder="Service…"
-                options={services?.map((s) => ({ value: s.id, label: s.name })) ?? []}
-              />
-              <input className="filter-input" placeholder="Value ₹" type="number" value={contractForm.value} onChange={(e) => setContractForm({ ...contractForm, value: e.target.value })} />
-              <CustomDatePicker value={contractForm.start_date} onChange={(v) => setContractForm({ ...contractForm, start_date: v })} placeholder="Start date" />
-              <CustomDatePicker value={contractForm.end_date} onChange={(v) => setContractForm({ ...contractForm, end_date: v })} placeholder="End date" />
-              <button type="button" className="btn btn-ghost btn-sm" onClick={addContract}>+ Add Contract</button>
+            <div className="inline-add-card">
+              <div className="inline-add-title">Add Contract</div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">Service</label>
+                  <CustomSelect
+                    value={contractForm.service_id}
+                    onChange={(v) => setContractForm({ ...contractForm, service_id: v })}
+                    placeholder="Select service…"
+                    options={services?.map((s) => ({ value: s.id, label: s.name })) ?? []}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Value (₹)</label>
+                  <input className="form-input" type="number" value={contractForm.value} onChange={(e) => setContractForm({ ...contractForm, value: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Start Date</label>
+                  <CustomDatePicker value={contractForm.start_date} onChange={(v) => setContractForm({ ...contractForm, start_date: v })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">End Date</label>
+                  <CustomDatePicker value={contractForm.end_date} onChange={(v) => setContractForm({ ...contractForm, end_date: v })} />
+                </div>
+              </div>
+              <div className="inline-add-actions">
+                <button type="button" className="btn btn-primary btn-sm" onClick={addContract} disabled={!contractForm.service_id && !contractForm.value}>+ Add Contract</button>
+              </div>
             </div>
           )}
 

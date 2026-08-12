@@ -13,6 +13,7 @@ const EMAIL_IMMEDIATELY = new Set([
   "lead_assigned",
   "project_assigned",
   "opportunity_followup_due",
+  "invoice_followup_due",
 ]);
 
 export async function createNotification(

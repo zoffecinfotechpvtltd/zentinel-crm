@@ -59,6 +59,21 @@ export async function runDailyDigestJob(): Promise<{ sent: number }> {
             invoicesResult.rows.map((i) => `  - ${i.invoice_number} (due ${fmtDate(i.due_date)})`).join("\n")
         );
       }
+
+      const invoiceFollowupsResult = await pool.query(
+        `select invoice_number, next_followup_date from invoices
+         where deleted_at is null and status not in ('Draft','Paid','Cancelled')
+           and next_followup_date <= current_date
+         order by next_followup_date limit 10`
+      );
+      if (invoiceFollowupsResult.rows.length > 0) {
+        sections.push(
+          `Invoice follow-ups due today or overdue (${invoiceFollowupsResult.rows.length}):\n` +
+            invoiceFollowupsResult.rows
+              .map((i) => `  - ${i.invoice_number} (due ${fmtDate(i.next_followup_date)})`)
+              .join("\n")
+        );
+      }
     }
 
     if (user.role === "ops" || user.role === "admin") {

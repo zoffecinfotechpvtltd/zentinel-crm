@@ -104,12 +104,22 @@ router.get("/:id", async (req, res) => {
     originatingLead = leadResult.rows[0] ?? null;
   }
 
+  let originatingOpportunity = null;
+  if (client.converted_from_opportunity_id) {
+    const opportunityResult = await pool.query(
+      `select id, kind, company, stage, lead_date, created_at from opportunities where id = $1`,
+      [client.converted_from_opportunity_id]
+    );
+    originatingOpportunity = opportunityResult.rows[0] ?? null;
+  }
+
   res.json({
     ...client,
     contacts: contactsResult.rows,
     contracts: contractsResult.rows,
     contract_value_total: contractsResult.rows.reduce((sum: number, c: { value: string | null }) => sum + Number(c.value ?? 0), 0),
     originating_lead: originatingLead,
+    originating_opportunity: originatingOpportunity,
   });
 });
 
@@ -303,6 +313,19 @@ router.patch("/:id/contacts/:contactId", requireRole("admin", "finance"), async 
   }
 });
 
+router.delete("/:id/contacts/:contactId", requireRole("admin", "finance"), async (req, res) => {
+  const result = await pool.query(
+    `update client_contacts set deleted_at = now(), updated_by = $1, updated_at = now()
+     where id = $2 and client_id = $3 and deleted_at is null returning id`,
+    [req.user!.id, req.params.contactId, req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 // --- contracts ---
 
 const createContractSchema = z.object({
@@ -320,6 +343,18 @@ router.post("/:id/contracts", requireRole("admin", "finance"), async (req, res) 
     return;
   }
   const f = parsed.data;
+
+  // Every field here is individually optional (a contract can be added
+  // before its value/dates are finalized) — but a submission with NONE of
+  // them set is never intentional, it's a stray click that silently created
+  // a blank row with nothing to identify it by.
+  if (!f.service_id && f.value == null) {
+    res.status(400).json({
+      error: "invalid_input",
+      details: { service_id: "Pick a service or enter a value — a contract can't be completely blank" },
+    });
+    return;
+  }
   const result = await pool.query(
     `insert into contracts (client_id, service_id, value, start_date, end_date, status, created_by, updated_by)
      values ($1,$2,$3,$4,$5,$6,$7,$7) returning *`,
@@ -375,6 +410,26 @@ router.patch("/:id/contracts/:contractId", requireRole("admin", "finance"), asyn
     return;
   }
   res.json(result.rows[0]);
+});
+
+router.delete("/:id/contracts/:contractId", requireRole("admin", "finance"), async (req, res) => {
+  const result = await pool.query(
+    `update contracts set deleted_at = now(), updated_by = $1, updated_at = now()
+     where id = $2 and client_id = $3 and deleted_at is null returning id`,
+    [req.user!.id, req.params.contractId, req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  await writeActivityLog(pool, {
+    entityType: "client",
+    entityId: req.params.id,
+    actorId: req.user!.id,
+    action: "contract_removed",
+    detail: { contract_id: req.params.contractId },
+  });
+  res.json({ ok: true });
 });
 
 mountNotesAndAttachments(router, "client");

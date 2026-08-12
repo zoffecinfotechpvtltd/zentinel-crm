@@ -21,6 +21,11 @@ function getClient(): S3Client {
     client = new S3Client({
       region: REGION,
       endpoint: ENDPOINT,
+      // Non-AWS S3-compatible endpoints (Supabase Storage, R2, B2) generally
+      // don't support virtual-hosted-style bucket subdomains — without this
+      // the SDK's default (forcePathStyle: false) sends requests to
+      // "<bucket>.<endpoint>", which 404s on these providers.
+      forcePathStyle: true,
       credentials: { accessKeyId: ACCESS_KEY_ID!, secretAccessKey: SECRET_ACCESS_KEY! },
     });
   }

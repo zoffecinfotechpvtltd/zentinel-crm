@@ -22,7 +22,7 @@ type LinkedCompany = { id: string; company: string };
 type Opportunity = {
   id: string; kind: "service" | "product"; company: string; client_name: string | null; contact: string | null;
   description: string | null; pdf_pg_url: string | null; stage: string; lost_reason: string | null;
-  follow_up_date: string | null; remarks: string | null; assigned_to: string | null;
+  follow_up_date: string | null; lead_date: string | null; remarks: string | null; assigned_to: string | null;
   client_id: string | null; lead_id: string | null; client: LinkedCompany | null; lead: LinkedCompany | null;
   opportunity_types: OpportunityType[];
 };
@@ -33,7 +33,7 @@ type CompanySearchResponse = { clients: LinkedCompany[]; leads: LinkedCompany[] 
 const emptyForm = {
   kind: "service" as (typeof KINDS)[number], company: "", client_name: "", contact: "",
   opportunity_type_ids: [] as string[], description: "", pdf_pg_url: "",
-  stage: "Open" as (typeof STAGES)[number], lost_reason: "", follow_up_date: "", remarks: "",
+  stage: "Open" as (typeof STAGES)[number], lost_reason: "", follow_up_date: "", lead_date: "", remarks: "",
   client_id: "", lead_id: "",
 };
 
@@ -111,7 +111,7 @@ export function Opportunities() {
       kind: o.kind, company: o.company, client_name: o.client_name ?? "", contact: o.contact ?? "",
       opportunity_type_ids: o.opportunity_types.map((t) => t.id), description: o.description ?? "",
       pdf_pg_url: o.pdf_pg_url ?? "", stage: o.stage as (typeof STAGES)[number], lost_reason: o.lost_reason ?? "",
-      follow_up_date: o.follow_up_date ?? "", remarks: o.remarks ?? "",
+      follow_up_date: o.follow_up_date ?? "", lead_date: o.lead_date ?? "", remarks: o.remarks ?? "",
       client_id: o.client_id ?? "", lead_id: o.lead_id ?? "",
     });
     setFieldErrors({});
@@ -147,7 +147,7 @@ export function Opportunities() {
       contact: form.contact || undefined, opportunity_type_ids: form.opportunity_type_ids,
       description: form.description || undefined, pdf_pg_url: form.pdf_pg_url || undefined,
       stage: form.stage, lost_reason: form.stage === "Lost" ? form.lost_reason || undefined : undefined,
-      follow_up_date: form.follow_up_date || undefined, remarks: form.remarks || undefined,
+      follow_up_date: form.follow_up_date || undefined, lead_date: form.lead_date || undefined, remarks: form.remarks || undefined,
       client_id: form.client_id || undefined, lead_id: form.lead_id || undefined,
     };
     try {
@@ -269,13 +269,13 @@ export function Opportunities() {
           <table>
             <thead>
               <tr>
-                <th>Company</th><th>Contact</th><th>Kind</th><th>Types</th><th>Stage</th><th>Follow-up</th><th>Actions</th>
+                <th>Company</th><th>Contact</th><th>Kind</th><th>Lead Date</th><th>Types</th><th>Stage</th><th>Follow-up</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <TableSkeleton rows={6} cols={7} />}
+              {loading && <TableSkeleton rows={6} cols={8} />}
               {!loading && data?.data.length === 0 && (
-                <tr><td colSpan={7}>
+                <tr><td colSpan={8}>
                   <div className="empty">
                     <div className="empty-icon"><IconInbox size={30} /></div>
                     No opportunities match these filters yet.
@@ -292,6 +292,7 @@ export function Opportunities() {
                   </td>
                   <td style={{ fontSize: 12 }}>{o.contact ?? "—"}</td>
                   <td style={{ fontSize: 12, textTransform: "capitalize" }}>{o.kind}</td>
+                  <td style={{ fontSize: 12 }}>{formatDate(o.lead_date)}</td>
                   <td>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 220 }}>
                       {o.opportunity_types.length === 0 && <span style={{ fontSize: 11, color: "var(--text3)" }}>—</span>}
@@ -376,6 +377,10 @@ export function Opportunities() {
                 {fieldErrors.lost_reason && <div className="form-error">{fieldErrors.lost_reason}</div>}
               </div>
             )}
+            <div className="form-group">
+              <label className="form-label">Lead Date</label>
+              <CustomDatePicker value={form.lead_date} onChange={(v) => setForm({ ...form, lead_date: v })} placeholder="When this lead came in…" />
+            </div>
             <div className="form-group">
               <label className="form-label">Follow-up Date</label>
               <CustomDatePicker value={form.follow_up_date} onChange={(v) => setForm({ ...form, follow_up_date: v })} />

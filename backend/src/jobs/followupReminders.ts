@@ -29,6 +29,42 @@ async function runOpportunityFollowupReminders(): Promise<number> {
   return reminders;
 }
 
+// Invoices, like Opportunities, has no per-rep assignment — a due payment
+// follow-up is bundled once per active Admin/Finance user (the two roles
+// with Invoices access; Sales/Ops can't see invoices at all). Distinct from
+// the existing invoice-overdue job: that flags status='Overdue' off
+// due_date automatically; this is Finance's own manually-set "I'll chase
+// this again on X" date (next_followup_date), which — until now — was
+// stored and shown in the Follow-ups screen but never actually reminded
+// anyone when it arrived.
+async function runInvoiceFollowupReminders(): Promise<number> {
+  const dueResult = await pool.query(
+    `select id, invoice_number, next_followup_date from invoices
+     where deleted_at is null and status not in ('Draft','Paid','Cancelled')
+       and next_followup_date <= current_date
+     order by next_followup_date`
+  );
+  if (dueResult.rows.length === 0) return 0;
+
+  const recipientsResult = await pool.query(
+    `select id from users where role in ('admin','finance') and is_active = true and deleted_at is null`
+  );
+
+  const labels = dueResult.rows
+    .slice(0, 5)
+    .map((i) => i.invoice_number ?? `Invoice ${String(i.id).slice(0, 8)}`)
+    .join(", ");
+  const title = `${dueResult.rows.length} invoice follow-up(s) due today or overdue`;
+  const body = labels + (dueResult.rows.length > 5 ? ", …" : "");
+
+  let reminders = 0;
+  for (const user of recipientsResult.rows) {
+    await createNotification(pool, { userId: user.id, type: "invoice_followup_due", title, body });
+    reminders++;
+  }
+  return reminders;
+}
+
 // Runs each morning: one bundled notification per rep for their own Today +
 // Overdue leads, plus a separate escalation notification (to Admins — no
 // manager hierarchy is modeled) for any lead more than 3 business days overdue.
@@ -84,6 +120,7 @@ export async function runFollowupReminderJob(): Promise<{ reminders: number; esc
   }
 
   reminders += await runOpportunityFollowupReminders();
+  reminders += await runInvoiceFollowupReminders();
 
   return { reminders, escalations };
 }
