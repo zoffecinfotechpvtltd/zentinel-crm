@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
@@ -28,7 +29,7 @@ type Lead = {
   mobile: string | null; industry: string | null; source: string | null; service_id: string | null;
   status: string; lost_reason: string | null; value_estimate: string | null; assigned_to: string | null;
   next_followup_date: string | null; notes: string | null; converted_to_client_id: string | null;
-  lead_score: number;
+  lead_score: number; opportunity_count: number;
 };
 
 function scoreColor(score: number): string {
@@ -36,6 +37,7 @@ function scoreColor(score: number): string {
   if (score >= 40) return "var(--warning)";
   return "var(--text3)";
 }
+type LinkedOpportunity = { id: string; kind: string; company: string; stage: string; follow_up_date: string | null; lead_date: string | null; created_at: string };
 type Service = { id: string; name: string };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
@@ -54,7 +56,7 @@ export function Leads() {
     setViewState(v);
   }
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [status, setStatus] = useState("");
   const [serviceId, setServiceId] = useState("");
 
@@ -75,6 +77,7 @@ export function Leads() {
   const [form, setForm] = useState(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const { data: leadDetail } = useFetch<Lead & { opportunities: LinkedOpportunity[] }>(editing ? `/leads/${editing.id}` : "", [editing?.id]);
 
   const [interactionLead, setInteractionLead] = useState<Lead | null>(null);
   const [interactionNote, setInteractionNote] = useState("");
@@ -348,7 +351,15 @@ export function Leads() {
                 {data?.data.map((l) => (
                   <tr key={l.id} className={selected.has(l.id) ? "row-selected" : undefined}>
                     <td><input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} /></td>
-                    <td><div style={{ fontWeight: 550, color: "var(--text)" }}>{l.company}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{l.industry ?? "—"}</div></td>
+                    <td>
+                      <div style={{ fontWeight: 550, color: "var(--text)" }}>{l.company}</div>
+                      <div style={{ fontSize: 11, color: "var(--text3)" }}>{l.industry ?? "—"}</div>
+                      {l.opportunity_count > 0 && (
+                        <Link to={`/opportunities?q=${encodeURIComponent(l.company)}`} style={{ fontSize: 10.5, color: "var(--info)", fontWeight: 600, textDecoration: "none" }}>
+                          ↳ {l.opportunity_count} opportunit{l.opportunity_count === 1 ? "y" : "ies"}
+                        </Link>
+                      )}
+                    </td>
                     <td><div>{l.contact_person}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{l.designation}</div></td>
                     <td style={{ fontSize: 12 }}>{serviceName(l.service_id)}</td>
                     <td style={{ fontSize: 12 }}>{l.source ?? "—"}</td>
@@ -505,6 +516,23 @@ export function Leads() {
               <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
           </div>
+          {editing && leadDetail && leadDetail.opportunities.length > 0 && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+              <div className="form-label" style={{ marginBottom: 8 }}>Linked Opportunities</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {leadDetail.opportunities.map((o) => (
+                  <Link
+                    key={o.id}
+                    to={`/opportunities?q=${encodeURIComponent(o.company)}`}
+                    style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)", color: "var(--text)", textDecoration: "none" }}
+                  >
+                    <span style={{ textTransform: "capitalize" }}>{o.kind} — {o.company}</span>
+                    <Badge status={o.stage} />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
           {editing && <NotesAndFiles entityType="lead" entityId={editing.id} />}
         </Modal>
       )}

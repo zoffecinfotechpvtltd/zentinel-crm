@@ -113,6 +113,23 @@ router.get("/:id", async (req, res) => {
     originatingOpportunity = opportunityResult.rows[0] ?? null;
   }
 
+  // Every opportunity linked to this client (not just the one it originally
+  // converted from) — upsell/renewal opportunities opened after conversion
+  // show up here too, so a Client's full pipeline history is visible in
+  // one place.
+  const opportunitiesResult = await pool.query(
+    `select id, kind, company, stage, follow_up_date, lead_date, created_at from opportunities where client_id = $1 order by created_at desc`,
+    [req.params.id]
+  );
+  const projectsResult = await pool.query(
+    `select id, name, status, progress, due_date from projects where client_id = $1 and deleted_at is null order by created_at desc`,
+    [req.params.id]
+  );
+  const invoicesResult = await pool.query(
+    `select id, invoice_number, status, total, due_date from invoices where client_id = $1 and deleted_at is null order by created_at desc`,
+    [req.params.id]
+  );
+
   res.json({
     ...client,
     contacts: contactsResult.rows,
@@ -120,6 +137,9 @@ router.get("/:id", async (req, res) => {
     contract_value_total: contractsResult.rows.reduce((sum: number, c: { value: string | null }) => sum + Number(c.value ?? 0), 0),
     originating_lead: originatingLead,
     originating_opportunity: originatingOpportunity,
+    opportunities: opportunitiesResult.rows,
+    projects: projectsResult.rows,
+    invoices: invoicesResult.rows,
   });
 });
 

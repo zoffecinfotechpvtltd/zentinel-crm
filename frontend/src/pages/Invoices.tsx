@@ -36,7 +36,7 @@ export function Invoices() {
   const confirm = useConfirm();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
 
   const query = new URLSearchParams({ page: String(page), per_page: "8" });
   if (status) query.set("status", status);

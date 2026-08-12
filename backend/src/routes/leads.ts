@@ -150,7 +150,9 @@ router.get("/", async (req, res) => {
 
   const countResult = await pool.query(`select count(*) from leads where ${whereClause}`, values);
   const dataResult = await pool.query(
-    `select l.*, ${LEAD_SCORE_EXPR} as lead_score from leads l where ${whereClause} order by created_at desc limit $${i} offset $${i + 1}`,
+    `select l.*, ${LEAD_SCORE_EXPR} as lead_score,
+       (select count(*) from opportunities op where op.lead_id = l.id)::int as opportunity_count
+     from leads l where ${whereClause} order by created_at desc limit $${i} offset $${i + 1}`,
     [...values, perPage, offset]
   );
 
@@ -175,7 +177,11 @@ router.get("/:id", async (req, res) => {
     res.status(403).json({ error: "forbidden" });
     return;
   }
-  res.json(lead);
+  const opportunitiesResult = await pool.query(
+    `select id, kind, company, stage, follow_up_date, lead_date, created_at from opportunities where lead_id = $1 order by created_at desc`,
+    [req.params.id]
+  );
+  res.json({ ...lead, opportunities: opportunitiesResult.rows });
 });
 
 const createLeadSchema = z.object({

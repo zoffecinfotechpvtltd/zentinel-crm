@@ -33,7 +33,7 @@ export function Projects() {
   const { push } = useToast();
   const confirm = useConfirm();
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [status, setStatus] = useState("");
 
   const query = new URLSearchParams({ page: String(page), per_page: "8" });

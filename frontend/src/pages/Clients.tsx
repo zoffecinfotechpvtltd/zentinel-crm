@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api } from "../lib/api";
@@ -22,11 +23,15 @@ type Client = {
 };
 type Contact = { id: string; name: string; email: string | null; mobile: string | null; designation: string | null; is_primary: boolean };
 type Contract = { id: string; service_id: string | null; value: string | null; start_date: string | null; end_date: string | null; status: string };
+type LinkedOpportunity = { id: string; kind: string; company: string; stage: string; follow_up_date: string | null; lead_date: string | null };
+type LinkedProject = { id: string; name: string; status: string; progress: number; due_date: string | null };
+type LinkedInvoice = { id: string; invoice_number: string | null; status: string; total: string | number; due_date: string | null };
 type ClientDetail = Client & {
   billing_address: string | null; is_archived: boolean;
   contacts: Contact[]; contracts: Contract[]; contract_value_total: number;
   originating_lead: { id: string; company: string; status: string } | null;
   originating_opportunity: { id: string; kind: string; company: string; stage: string; lead_date: string | null } | null;
+  opportunities: LinkedOpportunity[]; projects: LinkedProject[]; invoices: LinkedInvoice[];
 };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type Service = { id: string; name: string };
@@ -36,7 +41,7 @@ export function Clients() {
   const { push } = useToast();
   const confirm = useConfirm();
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [status, setStatus] = useState("");
 
   const query = new URLSearchParams({ page: String(page), per_page: "8" });
@@ -347,6 +352,53 @@ export function Clients() {
               <div className="inline-add-actions">
                 <button type="button" className="btn btn-primary btn-sm" onClick={addContract} disabled={!contractForm.service_id && !contractForm.value}>+ Add Contract</button>
               </div>
+            </div>
+          )}
+
+          {(detail.opportunities.length > 0 || detail.projects.length > 0 || detail.invoices.length > 0) && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 14 }}>
+              {detail.opportunities.length > 0 && (
+                <div>
+                  <div className="card-title">Opportunities</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {detail.opportunities.map((o) => (
+                      <Link key={o.id} to={`/opportunities?q=${encodeURIComponent(o.company)}`}
+                        style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)", color: "var(--text)", textDecoration: "none" }}>
+                        <span style={{ textTransform: "capitalize" }}>{o.kind} — {o.company}</span>
+                        <Badge status={o.stage} />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {detail.projects.length > 0 && (
+                <div>
+                  <div className="card-title">Projects</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {detail.projects.map((p) => (
+                      <Link key={p.id} to={`/projects?q=${encodeURIComponent(p.name)}`}
+                        style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)", color: "var(--text)", textDecoration: "none" }}>
+                        <span>{p.name}</span>
+                        <Badge status={p.status} />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {detail.invoices.length > 0 && (
+                <div>
+                  <div className="card-title">Invoices</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {detail.invoices.map((inv) => (
+                      <Link key={inv.id} to={`/invoices?q=${encodeURIComponent(inv.invoice_number ?? "")}`}
+                        style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)", color: "var(--text)", textDecoration: "none" }}>
+                        <span>{inv.invoice_number ?? "Draft"} — {formatMoney(Number(inv.total))}</span>
+                        <Badge status={inv.status} />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

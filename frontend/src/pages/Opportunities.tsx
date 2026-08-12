@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../lib/useFetch";
 import { api, API_BASE, ApiError } from "../lib/api";
@@ -43,7 +44,7 @@ export function Opportunities() {
   const confirm = useConfirm();
 
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [kind, setKind] = useState("");
   const [stage, setStage] = useState("");
   const [typeId, setTypeId] = useState("");
@@ -288,8 +289,16 @@ export function Opportunities() {
                   <td>
                     <div style={{ fontWeight: 550, color: "var(--text)" }}>{o.company}</div>
                     <div style={{ fontSize: 11, color: "var(--text3)" }}>{o.client_name ?? "—"}</div>
-                    {o.client && <div style={{ fontSize: 10.5, color: "var(--success)", fontWeight: 600 }}>↳ linked client</div>}
-                    {!o.client && o.lead && <div style={{ fontSize: 10.5, color: "var(--info)", fontWeight: 600 }}>↳ linked lead</div>}
+                    {o.client && (
+                      <Link to={`/clients?q=${encodeURIComponent(o.client.company)}`} style={{ fontSize: 10.5, color: "var(--success)", fontWeight: 600, textDecoration: "none" }}>
+                        ↳ linked client
+                      </Link>
+                    )}
+                    {!o.client && o.lead && (
+                      <Link to={`/leads?q=${encodeURIComponent(o.lead.company)}`} style={{ fontSize: 10.5, color: "var(--info)", fontWeight: 600, textDecoration: "none" }}>
+                        ↳ linked lead
+                      </Link>
+                    )}
                   </td>
                   <td style={{ fontSize: 12 }}>{o.contact ?? "—"}</td>
                   <td style={{ fontSize: 12, textTransform: "capitalize" }}>{o.kind}</td>
