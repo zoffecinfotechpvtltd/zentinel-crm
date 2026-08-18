@@ -9,7 +9,7 @@ import { IconSettings } from "../components/Icons";
 const RESTORE_CONFIRM_PHRASE = "REPLACE ALL DATA";
 
 type SmtpConfig = { host: string; port: number; user: string; from: string };
-type ServerInfo = { hostname: string; lan_addresses: string[]; port: number; desktop_bind: "lan" | "loopback" | "not_desktop"; object_storage_configured: boolean };
+type ServerInfo = { object_storage_configured: boolean };
 type IntegrationsConfig = { lead_webhook_secret: string | null; outbound_webhook_url: string | null };
 
 export function Settings() {
@@ -77,11 +77,6 @@ export function Settings() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function copyAddress(addr: string) {
-    await navigator.clipboard.writeText(addr);
-    push("Copied — send it to whoever's connecting", "success");
   }
 
   async function restoreFromBackup() {
@@ -164,35 +159,7 @@ export function Settings() {
         </div>
       </div>
 
-      {serverInfo && serverInfo.desktop_bind !== "not_desktop" && (
-        <div className="card">
-          <div className="card-title">Network</div>
-          {serverInfo.desktop_bind === "loopback" && (
-            <p style={{ fontSize: 12, color: "var(--text2)" }}>
-              Running in loopback-only mode — only this PC can reach it. To share this data with the rest of the team, pick "Run as Server" during setup on the machine you want to host it (Menu → File → Switch server / connect elsewhere).
-            </p>
-          )}
-          {serverInfo.desktop_bind === "lan" && (
-            <>
-              <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 12 }}>
-                This PC is hosting. On any other PC on this network, install Zentinel, choose "Connect to a Server," and enter one of these addresses — or just open it in a browser, no install needed.
-              </p>
-              {serverInfo.lan_addresses.length === 0 && <div className="banner banner-error">No LAN network interface detected — check this PC is connected to the office network.</div>}
-              {serverInfo.lan_addresses.map((addr) => {
-                const url = `http://${addr}:${serverInfo.port}`;
-                return (
-                  <div key={addr} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                    <code className="mono" style={{ background: "var(--bg3)", padding: "6px 10px", borderRadius: 6, fontSize: 13, flex: 1 }}>{url}</code>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => copyAddress(url)}>Copy</button>
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
-      )}
-
-      {serverInfo && serverInfo.desktop_bind === "not_desktop" && (
+      {serverInfo && (
         <div className="card">
           <div className="card-title">File Storage</div>
           {serverInfo.object_storage_configured ? (
@@ -208,9 +175,7 @@ export function Settings() {
       <div className="card">
         <div className="card-title">Backup &amp; Restore</div>
         <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14 }}>
-          {serverInfo?.desktop_bind === "lan"
-            ? "This machine holds every lead, client, invoice, and file record for the whole team — back it up regularly. A restore replaces everything currently in the database."
-            : "Every record in the database, as a downloadable file. A restore replaces everything currently in the database."}
+          Every record in the database, as a downloadable file. A restore replaces everything currently in the database.
         </p>
         <a className="btn btn-ghost" href={`${API_BASE}/api/system/backup`}>Download backup now</a>
 

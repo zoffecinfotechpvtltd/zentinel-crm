@@ -5,12 +5,7 @@ import { pool } from "../db/pool";
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "zoffec_sid";
 const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS) || 12;
 const REMEMBER_TTL_DAYS = Number(process.env.SESSION_REMEMBER_TTL_DAYS) || 30;
-// Browsers refuse to store/send a `secure` cookie over plain HTTP. The desktop
-// build serves the app over http://localhost (a loopback-only address, so the
-// lack of TLS isn't a real exposure the way it would be for an internet-facing
-// service) — the Electron main process sets DESKTOP_MODE=1 when it spawns this
-// server, which turns the secure flag off regardless of NODE_ENV.
-const COOKIE_SECURE = process.env.NODE_ENV === "production" && process.env.DESKTOP_MODE !== "1";
+const COOKIE_SECURE = process.env.NODE_ENV === "production";
 // "lax" is correct (and simplest) when the frontend and backend share a
 // registrable domain — e.g. zentinel.ztplsolutions.com talking to
 // api.ztplsolutions.com counts as same-site. Only override to "none" (which

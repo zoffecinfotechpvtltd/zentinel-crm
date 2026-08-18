@@ -17,10 +17,9 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Registered after mount so it never delays first paint. Desktop/Electron
-// builds serve over file:// or a loopback origin where service workers add
-// no value and complicate the embedded-Postgres bootstrap — only register
-// for the real web deployment.
+// Registered after mount so it never delays first paint. Only register for
+// a real HTTPS deployment — service workers on a plain http:// origin (e.g.
+// local dev) add no value.
 if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {})

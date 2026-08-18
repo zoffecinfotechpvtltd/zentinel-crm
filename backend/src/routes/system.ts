@@ -1,6 +1,5 @@
 import { Router } from "express";
 import multer from "multer";
-import os from "node:os";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { dumpDatabase, restoreDatabase, type BackupFile } from "../lib/backupRestore";
@@ -44,25 +43,8 @@ router.get("/audit-log", async (req, res) => {
   res.json({ data: dataResult.rows, total: Number(countResult.rows[0].count), page, per_page: perPage });
 });
 
-// Lets an admin find the addresses other machines on the office LAN can use
-// to reach this one, when running in desktop Server mode. Loopback-only
-// desktop installs and cloud deploys can still call this — it just returns
-// whatever interfaces the OS reports, callers decide if it's useful.
 router.get("/server-info", (_req, res) => {
-  const addresses: string[] = [];
-  const interfaces = os.networkInterfaces();
-  for (const entries of Object.values(interfaces)) {
-    for (const entry of entries ?? []) {
-      if (entry.family === "IPv4" && !entry.internal) {
-        addresses.push(entry.address);
-      }
-    }
-  }
   res.json({
-    hostname: os.hostname(),
-    lan_addresses: addresses,
-    port: Number(process.env.PORT) || 4000,
-    desktop_bind: process.env.DESKTOP_MODE === "1" ? (process.env.DESKTOP_BIND === "lan" ? "lan" : "loopback") : "not_desktop",
     object_storage_configured: isObjectStorageConfigured,
   });
 });

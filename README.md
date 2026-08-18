@@ -83,32 +83,17 @@ the client, its contract, and its money belong to Finance and Ops.
 ## Tech stack
 
 Node.js + TypeScript + Express + PostgreSQL on the backend, React + Vite on
-the frontend, Electron + `embedded-postgres` for the packaged desktop app.
+the frontend. Fully cloud-hosted — the backend and frontend deploy as two
+independent services (no bundled/desktop runtime).
 
 ```
 backend/    REST API, migrations, scheduled jobs
 frontend/   React SPA
-desktop/    Electron packaging (main.js, embedded Postgres, installer config)
 ```
 
 ---
 
-## Option A — Download the desktop app (no setup)
-
-Zentinel also ships as a **single Windows installer** — no cloud hosting,
-no database to manage, no environment variables. It bundles its own
-PostgreSQL and starts the whole app (database, backend, frontend) in one
-process on your machine, never reachable from the network. First launch
-walks you through creating the admin account; there's no default login.
-
-Grab the latest installer from the [Releases page](../../releases/latest),
-run it, click through Windows' "unknown publisher" warning (the installer
-isn't code-signed — **More info → Run anyway**), then open **Zentinel**
-from the Start menu.
-
----
-
-## Option B — Run from source (development)
+## Running from source (development)
 
 ### Prerequisites
 
@@ -161,7 +146,7 @@ Backend is now serving on `http://localhost:4000`. Other useful scripts:
 npm run seed     # optional demo data
 npm test         # vitest
 npm run lint     # eslint
-npm run build    # compile to dist/ (needed before a desktop build)
+npm run build    # compile to dist/
 ```
 
 ### 3. Frontend
@@ -191,53 +176,15 @@ its data volume, which forces a fresh `migrate:up` next time).
 
 ---
 
-## Building the Windows installer
+## Deploying
 
-Full detail on what's happening under the hood is inline in
-`desktop/main.js`; short version:
-
-```bash
-cd backend  && npm install && npm run build
-cd ../frontend && npm install && npm run build
-cd ../desktop  && npm install && npm run dist
-```
-
-Produces `desktop/release/Zentinel Setup <version>.exe` — the one file to
-distribute. `desktop/release/win-unpacked/Zentinel.exe` also exists for
-quick local testing without running the full installer each time (delete
-`%APPDATA%\zentinel-desktop` between test runs for a genuinely fresh
-first-run).
-
-**How it works:** `desktop/main.js` is the Electron main process. On
-launch it starts an embedded PostgreSQL (data stored in the OS per-user
-app-data folder, so it survives updates), runs migrations against it,
-forks the compiled backend using Electron's own bundled Node runtime (no
-separate Node.js install needed on the end user's machine), waits for its
-health check, then opens a window pointed at it. The backend binds to
-`127.0.0.1` only in this mode (`DESKTOP_MODE=1`) — never reachable from
-the network. On quit, it kills the backend and stops Postgres cleanly.
-
-**Known gotchas:**
-- `embedded-postgres` is ESM-only; bridged into the CommonJS main process
-  via a single `await import("embedded-postgres")`.
-- `asar` packing is disabled (`desktop/package.json`) — `embedded-postgres`
-  needs to `chmod` its bundled `postgres.exe`/`initdb.exe` at runtime,
-  which doesn't work reliably from inside an asar archive under Electron.
-- If `ELECTRON_RUN_AS_NODE` is already set in your shell before running
-  `npm start` or the built exe, Electron boots as a plain Node process
-  instead of a GUI app. Unset it first: `env -u ELECTRON_RUN_AS_NODE ...`.
-
-**Releasing:**
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-gh release create v1.0.0 "desktop/release/Zentinel Setup 1.0.0.exe" \
-  --title "Zentinel v1.0.0" --notes "First release."
-```
-
-The installer is unsigned, so Windows SmartScreen shows an "unknown
-publisher" warning on first run — expected for internal-only use.
+Backend and frontend deploy as two independent services (e.g. Render/Fly
+for the backend + its Postgres, Vercel/Netlify for the frontend). Set
+`APP_BASE_URL` on the backend to the frontend's exact deployed origin(s)
+(comma-separated if more than one) — it's both the CORS whitelist and the
+base for password-reset links — and `VITE_API_URL` on the frontend build to
+the backend's deployed origin. Run `npm run migrate:up` against the
+production `DATABASE_URL` before first boot.
 
 ---
 

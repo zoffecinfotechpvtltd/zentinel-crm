@@ -15,7 +15,7 @@ describe("system routes", () => {
       const { agent } = await loginAs("admin");
       const res = await agent.get("/api/system/server-info");
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty("hostname");
+      expect(res.body).toHaveProperty("object_storage_configured");
     });
   });
 

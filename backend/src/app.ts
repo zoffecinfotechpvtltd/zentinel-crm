@@ -1,5 +1,4 @@
 import express from "express";
-import path from "node:path";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
@@ -128,18 +127,6 @@ export function createApp(): express.Application {
   app.get("/status.js", (_req, res) => {
     res.type("application/javascript").send(STATUS_PAGE_SCRIPT);
   });
-
-  // Desktop build: the Electron app points this at the bundled frontend/dist so
-  // one process serves both API and UI — no separate frontend host needed.
-  // Unset in the cloud-hosting path (frontend deployed separately), where this
-  // block is simply skipped.
-  if (process.env.FRONTEND_DIST_PATH) {
-    const frontendDist = process.env.FRONTEND_DIST_PATH;
-    app.use(express.static(frontendDist));
-    app.get(/^(?!\/api).*/, (_req, res) => {
-      res.sendFile(path.join(frontendDist, "index.html"));
-    });
-  }
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);
