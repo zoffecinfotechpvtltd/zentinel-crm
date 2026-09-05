@@ -7,7 +7,9 @@ const router = Router();
 
 // Admin-only, same footing as Users/Settings — these rules fire
 // notifications org-wide regardless of who triggered the status change.
-router.use(requireAuth, requireRole("admin"));
+// Automation rules are a technical/config surface — restricted to
+// superadmin, not the wider admin role.
+router.use(requireAuth, requireRole("superadmin"));
 
 const ENTITY_TYPES = ["lead", "opportunity", "invoice", "project"] as const;
 const ROLES = ["admin", "sales", "finance", "ops"] as const;

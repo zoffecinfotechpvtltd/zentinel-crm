@@ -30,13 +30,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     { label: "Users", to: "/users", icon: <IconUsers />, roles: ["admin"] },
     { label: "Message Templates", to: "/templates", icon: <IconTemplate />, roles: ["admin"] },
     { label: "Settings", to: "/settings", icon: <IconSettings />, roles: ["admin"] },
-    { label: "Automation Rules", to: "/automation-rules", icon: <IconSparkle />, roles: ["admin"] },
-    { label: "Custom Fields", to: "/custom-fields", icon: <IconSettings />, roles: ["admin"] },
-    { label: "API Keys", to: "/api-keys", icon: <IconKey />, roles: ["admin"] },
+    { label: "Automation Rules", to: "/automation-rules", icon: <IconSparkle />, roles: ["superadmin"] },
+    { label: "Custom Fields", to: "/custom-fields", icon: <IconSettings />, roles: ["superadmin"] },
+    { label: "API Keys", to: "/api-keys", icon: <IconKey />, roles: ["superadmin"] },
   ], []);
 
   const filtered = useMemo(() => {
-    const available = commands.filter((c) => !c.roles || (user && c.roles.includes(user.role)));
+    // superadmin satisfies any command gated to "admin" too — mirrors
+    // isAdminRole() everywhere else in the app.
+    const available = commands.filter((c) => !c.roles || (user && (c.roles.includes(user.role) || (user.role === "superadmin" && c.roles.includes("admin")))));
     if (!query.trim()) return available;
     const q = query.toLowerCase();
     return available.filter((c) => c.label.toLowerCase().includes(q));

@@ -6,7 +6,9 @@ import { generateRawToken, hashToken } from "../lib/tokens";
 
 const router = Router();
 
-router.use(requireAuth, requireRole("admin"));
+// API keys are a technical/config surface — restricted to superadmin, not
+// the wider admin role.
+router.use(requireAuth, requireRole("superadmin"));
 
 router.get("/", async (_req, res) => {
   const result = await pool.query(

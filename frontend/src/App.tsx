@@ -149,7 +149,7 @@ function App() {
               <Route
                 path="/automation-rules"
                 element={
-                  <RequireRole roles={["admin"]}>
+                  <RequireRole roles={["superadmin"]}>
                     <AutomationRules />
                   </RequireRole>
                 }
@@ -157,7 +157,7 @@ function App() {
               <Route
                 path="/custom-fields"
                 element={
-                  <RequireRole roles={["admin"]}>
+                  <RequireRole roles={["superadmin"]}>
                     <CustomFields />
                   </RequireRole>
                 }
@@ -165,7 +165,7 @@ function App() {
               <Route
                 path="/api-keys"
                 element={
-                  <RequireRole roles={["admin"]}>
+                  <RequireRole roles={["superadmin"]}>
                     <ApiKeys />
                   </RequireRole>
                 }

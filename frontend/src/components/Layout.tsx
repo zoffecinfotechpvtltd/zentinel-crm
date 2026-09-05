@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { Logo } from "./Logo";
+import { UserAvatar } from "./UserAvatar";
 import { CommandPalette } from "./CommandPalette";
 import { useToast } from "./Toast";
 import { useIdleLogout } from "../lib/useIdleLogout";
@@ -114,7 +115,6 @@ export function Layout() {
     push("Signed out after 10 minutes of inactivity", "info");
   });
 
-  const initials = user?.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase() ?? "";
 
   return (
     <div className="app-shell">
@@ -150,13 +150,18 @@ export function Layout() {
             </div>
           );
         })}
-        {user?.role === "admin" && (
+        {(user?.role === "admin" || user?.role === "superadmin") && (
           <div className="nav-section">
             <div className="nav-label">Admin</div>
             <NavLink to="/users" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconUsers />Users</NavLink>
             <NavLink to="/templates" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconTemplate />Message Templates</NavLink>
             <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Settings</NavLink>
             <NavLink to="/audit-log" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconFollowups />Audit Log</NavLink>
+          </div>
+        )}
+        {user?.role === "superadmin" && (
+          <div className="nav-section">
+            <div className="nav-label">Superadmin</div>
             <NavLink to="/automation-rules" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSparkle />Automation Rules</NavLink>
             <NavLink to="/custom-fields" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Custom Fields</NavLink>
             <NavLink to="/api-keys" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconKey />API Keys</NavLink>
@@ -164,7 +169,7 @@ export function Layout() {
         )}
         <div className="nav-footer">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div className="avatar av-blue">{initials}</div>
+            <UserAvatar user={user} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 550, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
               <div style={{ fontSize: 11, color: "var(--text3)" }}>{user?.email}</div>
@@ -194,7 +199,7 @@ export function Layout() {
           </button>
           <div className="dropdown" ref={userMenuRef}>
             <button type="button" className="topbar-btn" style={{ width: "auto", gap: 6, padding: "0 8px" }} onClick={() => setUserMenuOpen((v) => !v)}>
-              <div className="avatar av-blue" style={{ width: 24, height: 24, fontSize: 10.5 }}>{initials}</div>
+              <UserAvatar user={user} size={24} />
               <IconChevronDown size={13} />
             </button>
             {userMenuOpen && (

@@ -7,6 +7,7 @@ import crypto from "node:crypto";
 import { pool } from "../db/pool";
 import { isObjectStorageConfigured, objectStorageKeyFor, uploadObject, downloadObject, deleteObject } from "./objectStorage";
 import { generateRawToken, hashToken } from "./tokens";
+import { isAdminRole } from "../middleware/auth";
 import { getAppBaseUrl } from "./appUrl";
 
 const SIGNATURE_REQUEST_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -82,7 +83,7 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       res.status(404).json({ error: "not_found" });
       return;
     }
-    if (req.user!.role !== "admin" && noteResult.rows[0].created_by !== req.user!.id) {
+    if (!isAdminRole(req.user!.role) && noteResult.rows[0].created_by !== req.user!.id) {
       res.status(403).json({ error: "forbidden", message: "You can only delete your own notes." });
       return;
     }
@@ -270,7 +271,7 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       res.status(404).json({ error: "not_found" });
       return;
     }
-    if (req.user!.role !== "admin" && result.rows[0].uploaded_by !== req.user!.id) {
+    if (!isAdminRole(req.user!.role) && result.rows[0].uploaded_by !== req.user!.id) {
       res.status(403).json({ error: "forbidden", message: "You can only edit your own uploads." });
       return;
     }
@@ -324,7 +325,7 @@ export function mountNotesAndAttachments(router: Router, entityType: NotableEnti
       res.status(404).json({ error: "not_found" });
       return;
     }
-    if (req.user!.role !== "admin" && result.rows[0].uploaded_by !== req.user!.id) {
+    if (!isAdminRole(req.user!.role) && result.rows[0].uploaded_by !== req.user!.id) {
       res.status(403).json({ error: "forbidden", message: "You can only delete your own uploads." });
       return;
     }

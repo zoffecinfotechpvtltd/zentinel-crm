@@ -103,7 +103,7 @@ export async function runFollowupReminderJob(): Promise<{ reminders: number; esc
 
   let escalations = 0;
   if (escalated.length > 0) {
-    const adminsResult = await pool.query(`select id from users where role = 'admin' and is_active = true`);
+    const adminsResult = await pool.query(`select id from users where role in ('admin','superadmin') and is_active = true`);
     for (const lead of escalated) {
       for (const admin of adminsResult.rows) {
         await createNotification(pool, {

@@ -1,5 +1,6 @@
 import { pool } from "../db/pool";
 import { sendMail } from "../lib/mail";
+import { isAdminRole } from "../middleware/auth";
 
 function fmtDate(d: string | Date): string {
   return new Date(d).toISOString().slice(0, 10);
@@ -18,7 +19,7 @@ export async function runDailyDigestJob(): Promise<{ sent: number }> {
   for (const user of usersResult.rows) {
     const sections: string[] = [];
 
-    if (user.role === "sales" || user.role === "admin") {
+    if (user.role === "sales" || isAdminRole(user.role)) {
       const leadsResult = await pool.query(
         `select company, next_followup_date from leads
          where deleted_at is null and status not in ('Won','Lost') and next_followup_date <= current_date
@@ -34,7 +35,7 @@ export async function runDailyDigestJob(): Promise<{ sent: number }> {
       }
     }
 
-    if (user.role === "sales" || user.role === "admin") {
+    if (user.role === "sales" || isAdminRole(user.role)) {
       const opportunitiesResult = await pool.query(
         `select company, follow_up_date from opportunities
          where deleted_at is null and stage not in ('Won','Lost') and follow_up_date <= current_date
@@ -48,7 +49,7 @@ export async function runDailyDigestJob(): Promise<{ sent: number }> {
       }
     }
 
-    if (user.role === "finance" || user.role === "admin") {
+    if (user.role === "finance" || isAdminRole(user.role)) {
       const invoicesResult = await pool.query(
         `select invoice_number, due_date from invoices
          where deleted_at is null and status = 'Overdue' order by due_date limit 10`
@@ -76,7 +77,7 @@ export async function runDailyDigestJob(): Promise<{ sent: number }> {
       }
     }
 
-    if (user.role === "ops" || user.role === "admin") {
+    if (user.role === "ops" || isAdminRole(user.role)) {
       const projectsResult = await pool.query(
         `select name, due_date from projects
          where deleted_at is null and status <> 'Completed' and due_date < current_date

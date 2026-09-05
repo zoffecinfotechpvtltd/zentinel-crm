@@ -8,12 +8,17 @@ import { useConfirm } from "../components/ConfirmDialog";
 import { IconUsers, IconPlus } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
 import { passwordPolicyError } from "../lib/passwordPolicy";
+import { useAuth } from "../context/AuthContext";
 
 type User = { id: string; email: string; name: string; role: string; is_active: boolean };
 
-const ROLES = ["admin", "sales", "finance", "ops"];
+const ROLES = ["admin", "sales", "finance", "ops", "superadmin"];
 
 export function Users() {
+  const { user: currentUser } = useAuth();
+  // Only a superadmin can grant the superadmin role — hide the option from
+  // plain admins rather than let them pick it and get a 403 back.
+  const assignableRoles = currentUser?.role === "superadmin" ? ROLES : ROLES.filter((r) => r !== "superadmin");
   const { data, reload } = useFetch<User[]>("/users");
   const { push } = useToast();
   const confirm = useConfirm();
@@ -86,7 +91,7 @@ export function Users() {
               <CustomSelect
                 value={form.role}
                 onChange={(v) => setForm({ ...form, role: v })}
-                options={ROLES.map((r) => ({ value: r, label: r }))}
+                options={assignableRoles.map((r) => ({ value: r, label: r }))}
               />
             </div>
           </div>

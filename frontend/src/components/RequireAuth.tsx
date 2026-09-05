@@ -11,6 +11,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
 export function RequireRole({ roles, children }: { roles: string[]; children: ReactNode }) {
   const { user } = useAuth();
-  if (!user || !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  // superadmin satisfies any check that accepts "admin" (see isAdminRole),
+  // but a route that asks for "superadmin" specifically is not satisfied by
+  // plain "admin".
+  const allowed = !!user && (roles.includes(user.role) || (user.role === "superadmin" && roles.includes("admin")));
+  if (!allowed) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }

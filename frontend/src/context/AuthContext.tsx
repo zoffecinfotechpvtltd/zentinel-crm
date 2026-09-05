@@ -1,13 +1,21 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "../lib/api";
 
-export type Role = "admin" | "sales" | "finance" | "ops";
+export type Role = "admin" | "sales" | "finance" | "ops" | "superadmin";
+
+// superadmin is a strict superset of admin everywhere in the UI — it just
+// additionally unlocks the technical/config-only screens (Automation Rules,
+// Custom Fields, API Keys). Mirrors isAdminRole() on the backend.
+export function isAdminRole(role: Role | undefined): boolean {
+  return role === "admin" || role === "superadmin";
+}
 
 export type AuthUser = {
   id: string;
   email: string;
   name: string;
   role: Role;
+  avatar_url: string | null;
 };
 
 export type LoginResult = { requiresTwoFactor: false } | { requiresTwoFactor: true; pendingToken: string };

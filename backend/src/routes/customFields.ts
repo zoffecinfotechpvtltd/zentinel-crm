@@ -35,7 +35,7 @@ const createSchema = z.object({
   select_options: z.array(z.string().min(1)).optional(),
 });
 
-router.post("/", requireRole("admin"), async (req, res) => {
+router.post("/", requireRole("superadmin"), async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
@@ -68,7 +68,7 @@ const updateSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
-router.patch("/:id", requireRole("admin"), async (req, res) => {
+router.patch("/:id", requireRole("superadmin"), async (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
@@ -101,7 +101,7 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
 // Client's own custom_fields JSONB keeps whatever was already recorded even
 // after the definition disappears from the form; deleting a definition
 // stops collecting new values, it doesn't erase history.
-router.delete("/:id", requireRole("admin"), async (req, res) => {
+router.delete("/:id", requireRole("superadmin"), async (req, res) => {
   const result = await pool.query(
     `update custom_field_definitions set deleted_at = now() where id = $1 and deleted_at is null returning id`,
     [req.params.id]

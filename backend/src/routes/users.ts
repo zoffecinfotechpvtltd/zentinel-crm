@@ -38,7 +38,7 @@ const createUserSchema = z.object({
   email: z.string().email(),
   password: passwordSchema,
   name: z.string().min(1),
-  role: z.enum(["admin", "sales", "finance", "ops"]),
+  role: z.enum(["admin", "sales", "finance", "ops", "superadmin"]),
 });
 
 router.post("/", async (req, res) => {
@@ -48,6 +48,14 @@ router.post("/", async (req, res) => {
     return;
   }
   const { email, password, name, role } = parsed.data;
+
+  // Only an existing superadmin can grant the superadmin role — a plain
+  // admin (who can reach this route via the admin-superset check) must not
+  // be able to self-escalate or hand it to someone else.
+  if (role === "superadmin" && req.user!.role !== "superadmin") {
+    res.status(403).json({ error: "forbidden", message: "Only a superadmin can grant the superadmin role." });
+    return;
+  }
 
   const existing = await pool.query(`select id from users where email = $1`, [email]);
   if (existing.rows.length > 0) {
@@ -93,7 +101,7 @@ router.post("/", async (req, res) => {
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
-  role: z.enum(["admin", "sales", "finance", "ops"]).optional(),
+  role: z.enum(["admin", "sales", "finance", "ops", "superadmin"]).optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -105,6 +113,12 @@ router.patch("/:id", async (req, res) => {
   }
 
   const fields = parsed.data;
+
+  if (fields.role === "superadmin" && req.user!.role !== "superadmin") {
+    res.status(403).json({ error: "forbidden", message: "Only a superadmin can grant the superadmin role." });
+    return;
+  }
+
   const setClauses: string[] = [];
   const values: unknown[] = [];
   let i = 1;

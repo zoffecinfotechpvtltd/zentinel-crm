@@ -3,7 +3,13 @@ import { pool } from "../db/pool";
 import { getSessionCookieName, setSessionCookie, sessionTtlMs } from "../lib/session";
 import { createNotification } from "../lib/notifications";
 
-export type Role = "admin" | "sales" | "finance" | "ops";
+export type Role = "admin" | "sales" | "finance" | "ops" | "superadmin";
+
+// superadmin is a strict superset of admin everywhere admin-ness is checked
+// ad hoc (outside requireRole) — notifications, ownership overrides, etc.
+export function isAdminRole(role: Role): boolean {
+  return role === "admin" || role === "superadmin";
+}
 
 export type AuthUser = {
   id: string;
@@ -87,7 +93,7 @@ async function trackForbidden(userId: string, userLabel: string, path: string): 
     entry.alerted = true;
     console.warn(`[security] ${entry.count} forbidden attempts from ${userLabel} in the last 5 minutes (latest: ${path})`);
     try {
-      const admins = await pool.query(`select id from users where role = 'admin' and is_active and deleted_at is null`);
+      const admins = await pool.query(`select id from users where role in ('admin','superadmin') and is_active and deleted_at is null`);
       for (const admin of admins.rows) {
         await createNotification(pool, {
           userId: admin.id,
@@ -108,7 +114,11 @@ export function requireRole(...roles: Role[]) {
       res.status(401).json({ error: "not_authenticated" });
       return;
     }
-    if (!roles.includes(req.user.role)) {
+    // superadmin is a strict superset of admin — it satisfies any check that
+    // accepts "admin" — but a route that asks for "superadmin" specifically
+    // (the technical/config-only screens) is not satisfied by plain "admin".
+    const allowed = roles.includes(req.user.role) || (req.user.role === "superadmin" && roles.includes("admin"));
+    if (!allowed) {
       res.status(403).json({ error: "forbidden" });
       void trackForbidden(req.user.id, `${req.user.email} (${req.user.role})`, req.originalUrl);
       return;
