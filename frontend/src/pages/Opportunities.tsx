@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth } from "../context/AuthContext";
-import { useFetch } from "../lib/useFetch";
+import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api, API_BASE, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { StatCard } from "../components/StatCard";
 import { Modal } from "../components/Modal";
-import { Pagination } from "../components/Pagination";
+import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
 import { PageHeader } from "../components/PageHeader";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
@@ -29,7 +29,6 @@ type Opportunity = {
   client_id: string | null; lead_id: string | null; client: LinkedCompany | null; lead: LinkedCompany | null;
   opportunity_types: OpportunityType[]; custom_fields: Record<string, unknown>;
 };
-type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type ImportResult = { imported: number; skipped: { row: number; reason: string }[]; duplicates: number };
 type CompanySearchResponse = { clients: LinkedCompany[]; leads: LinkedCompany[] };
 
@@ -45,19 +44,22 @@ export function Opportunities() {
   const { push } = useToast();
   const confirm = useConfirm();
 
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [kind, setKind] = useState("");
   const [stage, setStage] = useState("");
   const [typeId, setTypeId] = useState("");
 
-  const query = new URLSearchParams({ page: String(page), per_page: "10" });
-  if (search) query.set("search", search);
-  if (kind) query.set("kind", kind);
-  if (stage) query.set("stage", stage);
-  if (typeId) query.set("opportunity_type_id", typeId);
-
-  const { data, loading, error, reload } = useFetch<ListResponse<Opportunity>>(`/opportunities?${query.toString()}`, [page, search, kind, stage, typeId]);
+  const { items: opportunities, total, loading, error, loadingMore, hasMore, loadMore, reload } = useInfiniteFetch<Opportunity>(
+    (p) => {
+      const query = new URLSearchParams({ page: String(p), per_page: "20" });
+      if (search) query.set("search", search);
+      if (kind) query.set("kind", kind);
+      if (stage) query.set("stage", stage);
+      if (typeId) query.set("opportunity_type_id", typeId);
+      return `/opportunities?${query.toString()}`;
+    },
+    [search, kind, stage, typeId]
+  );
   const { data: types, reload: reloadTypes } = useFetch<OpportunityType[]>("/opportunities/types");
   const { data: pipelineValue, reload: reloadPipelineValue } = useFetch<{ open_pipeline: number; won: number }>("/opportunities/pipeline-value");
   const { data: companies } = useFetch<CompanySearchResponse>("/opportunities/companies/search");
@@ -243,7 +245,7 @@ export function Opportunities() {
       <PageHeader
         icon={<IconOpportunities size={19} />}
         title="Opportunities"
-        subtitle={data ? `${data.total} opportunit${data.total === 1 ? "y" : "ies"} tracked` : undefined}
+        subtitle={!loading ? `${total} opportunit${total === 1 ? "y" : "ies"} tracked` : undefined}
         actions={<>
           {canEdit && <button type="button" className="btn btn-ghost" onClick={openImport}><IconUpload size={14} /> Import</button>}
           {canEdit && <button type="button" className="btn btn-primary" onClick={openAdd}><IconPlus size={14} /> Add Opportunity</button>}
@@ -258,22 +260,22 @@ export function Opportunities() {
       )}
 
       <div className="filter-bar">
-        <input className="filter-input" placeholder="Search company / client..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <input className="filter-input" placeholder="Search company / client..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <CustomSelect
           value={kind}
-          onChange={(v) => { setKind(v); setPage(1); }}
+          onChange={setKind}
           placeholder="All Kinds"
           options={[{ value: "", label: "All Kinds" }, { value: "service", label: "Service" }, { value: "product", label: "Product" }]}
         />
         <CustomSelect
           value={stage}
-          onChange={(v) => { setStage(v); setPage(1); }}
+          onChange={setStage}
           placeholder="All Stages"
           options={[{ value: "", label: "All Stages" }, ...STAGES.map((s) => ({ value: s, label: s }))]}
         />
         <CustomSelect
           value={typeId}
-          onChange={(v) => { setTypeId(v); setPage(1); }}
+          onChange={setTypeId}
           placeholder="All Types"
           options={[{ value: "", label: "All Types" }, ...(types?.map((t) => ({ value: t.id, label: t.name })) ?? [])]}
         />
@@ -291,7 +293,7 @@ export function Opportunities() {
             </thead>
             <tbody>
               {loading && <TableSkeleton rows={6} cols={9} />}
-              {!loading && data?.data.length === 0 && (
+              {!loading && opportunities.length === 0 && (
                 <tr><td colSpan={9}>
                   <div className="empty">
                     <div className="empty-icon"><IconInbox size={30} /></div>
@@ -299,7 +301,7 @@ export function Opportunities() {
                   </div>
                 </td></tr>
               )}
-              {data?.data.map((o) => (
+              {opportunities.map((o) => (
                 <tr key={o.id}>
                   <td>
                     <div style={{ fontWeight: 550, color: "var(--text)" }}>{o.company}</div>
@@ -341,9 +343,7 @@ export function Opportunities() {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "0 16px 14px" }}>
-          {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
-        </div>
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
       </div>
 
       {modalOpen && (

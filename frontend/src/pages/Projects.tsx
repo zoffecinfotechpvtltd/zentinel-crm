@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useFetch } from "../lib/useFetch";
+import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api, ApiError, API_BASE } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { Modal } from "../components/Modal";
-import { Pagination } from "../components/Pagination";
+import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
 import { PageHeader } from "../components/PageHeader";
 import { NotesAndFiles } from "../components/NotesAndFiles";
 import { TableSkeleton } from "../components/Skeleton";
@@ -38,14 +38,17 @@ export function Projects() {
   const { user } = useAuth();
   const { push } = useToast();
   const confirm = useConfirm();
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [status, setStatus] = useState("");
 
-  const query = new URLSearchParams({ page: String(page), per_page: "8" });
-  if (status) query.set("status", status);
-
-  const { data, loading, reload } = useFetch<ListResponse<Project>>(`/projects?${query.toString()}`, [page, status]);
+  const { items: projects, total, loading, loadingMore, hasMore, loadMore, reload } = useInfiniteFetch<Project>(
+    (p) => {
+      const query = new URLSearchParams({ page: String(p), per_page: "20" });
+      if (status) query.set("status", status);
+      return `/projects?${query.toString()}`;
+    },
+    [status]
+  );
   const { data: clientsResp } = useFetch<ListResponse<Client>>("/clients?per_page=200");
   const { data: assignable } = useFetch<Assignable[]>("/users/assignable");
 
@@ -128,8 +131,8 @@ export function Projects() {
   const canEdit = user?.role === "admin" || user?.role === "ops";
   const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "—";
   const filtered = search
-    ? data?.data.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || clientName(p.client_id).toLowerCase().includes(search.toLowerCase()))
-    : data?.data;
+    ? projects.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || clientName(p.client_id).toLowerCase().includes(search.toLowerCase()))
+    : projects;
 
   function openAdd() {
     setEditing(null);
@@ -187,7 +190,7 @@ export function Projects() {
       <PageHeader
         icon={<IconProjects size={19} />}
         title="Project Management"
-        subtitle={data ? `${data.total} project${data.total === 1 ? "" : "s"} tracked` : undefined}
+        subtitle={!loading ? `${total} project${total === 1 ? "" : "s"} tracked` : undefined}
         actions={canEdit && <button type="button" className="btn btn-primary" onClick={openAdd}><IconPlus size={14} /> Add Project</button>}
       />
 
@@ -195,7 +198,7 @@ export function Projects() {
         <input className="filter-input" placeholder="Search project / client..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <CustomSelect
           value={status}
-          onChange={(v) => { setStatus(v); setPage(1); }}
+          onChange={setStatus}
           placeholder="All Status"
           options={[{ value: "", label: "All Status" }, ...STATUSES.map((s) => ({ value: s, label: s }))]}
         />
@@ -247,9 +250,7 @@ export function Projects() {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "0 16px 14px" }}>
-          {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
-        </div>
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
       </div>
 
       {modalOpen && (

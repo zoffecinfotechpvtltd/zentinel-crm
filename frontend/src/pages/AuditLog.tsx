@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useFetch } from "../lib/useFetch";
+import { useInfiniteFetch } from "../lib/useFetch";
 import { PageHeader } from "../components/PageHeader";
-import { Pagination } from "../components/Pagination";
+import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
 import { TableSkeleton } from "../components/Skeleton";
 import { formatDateTime } from "../lib/format";
 import { IconFollowups, IconInbox } from "../components/Icons";
@@ -11,7 +11,6 @@ type LogRow = {
   id: string; entity_type: string; entity_id: string; action: string;
   detail: Record<string, unknown>; created_at: string; actor_name: string | null; actor_email: string | null;
 };
-type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
 const ENTITY_TYPES = ["lead", "client", "project", "invoice", "opportunity"];
 
@@ -31,13 +30,16 @@ function describe(row: LogRow): string {
 }
 
 export function AuditLog() {
-  const [page, setPage] = useState(1);
   const [entityType, setEntityType] = useState("");
 
-  const query = new URLSearchParams({ page: String(page), per_page: "40" });
-  if (entityType) query.set("entity_type", entityType);
-
-  const { data, loading } = useFetch<ListResponse<LogRow>>(`/system/audit-log?${query.toString()}`, [page, entityType]);
+  const { items, loading, loadingMore, hasMore, loadMore } = useInfiniteFetch<LogRow>(
+    (p) => {
+      const query = new URLSearchParams({ page: String(p), per_page: "40" });
+      if (entityType) query.set("entity_type", entityType);
+      return `/system/audit-log?${query.toString()}`;
+    },
+    [entityType]
+  );
 
   return (
     <div>
@@ -45,7 +47,7 @@ export function AuditLog() {
       <div className="filter-bar">
         <CustomSelect
           value={entityType}
-          onChange={(v) => { setEntityType(v); setPage(1); }}
+          onChange={setEntityType}
           placeholder="All record types"
           options={[{ value: "", label: "All record types" }, ...ENTITY_TYPES.map((t) => ({ value: t, label: t }))]}
         />
@@ -56,10 +58,10 @@ export function AuditLog() {
             <thead><tr><th>When</th><th>Event</th><th>Actor</th></tr></thead>
             <tbody>
               {loading && <TableSkeleton rows={8} cols={3} />}
-              {!loading && data?.data.length === 0 && (
+              {!loading && items.length === 0 && (
                 <tr><td colSpan={3}><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing logged yet.</div></td></tr>
               )}
-              {data?.data.map((row) => (
+              {items.map((row) => (
                 <tr key={row.id}>
                   <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>{formatDateTime(row.created_at)}</td>
                   <td>{describe(row)}</td>
@@ -69,9 +71,7 @@ export function AuditLog() {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "0 16px 14px" }}>
-          {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
-        </div>
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
       </div>
     </div>
   );

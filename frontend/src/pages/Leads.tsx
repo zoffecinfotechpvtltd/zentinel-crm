@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth } from "../context/AuthContext";
-import { useFetch } from "../lib/useFetch";
+import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { Modal } from "../components/Modal";
-import { Pagination } from "../components/Pagination";
+import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
 import { PageHeader } from "../components/PageHeader";
 import { NotesAndFiles } from "../components/NotesAndFiles";
 import { TableSkeleton } from "../components/Skeleton";
@@ -59,17 +59,20 @@ export function Leads() {
     localStorage.setItem("zoffec-leads-view", v);
     setViewState(v);
   }
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [status, setStatus] = useState("");
   const [serviceId, setServiceId] = useState("");
 
-  const query = new URLSearchParams({ page: String(page), per_page: "8" });
-  if (search) query.set("search", search);
-  if (status) query.set("status", status);
-  if (serviceId) query.set("service_id", serviceId);
-
-  const { data, loading, error, reload } = useFetch<ListResponse<Lead>>(`/leads?${query.toString()}`, [page, search, status, serviceId]);
+  const { items: leads, total, loading, error, loadingMore, hasMore, loadMore, reload } = useInfiniteFetch<Lead>(
+    (p) => {
+      const query = new URLSearchParams({ page: String(p), per_page: "20" });
+      if (search) query.set("search", search);
+      if (status) query.set("status", status);
+      if (serviceId) query.set("service_id", serviceId);
+      return `/leads?${query.toString()}`;
+    },
+    [search, status, serviceId]
+  );
   const boardQuery = new URLSearchParams({ page: "1", per_page: "300" });
   if (search) boardQuery.set("search", search);
   if (serviceId) boardQuery.set("service_id", serviceId);
@@ -125,7 +128,7 @@ export function Leads() {
   }
   function toggleSelectAll() {
     setSelected((prev) => {
-      const pageIds = data?.data.map((l) => l.id) ?? [];
+      const pageIds = leads.map((l) => l.id);
       const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
       return allSelected ? new Set() : new Set(pageIds);
     });
@@ -148,7 +151,7 @@ export function Leads() {
   }
 
   function bulkExportCsv() {
-    const rows = (data?.data ?? []).filter((l) => selected.has(l.id));
+    const rows = leads.filter((l) => selected.has(l.id));
     const header = ["Company", "Contact", "Email", "Mobile", "Service", "Source", "Status", "Value", "Next Follow-up"];
     const csvLines = [header.join(",")];
     for (const l of rows) {
@@ -313,7 +316,7 @@ export function Leads() {
       <PageHeader
         icon={<IconLeads size={19} />}
         title="Lead Management"
-        subtitle={data ? `${data.total} lead${data.total === 1 ? "" : "s"} in the pipeline` : undefined}
+        subtitle={!loading ? `${total} lead${total === 1 ? "" : "s"} in the pipeline` : undefined}
         actions={<>
           <div className="view-toggle">
             <button type="button" className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
@@ -325,18 +328,18 @@ export function Leads() {
       />
 
       <div className="filter-bar">
-        <input className="filter-input" placeholder="Search company / contact..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <input className="filter-input" placeholder="Search company / contact..." value={search} onChange={(e) => setSearch(e.target.value)} />
         {view === "list" && (
           <CustomSelect
             value={status}
-            onChange={(v) => { setStatus(v); setPage(1); }}
+            onChange={setStatus}
             placeholder="All Status"
             options={[{ value: "", label: "All Status" }, ...STATUSES.map((s) => ({ value: s, label: s }))]}
           />
         )}
         <CustomSelect
           value={serviceId}
-          onChange={(v) => { setServiceId(v); setPage(1); }}
+          onChange={setServiceId}
           placeholder="All Services"
           options={[{ value: "", label: "All Services" }, ...(services?.map((s) => ({ value: s.id, label: s.name })) ?? [])]}
         />
@@ -359,13 +362,13 @@ export function Leads() {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 32 }}><input type="checkbox" checked={(data?.data.length ?? 0) > 0 && data!.data.every((l) => selected.has(l.id))} onChange={toggleSelectAll} /></th>
+                  <th style={{ width: 32 }}><input type="checkbox" checked={leads.length > 0 && leads.every((l) => selected.has(l.id))} onChange={toggleSelectAll} /></th>
                   <th>Company</th><th>Contact</th><th>Service</th><th>Source</th><th title="Stage progress + deal size + source quality + how recently touched">Score</th><th>Status</th><th>Follow-up</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && <TableSkeleton rows={6} cols={9} />}
-                {!loading && data?.data.length === 0 && (
+                {!loading && leads.length === 0 && (
                   <tr><td colSpan={9}>
                     <div className="empty">
                       <div className="empty-icon"><IconInbox size={30} /></div>
@@ -373,7 +376,7 @@ export function Leads() {
                     </div>
                   </td></tr>
                 )}
-                {data?.data.map((l) => (
+                {leads.map((l) => (
                   <tr key={l.id} className={selected.has(l.id) ? "row-selected" : undefined}>
                     <td><input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} /></td>
                     <td>
@@ -417,9 +420,7 @@ export function Leads() {
               </tbody>
             </table>
           </div>
-          <div style={{ padding: "0 16px 14px" }}>
-            {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
-          </div>
+          <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
         </div>
       )}
 

@@ -1,7 +1,6 @@
-import { useState } from "react";
-import { useFetch } from "../lib/useFetch";
+import { useInfiniteFetch } from "../lib/useFetch";
 import { PageHeader } from "../components/PageHeader";
-import { Pagination } from "../components/Pagination";
+import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
 import { TableSkeleton } from "../components/Skeleton";
 import { formatDateTime } from "../lib/format";
 import { IconActivity, IconInbox } from "../components/Icons";
@@ -10,7 +9,6 @@ type ActivityRow = {
   id: string; entity_type: string; entity_id: string; action: string;
   detail: Record<string, unknown>; created_at: string; actor_name: string | null;
 };
-type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
 function describe(row: ActivityRow): string {
   const who = row.actor_name ?? "Someone";
@@ -36,8 +34,9 @@ function describe(row: ActivityRow): string {
 }
 
 export function Activity() {
-  const [page, setPage] = useState(1);
-  const { data, loading } = useFetch<ListResponse<ActivityRow>>(`/dashboard/activity?page=${page}&per_page=25`, [page]);
+  const { items, loading, loadingMore, hasMore, loadMore } = useInfiniteFetch<ActivityRow>(
+    (p) => `/dashboard/activity?page=${p}&per_page=25`
+  );
 
   return (
     <div>
@@ -52,10 +51,10 @@ export function Activity() {
             <thead><tr><th>When</th><th>Event</th></tr></thead>
             <tbody>
               {loading && <TableSkeleton rows={8} cols={2} />}
-              {!loading && data?.data.length === 0 && (
+              {!loading && items.length === 0 && (
                 <tr><td colSpan={2}><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing yet.</div></td></tr>
               )}
-              {data?.data.map((row) => (
+              {items.map((row) => (
                 <tr key={row.id}>
                   <td style={{ fontSize: 12, whiteSpace: "nowrap", color: "var(--text3)" }}>{formatDateTime(row.created_at)}</td>
                   <td style={{ fontSize: 13 }}>{describe(row)}</td>
@@ -64,9 +63,7 @@ export function Activity() {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "0 16px 14px" }}>
-          {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
-        </div>
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
       </div>
     </div>
   );
