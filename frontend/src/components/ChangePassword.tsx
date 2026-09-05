@@ -37,7 +37,7 @@ export function ChangePassword() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
+    <div className="card">
       <div className="card-title">Change Password</div>
       {error && <div className="banner banner-error" role="alert">{error}</div>}
       <div className="form-group" style={{ marginBottom: 12 }}>

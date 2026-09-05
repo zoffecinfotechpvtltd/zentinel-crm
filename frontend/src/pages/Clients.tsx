@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api } from "../lib/api";
 import { Badge } from "../components/Badge";
@@ -59,7 +59,7 @@ function describeTimelineEntry(row: TimelineEntry): string {
     const d = row.detail as { template_name?: string };
     return `${who} sent a "${d.template_name ?? "message"}" message`;
   }
-  return `${who} — ${row.action} on ${row.entity_type}`;
+  return `${who} - ${row.action} on ${row.entity_type}`;
 }
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type Service = { id: string; name: string };
@@ -113,7 +113,7 @@ export function Clients() {
     }
   }
 
-  const canEdit = user?.role === "admin";
+  const canEdit = isAdminRole(user?.role);
 
   async function createClient() {
     try {
@@ -216,7 +216,7 @@ export function Clients() {
     }
   }
 
-  const serviceName = (id: string | null) => services?.find((s) => s.id === id)?.name ?? "—";
+  const serviceName = (id: string | null) => services?.find((s) => s.id === id)?.name ?? "-";
 
   return (
     <div>
@@ -258,12 +258,12 @@ export function Clients() {
                     <div style={{ fontSize: 11, color: "var(--text3)" }}>{c.gstin ?? "no GSTIN"}</div>
                   </td>
                   <td>
-                    <div>{c.primary_contact_name ?? "—"}</div>
+                    <div>{c.primary_contact_name ?? "-"}</div>
                     <div style={{ fontSize: 11, color: "var(--text3)" }}>{c.primary_contact_email ?? c.primary_contact_mobile ?? ""}</div>
                   </td>
-                  <td style={{ fontSize: 12 }}>{c.primary_service_name ?? "—"}</td>
-                  <td className="mono">{Number(c.contract_value_total) > 0 ? formatMoney(c.contract_value_total) : "—"}</td>
-                  <td style={{ fontSize: 12 }}>{c.contract_end_date ? formatDate(c.contract_end_date) : "—"}</td>
+                  <td style={{ fontSize: 12 }}>{c.primary_service_name ?? "-"}</td>
+                  <td className="mono">{Number(c.contract_value_total) > 0 ? formatMoney(c.contract_value_total) : "-"}</td>
+                  <td style={{ fontSize: 12 }}>{c.contract_end_date ? formatDate(c.contract_end_date) : "-"}</td>
                   <td><Badge status={c.status} /></td>
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
@@ -316,7 +316,7 @@ export function Clients() {
               <CustomSelect
                 value={detail.parent_client_id ?? ""}
                 onChange={setParentClient}
-                placeholder="No parent — this is a standalone account"
+                placeholder="No parent - this is a standalone account"
                 options={(allClients?.data ?? []).filter((c) => c.id !== detail.id).map((c) => ({ value: c.id, label: c.company }))}
               />
             </div>
@@ -339,7 +339,7 @@ export function Clients() {
                 )}
                 {detail.contacts.map((c) => (
                   <tr key={c.id}>
-                    <td>{c.name}</td><td style={{ fontSize: 12 }}>{c.email ?? "—"}</td><td style={{ fontSize: 12 }}>{c.mobile ?? "—"}</td>
+                    <td>{c.name}</td><td style={{ fontSize: 12 }}>{c.email ?? "-"}</td><td style={{ fontSize: 12 }}>{c.mobile ?? "-"}</td>
                     <td>{c.is_primary ? <Badge status="Active" /> : ""}</td>
                     {canEdit && (
                       <td>
@@ -387,7 +387,7 @@ export function Clients() {
                 )}
                 {detail.contracts.map((c) => (
                   <tr key={c.id}>
-                    <td>{serviceName(c.service_id)}</td><td className="mono">{c.value ? formatMoney(c.value) : "—"}</td>
+                    <td>{serviceName(c.service_id)}</td><td className="mono">{c.value ? formatMoney(c.value) : "-"}</td>
                     <td style={{ fontSize: 12 }}>{formatDate(c.start_date)}</td><td style={{ fontSize: 12 }}>{formatDate(c.end_date)}</td>
                     <td><Badge status={c.status === "active" ? "Active" : c.status === "completed" ? "Completed" : "Cancelled"} /></td>
                     {canEdit && (
@@ -439,7 +439,7 @@ export function Clients() {
                     {detail.opportunities.map((o) => (
                       <Link key={o.id} to={`/opportunities?q=${encodeURIComponent(o.company)}`}
                         style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)", color: "var(--text)", textDecoration: "none" }}>
-                        <span style={{ textTransform: "capitalize" }}>{o.kind} — {o.company}</span>
+                        <span style={{ textTransform: "capitalize" }}>{o.kind} - {o.company}</span>
                         <Badge status={o.stage} />
                       </Link>
                     ))}
@@ -467,7 +467,7 @@ export function Clients() {
                     {detail.invoices.map((inv) => (
                       <Link key={inv.id} to={`/invoices?q=${encodeURIComponent(inv.invoice_number ?? "")}`}
                         style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)", color: "var(--text)", textDecoration: "none" }}>
-                        <span>{inv.invoice_number ?? "Draft"} — {formatMoney(Number(inv.total))}</span>
+                        <span>{inv.invoice_number ?? "Draft"} - {formatMoney(Number(inv.total))}</span>
                         <Badge status={inv.status} />
                       </Link>
                     ))}

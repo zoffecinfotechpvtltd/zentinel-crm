@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useFetch } from "../lib/useFetch";
 import { api, API_BASE } from "../lib/api";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
 import { PageHeader } from "../components/PageHeader";
 import { formatDate, formatMoneyExact, isOverdue } from "../lib/format";
@@ -33,8 +33,8 @@ const CATEGORY_TONE: Record<string, string> = {
 
 export function Followups() {
   const { user } = useAuth();
-  const canSales = user?.role === "admin" || user?.role === "superadmin" || user?.role === "sales";
-  const canFinance = user?.role === "admin" || user?.role === "superadmin" || user?.role === "finance";
+  const canSales = isAdminRole(user?.role) || user?.role === "sales";
+  const canFinance = isAdminRole(user?.role) || user?.role === "finance";
   // Lets a notification (e.g. "N invoice follow-ups due") link straight into
   // the right section/tab instead of dropping the user on a default view
   // they then have to re-filter by hand.
@@ -81,7 +81,7 @@ function SalesFollowups({ initialTab }: { initialTab: string }) {
         window.open(`https://wa.me/${lead.mobile.replace(/\D/g, "")}?text=${encodeURIComponent(rendered.rendered)}`, "_blank", "noreferrer");
       } else {
         await navigator.clipboard.writeText(rendered.rendered);
-        push("Message copied — paste it wherever you're sending it", "success");
+        push("Message copied - paste it wherever you're sending it", "success");
       }
       // Best-effort audit trail — there's no real send to confirm delivery
       // of, just a record that this template was used against this lead.
@@ -97,7 +97,7 @@ function SalesFollowups({ initialTab }: { initialTab: string }) {
       push(`${l.company} cleared from follow-ups`, "success");
       reload();
     } catch (err) {
-      push(err instanceof Error ? err.message : "Couldn't update — Won/Lost leads only", "error");
+      push(err instanceof Error ? err.message : "Couldn't update - Won/Lost leads only", "error");
     }
   }
 
@@ -111,14 +111,14 @@ function SalesFollowups({ initialTab }: { initialTab: string }) {
       <div className="grid2">
         <div>
           {data?.data.length === 0 && (
-            <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing here — you're caught up.</div></div>
+            <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing here - you're caught up.</div></div>
           )}
           {data?.data.map((l) => (
             <div className={`followup-item${isOverdue(l.next_followup_date) ? " overdue" : ""}`} key={l.id} style={{ position: "relative" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                 <div>
                   <div className="followup-company">{l.company}</div>
-                  <div className="followup-detail">{l.contact_person} — {l.status} — due {formatDate(l.next_followup_date)}</div>
+                  <div className="followup-detail">{l.contact_person} - {l.status} - due {formatDate(l.next_followup_date)}</div>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                   {l.email && <a className="icon-btn" href={`mailto:${l.email}`} title={`Email ${l.contact_person}`}>@</a>}
@@ -141,11 +141,11 @@ function SalesFollowups({ initialTab }: { initialTab: string }) {
         </div>
         <div className="card">
           <div className="card-title">Message Templates</div>
-          {templates?.length === 0 && <div className="empty">No templates yet — add one from the Message Templates admin screen.</div>}
+          {templates?.length === 0 && <div className="empty">No templates yet - add one from the Message Templates admin screen.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {templates?.map((t) => (
               <div key={t.id} style={{ padding: 12, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)", borderLeft: `3px solid ${CATEGORY_TONE[t.category] ?? "var(--accent)"}` }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", marginBottom: 6 }}>{t.channel === "email" ? "Email" : "WhatsApp"} — {t.name}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", marginBottom: 6 }}>{t.channel === "email" ? "Email" : "WhatsApp"} - {t.name}</div>
                 <div style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6 }}>{t.body}</div>
               </div>
             ))}
@@ -163,7 +163,7 @@ function FinanceFollowups({ initialTab }: { initialTab: string }) {
   const { data: clientsResp } = useFetch<ListResponse<Client>>("/clients?per_page=200");
   const [draftDates, setDraftDates] = useState<Record<string, string>>({});
 
-  const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "—";
+  const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "-";
 
   async function setFollowup(inv: Invoice, date: string | null) {
     try {
@@ -183,17 +183,17 @@ function FinanceFollowups({ initialTab }: { initialTab: string }) {
         ))}
       </div>
       {data?.data.length === 0 && (
-        <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing to chase — every outstanding invoice is scheduled or paid.</div></div>
+        <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing to chase - every outstanding invoice is scheduled or paid.</div></div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {data?.data.map((inv) => (
           <div className={`followup-item${isOverdue(inv.next_followup_date) ? " overdue" : ""}`} key={inv.id}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
               <div>
-                <div className="followup-company">{clientName(inv.client_id)} — {inv.invoice_number ?? "Draft"}</div>
+                <div className="followup-company">{clientName(inv.client_id)} - {inv.invoice_number ?? "Draft"}</div>
                 <div className="followup-detail">
-                  Balance <span className="mono">{formatMoneyExact(inv.balance)}</span> — due {formatDate(inv.due_date)}
-                  {inv.next_followup_date && ` — next follow-up ${formatDate(inv.next_followup_date)}`}
+                  Balance <span className="mono">{formatMoneyExact(inv.balance)}</span> - due {formatDate(inv.due_date)}
+                  {inv.next_followup_date && ` - next follow-up ${formatDate(inv.next_followup_date)}`}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>

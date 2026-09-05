@@ -60,7 +60,7 @@ function ProfileCard() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 560 }}>
+    <div className="card">
       <div className="card-title">Profile</div>
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
         <UserAvatar user={user} size={64} />
@@ -115,31 +115,33 @@ export function MyAccount() {
 
   return (
     <div>
-      <PageHeader icon={<IconUsers size={19} />} title="My Account" subtitle={user ? `${user.name} — ${user.email}` : undefined} />
+      <PageHeader icon={<IconUsers size={19} />} title="My Account" subtitle={user ? `${user.name} - ${user.email}` : undefined} />
 
-      <ProfileCard />
+      <div className="settings-grid">
+        <ProfileCard />
 
-      <div className="card" style={{ maxWidth: 560 }}>
-        <div className="card-title">
-          My Sessions
-          {sessions && sessions.length > 1 && <button type="button" className="btn btn-ghost btn-sm" onClick={revokeOtherSessions}>Log out other sessions</button>}
-        </div>
-        {sessions?.map((s) => (
-          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
-            <div>
-              <div style={{ color: "var(--text)" }} title={s.ip_address ?? undefined}>
-                {friendlyUserAgent(s.user_agent)}
-                {s.is_current && <span style={{ color: "var(--success)", marginLeft: 6 }}>(this device)</span>}
-              </div>
-              <div style={{ color: "var(--text3)", marginTop: 2 }} title={s.user_agent ?? undefined}>{friendlyAddress(s.ip_address)}</div>
-            </div>
-            <div style={{ color: "var(--text3)" }}>signed in {new Date(s.created_at).toLocaleString()}</div>
+        <div className="card">
+          <div className="card-title">
+            My Sessions
+            {sessions && sessions.length > 1 && <button type="button" className="btn btn-ghost btn-sm" onClick={revokeOtherSessions}>Log out other sessions</button>}
           </div>
-        ))}
-      </div>
+          {sessions?.map((s) => (
+            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
+              <div>
+                <div style={{ color: "var(--text)" }} title={s.ip_address ?? undefined}>
+                  {friendlyUserAgent(s.user_agent)}
+                  {s.is_current && <span style={{ color: "var(--success)", marginLeft: 6 }}>(this device)</span>}
+                </div>
+                <div style={{ color: "var(--text3)", marginTop: 2 }} title={s.user_agent ?? undefined}>{friendlyAddress(s.ip_address)}</div>
+              </div>
+              <div style={{ color: "var(--text3)" }}>signed in {new Date(s.created_at).toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
 
-      <ChangePassword />
-      <TwoFactorSettings />
+        <ChangePassword />
+        <TwoFactorSettings />
+      </div>
     </div>
   );
 }

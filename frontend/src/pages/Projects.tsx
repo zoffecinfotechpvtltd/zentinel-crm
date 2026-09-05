@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api, ApiError, API_BASE } from "../lib/api";
 import { Badge } from "../components/Badge";
@@ -128,8 +128,8 @@ export function Projects() {
     }
   }
 
-  const canEdit = user?.role === "admin" || user?.role === "ops";
-  const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "—";
+  const canEdit = isAdminRole(user?.role) || user?.role === "ops";
+  const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "-";
   const filtered = search
     ? projects.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || clientName(p.client_id).toLowerCase().includes(search.toLowerCase()))
     : projects;
@@ -242,7 +242,7 @@ export function Projects() {
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       {canEdit && <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}>Edit</button>}
                       {p.due_date && <a className="icon-btn" href={`${API_BASE}/api/projects/${p.id}/due-date.ics`} title="Add due date to calendar"><IconCalendar size={13} /></a>}
-                      {user?.role === "admin" && <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => remove(p)}>Delete</button>}
+                      {isAdminRole(user?.role) && <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => remove(p)}>Delete</button>}
                     </div>
                   </td>
                 </tr>
@@ -279,7 +279,7 @@ export function Projects() {
                   value={form.opportunity_id}
                   onChange={(v) => setForm({ ...form, opportunity_id: v })}
                   placeholder="Not linked to an opportunity"
-                  options={clientOpportunities?.data.map((o) => ({ value: o.id, label: `${o.kind} — ${o.company} (${o.stage})` })) ?? []}
+                  options={clientOpportunities?.data.map((o) => ({ value: o.id, label: `${o.kind} - ${o.company} (${o.stage})` })) ?? []}
                 />
               </div>
             )}
@@ -353,8 +353,8 @@ export function Projects() {
                   <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)" }}>
                     <span style={{ fontWeight: 600, fontSize: 13, width: 40 }}>{t.hours}h</span>
                     <span style={{ fontSize: 12, color: "var(--text3)", width: 90 }}>{formatDate(t.entry_date)}</span>
-                    <span style={{ flex: 1, fontSize: 12.5, color: "var(--text2)" }}>{t.notes ?? "—"} — {t.user_name ?? "Someone"}</span>
-                    {(user?.role === "admin" || t.user_id === user?.id) && (
+                    <span style={{ flex: 1, fontSize: 12.5, color: "var(--text2)" }}>{t.notes ?? "-"} - {t.user_name ?? "Someone"}</span>
+                    {(isAdminRole(user?.role) || t.user_id === user?.id) && (
                       <button type="button" className="icon-btn" style={{ width: 18, height: 18 }} onClick={() => removeTimeEntry(t.id)} title="Delete">✕</button>
                     )}
                   </div>

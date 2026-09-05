@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api, API_BASE, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
@@ -72,8 +72,8 @@ export function Opportunities() {
   const [newTypeName, setNewTypeName] = useState("");
 
   const companyOptions: SelectOption[] = [
-    ...(companies?.clients.map((c) => ({ value: `client:${c.id}`, label: `${c.company} — existing client` })) ?? []),
-    ...(companies?.leads.map((l) => ({ value: `lead:${l.id}`, label: `${l.company} — existing lead` })) ?? []),
+    ...(companies?.clients.map((c) => ({ value: `client:${c.id}`, label: `${c.company} - existing client` })) ?? []),
+    ...(companies?.leads.map((l) => ({ value: `lead:${l.id}`, label: `${l.company} - existing lead` })) ?? []),
   ];
   // Deliberately NOT a composite "client:<id>"/"lead:<id>" value here: that
   // would make CustomSelect's closed-state display fall back to the picked
@@ -102,8 +102,8 @@ export function Opportunities() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
-  const canEdit = user?.role === "admin" || user?.role === "sales";
-  const canDelete = user?.role === "admin";
+  const canEdit = isAdminRole(user?.role) || user?.role === "sales";
+  const canDelete = isAdminRole(user?.role);
 
   function openAdd() {
     setEditing(null);
@@ -305,7 +305,7 @@ export function Opportunities() {
                 <tr key={o.id}>
                   <td>
                     <div style={{ fontWeight: 550, color: "var(--text)" }}>{o.company}</div>
-                    <div style={{ fontSize: 11, color: "var(--text3)" }}>{o.client_name ?? "—"}</div>
+                    <div style={{ fontSize: 11, color: "var(--text3)" }}>{o.client_name ?? "-"}</div>
                     {o.client && (
                       <Link to={`/clients?q=${encodeURIComponent(o.client.company)}`} style={{ fontSize: 10.5, color: "var(--success)", fontWeight: 600, textDecoration: "none" }}>
                         ↳ linked client
@@ -317,13 +317,13 @@ export function Opportunities() {
                       </Link>
                     )}
                   </td>
-                  <td style={{ fontSize: 12 }}>{o.contact ?? "—"}</td>
+                  <td style={{ fontSize: 12 }}>{o.contact ?? "-"}</td>
                   <td style={{ fontSize: 12, textTransform: "capitalize" }}>{o.kind}</td>
-                  <td className="mono" style={{ fontSize: 12 }}>{o.value ? formatMoney(Number(o.value)) : "—"}</td>
+                  <td className="mono" style={{ fontSize: 12 }}>{o.value ? formatMoney(Number(o.value)) : "-"}</td>
                   <td style={{ fontSize: 12 }}>{formatDate(o.lead_date)}</td>
                   <td>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 220 }}>
-                      {o.opportunity_types.length === 0 && <span style={{ fontSize: 11, color: "var(--text3)" }}>—</span>}
+                      {o.opportunity_types.length === 0 && <span style={{ fontSize: 11, color: "var(--text3)" }}>-</span>}
                       {o.opportunity_types.map((t) => <span key={t.id} className="badge badge-draft">{t.name}</span>)}
                     </div>
                   </td>
@@ -494,7 +494,7 @@ export function Opportunities() {
               <div>
                 <div className="banner banner-info">
                   {importResult.imported} row(s) imported.
-                  {importResult.duplicates > 0 && ` ${importResult.duplicates} duplicate(s) skipped — already in the system.`}
+                  {importResult.duplicates > 0 && ` ${importResult.duplicates} duplicate(s) skipped - already in the system.`}
                 </div>
                 {importResult.skipped.length > 0 && (
                   <div style={{ marginTop: 8 }}>

@@ -7,7 +7,7 @@ import { PageHeader } from "../components/PageHeader";
 import { formatMoney, formatDate, isOverdue } from "../lib/format";
 import { Link } from "react-router-dom";
 import { IconDashboard, IconInbox } from "../components/Icons";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { OnboardingChecklist } from "../components/OnboardingChecklist";
 
 type DashboardData = {
@@ -50,8 +50,8 @@ export function Dashboard() {
 
   return (
     <div>
-      <PageHeader icon={<IconDashboard size={19} />} title="Dashboard" subtitle={`${greeting}, ${user?.name?.split(" ")[0] ?? ""} — here's where things stand`} />
-      {user?.role === "admin" && <OnboardingChecklist hasLeads={s.total_leads > 0} hasClients={s.active_clients > 0} />}
+      <PageHeader icon={<IconDashboard size={19} />} title="Dashboard" subtitle={`${greeting}, ${user?.name?.split(" ")[0] ?? ""} - here's where things stand`} />
+      {isAdminRole(user?.role) && <OnboardingChecklist hasLeads={s.total_leads > 0} hasClients={s.active_clients > 0} />}
       <div className="stat-grid">
         <StatCard label={isSales ? "Your Leads" : "Total Leads"} value={String(s.total_leads)} color="var(--accent)"
           change={s.new_leads_change_pct != null ? `${s.new_leads_change_pct >= 0 ? "+" : ""}${s.new_leads_change_pct.toFixed(0)}% vs last month` : `${s.new_leads_this_month} this month`}
@@ -128,7 +128,7 @@ export function Dashboard() {
           {data.upcoming_followups.map((f) => (
             <div className={`followup-item${isOverdue(f.next_followup_date) ? " overdue" : ""}`} key={f.id}>
               <div className="followup-company">{f.company}</div>
-              <div className="followup-detail">{f.contact_person} — due {formatDate(f.next_followup_date)}</div>
+              <div className="followup-detail">{f.contact_person} - due {formatDate(f.next_followup_date)}</div>
             </div>
           ))}
         </div>

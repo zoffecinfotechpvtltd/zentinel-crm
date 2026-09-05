@@ -67,14 +67,14 @@ export function TwoFactorSettings() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
+    <div className="card">
       <div className="card-title">Two-Factor Authentication</div>
 
       {step === "idle" && (
         <>
           <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14 }}>
             {status?.enabled
-              ? "Enabled — a code from your authenticator app is required at login, in addition to your password."
+              ? "Enabled - a code from your authenticator app is required at login, in addition to your password."
               : "Adds a second step at login using an authenticator app (Google Authenticator, Authy, 1Password, etc.)."}
           </p>
           {status?.enabled ? (
@@ -89,7 +89,7 @@ export function TwoFactorSettings() {
         <>
           {error && <div className="banner banner-error" role="alert">{error}</div>}
           <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 10 }}>
-            In your authenticator app, add a new account and enter this key manually (most apps call it "manual entry" or "enter a setup key" — no camera/QR needed):
+            In your authenticator app, add a new account and enter this key manually (most apps call it "manual entry" or "enter a setup key" - no camera/QR needed):
           </p>
           <code className="mono" style={{ display: "block", background: "var(--bg3)", padding: "10px 12px", borderRadius: 8, fontSize: 14, letterSpacing: 1, marginBottom: 6, wordBreak: "break-all" }}>{secret}</code>
           <details style={{ marginBottom: 14 }}>
@@ -109,7 +109,7 @@ export function TwoFactorSettings() {
 
       {step === "backup-codes" && (
         <>
-          <div className="banner banner-info" role="status">2FA is on. Save these backup codes somewhere safe — each works once, and this is the only time they're shown.</div>
+          <div className="banner banner-info" role="status">2FA is on. Save these backup codes somewhere safe - each works once, and this is the only time they're shown.</div>
           <div className="mono" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, background: "var(--bg3)", padding: 14, borderRadius: 8, marginBottom: 14, fontSize: 14 }}>
             {backupCodes.map((c) => <div key={c}>{c}</div>)}
           </div>

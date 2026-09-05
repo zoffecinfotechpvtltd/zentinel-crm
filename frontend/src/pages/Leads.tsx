@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
@@ -116,8 +116,8 @@ export function Leads() {
     }
   }
 
-  const canEdit = user?.role === "admin" || user?.role === "sales";
-  const canDelete = user?.role === "admin";
+  const canEdit = isAdminRole(user?.role) || user?.role === "sales";
+  const canDelete = isAdminRole(user?.role);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -302,7 +302,7 @@ export function Leads() {
     }
   }
 
-  const serviceName = (id: string | null) => services?.find((s) => s.id === id)?.name ?? "—";
+  const serviceName = (id: string | null) => services?.find((s) => s.id === id)?.name ?? "-";
 
   const columns = useMemo(() => {
     const byStatus: Record<string, Lead[]> = {};
@@ -322,7 +322,7 @@ export function Leads() {
             <button type="button" className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
             <button type="button" className={view === "board" ? "active" : ""} onClick={() => setView("board")}>Board</button>
           </div>
-          {user?.role === "admin" && <button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(true)}>Duplicates</button>}
+          {isAdminRole(user?.role) && <button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(true)}>Duplicates</button>}
           {canEdit && <button type="button" className="btn btn-primary" onClick={openAdd}><IconPlus size={14} /> Add Lead</button>}
         </>}
       />
@@ -381,7 +381,7 @@ export function Leads() {
                     <td><input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} /></td>
                     <td>
                       <div style={{ fontWeight: 550, color: "var(--text)" }}>{l.company}</div>
-                      <div style={{ fontSize: 11, color: "var(--text3)" }}>{l.industry ?? "—"}</div>
+                      <div style={{ fontSize: 11, color: "var(--text3)" }}>{l.industry ?? "-"}</div>
                       {l.opportunity_count > 0 && (
                         <Link to={`/opportunities?q=${encodeURIComponent(l.company)}`} style={{ fontSize: 10.5, color: "var(--info)", fontWeight: 600, textDecoration: "none" }}>
                           ↳ {l.opportunity_count} opportunit{l.opportunity_count === 1 ? "y" : "ies"}
@@ -390,7 +390,7 @@ export function Leads() {
                     </td>
                     <td><div>{l.contact_person}</div><div style={{ fontSize: 11, color: "var(--text3)" }}>{l.designation}</div></td>
                     <td style={{ fontSize: 12 }}>{serviceName(l.service_id)}</td>
-                    <td style={{ fontSize: 12 }}>{l.source ?? "—"}</td>
+                    <td style={{ fontSize: 12 }}>{l.source ?? "-"}</td>
                     <td>
                       <span style={{ fontWeight: 650, color: scoreColor(l.lead_score) }}>{l.lead_score}</span>
                     </td>
@@ -462,7 +462,7 @@ export function Leads() {
                     </div>
                     <div className="kanban-card-sub">{l.contact_person}{l.industry ? ` · ${l.industry}` : ""}</div>
                     <div className="kanban-card-foot">
-                      <span className="mono">{l.value_estimate ? formatMoney(l.value_estimate) : "—"}</span>
+                      <span className="mono">{l.value_estimate ? formatMoney(l.value_estimate) : "-"}</span>
                       <span>{formatDate(l.next_followup_date)}</span>
                     </div>
                   </div>
@@ -556,7 +556,7 @@ export function Leads() {
                     to={`/opportunities?q=${encodeURIComponent(o.company)}`}
                     style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)", color: "var(--text)", textDecoration: "none" }}
                   >
-                    <span style={{ textTransform: "capitalize" }}>{o.kind} — {o.company}</span>
+                    <span style={{ textTransform: "capitalize" }}>{o.kind} - {o.company}</span>
                     <Badge status={o.stage} />
                   </Link>
                 ))}
@@ -569,7 +569,7 @@ export function Leads() {
 
       {interactionLead && (
         <Modal
-          title={`Log Interaction — ${interactionLead.company}`}
+          title={`Log Interaction - ${interactionLead.company}`}
           onClose={() => setInteractionLead(null)}
           footer={<>
             <button type="button" className="btn btn-ghost" onClick={() => setInteractionLead(null)}>Cancel</button>

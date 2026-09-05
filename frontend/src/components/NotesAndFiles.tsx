@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useFetch } from "../lib/useFetch";
 import { api, API_BASE } from "../lib/api";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useToast } from "./Toast";
 import { useConfirm } from "./ConfirmDialog";
 import { formatDateTime } from "../lib/format";
@@ -45,7 +45,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
   const [historyId, setHistoryId] = useState<string | null>(null);
   const { data: history } = useFetch<AttachmentVersion[]>(historyId ? `${base}/${entityId}/attachments/${historyId}/versions` : "", [historyId]);
 
-  const canManage = (ownerId: string | null) => user?.role === "admin" || (!!ownerId && ownerId === user?.id);
+  const canManage = (ownerId: string | null) => isAdminRole(user?.role) || (!!ownerId && ownerId === user?.id);
 
   async function addNote() {
     if (!noteBody.trim()) return;
@@ -117,7 +117,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
     try {
       const result = await api.post<{ link: string }>(`${base}/${entityId}/attachments/${id}/signature-request`);
       await navigator.clipboard.writeText(result.link);
-      push("Signing link copied — send it to the client", "success");
+      push("Signing link copied - send it to the client", "success");
       reloadAttachments();
     } catch (err) {
       push(err instanceof Error ? err.message : "Couldn't create a signing link", "error");
@@ -145,7 +145,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
             <div key={n.id} style={{ padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)" }}>
               <div style={{ fontSize: 13, color: "var(--text2)", whiteSpace: "pre-wrap" }}>{n.body}</div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--text3)" }}>
-                <span>{n.author_name ?? "Someone"} — {formatDateTime(n.created_at)}</span>
+                <span>{n.author_name ?? "Someone"} - {formatDateTime(n.created_at)}</span>
                 {canManage(n.created_by) && (
                   <button type="button" className="icon-btn" style={{ width: 20, height: 20 }} onClick={() => deleteNote(n.id)} title="Delete"><IconTrash size={11} /></button>
                 )}
@@ -244,7 +244,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
                     href={`${API_BASE}/api${base}/${entityId}/attachments/${v.id}/file`}
                     style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "var(--text2)", textDecoration: "none" }}
                   >
-                    <span>v{v.version} — {v.filename} ({v.uploader_name ?? "Someone"})</span>
+                    <span>v{v.version} - {v.filename} ({v.uploader_name ?? "Someone"})</span>
                     <span style={{ color: "var(--text3)" }}>{formatDateTime(v.created_at)}</span>
                   </a>
                 ))}

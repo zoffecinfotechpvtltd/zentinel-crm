@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
@@ -112,9 +112,9 @@ export function Invoices() {
     reloadRecurring();
   }
 
-  const canEdit = user?.role === "admin" || user?.role === "finance";
+  const canEdit = isAdminRole(user?.role) || user?.role === "finance";
   const canViewOnly = user?.role === "sales";
-  const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "—";
+  const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "-";
   const filtered = search
     ? invoices.filter((inv) => (inv.invoice_number ?? "").toLowerCase().includes(search.toLowerCase()) || clientName(inv.client_id).toLowerCase().includes(search.toLowerCase()))
     : invoices;
@@ -167,7 +167,7 @@ export function Invoices() {
       setDueDate(extracted.due_date ?? "");
       const rate = extracted.subtotal ?? extracted.total ?? 0;
       setLines([{
-        description: `Imported invoice${extracted.invoice_number ? ` — ${extracted.invoice_number}` : ""}`,
+        description: `Imported invoice${extracted.invoice_number ? ` - ${extracted.invoice_number}` : ""}`,
         quantity: "1",
         rate: String(rate),
         gst_rate: String(extracted.gst_rate ?? 18),
@@ -175,8 +175,8 @@ export function Invoices() {
       setImportNote({ partyName: extracted.party_name, matched: !!matched_client, duplicate });
       setCreateError(null);
       setCreateOpen(true);
-      if (duplicate) push(`Heads up — this looks like it might already exist as ${duplicate.invoice_number ?? "a draft"}`, "info");
-      else push("PDF read — review the extracted details before saving", "success");
+      if (duplicate) push(`Heads up - this looks like it might already exist as ${duplicate.invoice_number ?? "a draft"}`, "info");
+      else push("PDF read - review the extracted details before saving", "success");
     } catch (err) {
       push(err instanceof Error ? err.message : "Couldn't read that PDF", "error");
     } finally {
@@ -285,7 +285,7 @@ export function Invoices() {
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDetailId(inv.id)}>View</button>
-                      {user?.role === "admin" && <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => removeInvoice(inv)}>Delete</button>}
+                      {isAdminRole(user?.role) && <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => removeInvoice(inv)}>Delete</button>}
                     </div>
                   </td>
                 </tr>
@@ -304,16 +304,16 @@ export function Invoices() {
           {createError && <div className="banner banner-error">{createError}</div>}
           {importNote?.duplicate && (
             <div className="banner banner-error">
-              This looks like it might already be in the system as {importNote.duplicate.invoice_number ?? "an existing draft"} — check before saving a second copy.
+              This looks like it might already be in the system as {importNote.duplicate.invoice_number ?? "an existing draft"} - check before saving a second copy.
             </div>
           )}
           {importNote && !importNote.matched && (
             <div className="banner banner-info">
-              Couldn't confidently match{importNote.partyName ? ` "${importNote.partyName}"` : " the party on this PDF"} to a client — pick the right one below.
+              Couldn't confidently match{importNote.partyName ? ` "${importNote.partyName}"` : " the party on this PDF"} to a client - pick the right one below.
             </div>
           )}
           {importNote && (
-            <div className="banner banner-info">Extracted from the PDF — double-check every field before saving, this is a best-effort read.</div>
+            <div className="banner banner-info">Extracted from the PDF - double-check every field before saving, this is a best-effort read.</div>
           )}
           <div className="form-grid" style={{ marginBottom: 16 }}>
             <div className="form-group">
@@ -383,14 +383,14 @@ export function Invoices() {
                   <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Source</th></tr></thead>
                   <tbody>
                     {detail.payments.map((p) => (
-                      <tr key={p.id}><td style={{ fontSize: 12 }}>{formatDate(p.payment_date)}</td><td className="mono">{formatMoneyExact(p.amount)}</td><td>{p.method ?? "—"}</td><td>{p.source}</td></tr>
+                      <tr key={p.id}><td style={{ fontSize: 12 }}>{formatDate(p.payment_date)}</td><td className="mono">{formatMoneyExact(p.amount)}</td><td>{p.method ?? "-"}</td><td>{p.source}</td></tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </>
           )}
-          {canViewOnly && <div className="banner banner-info" style={{ marginTop: 16 }}>Read-only view — Sales can view but not edit invoices.</div>}
+          {canViewOnly && <div className="banner banner-info" style={{ marginTop: 16 }}>Read-only view - Sales can view but not edit invoices.</div>}
           <NotesAndFiles entityType="invoice" entityId={detail.id} />
         </Modal>
       )}
@@ -418,7 +418,7 @@ export function Invoices() {
                 <div style={{ flex: "1 1 160px" }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{t.client_company}</div>
                   <div style={{ fontSize: 11.5, color: "var(--text2)" }}>
-                    {t.line_items[0]?.description ?? "—"} · {formatMoneyExact(t.line_items.reduce((s, l) => s + l.quantity * l.rate, 0))}
+                    {t.line_items[0]?.description ?? "-"} · {formatMoneyExact(t.line_items.reduce((s, l) => s + l.quantity * l.rate, 0))}
                   </div>
                 </div>
                 <span style={{ fontSize: 12, color: "var(--text3)", textTransform: "capitalize" }}>{t.frequency}</span>

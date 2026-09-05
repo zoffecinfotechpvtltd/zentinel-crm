@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
+import { useAuth, isAdminRole } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { Logo } from "./Logo";
 import { UserAvatar } from "./UserAvatar";
@@ -10,7 +10,7 @@ import { useIdleLogout } from "../lib/useIdleLogout";
 import {
   IconDashboard, IconLeads, IconClients, IconProjects, IconInvoices, IconFollowups,
   IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconSun,
-  IconMoon, IconLogout, IconMenu, IconChevronDown, IconOpportunities, IconActivity, IconSparkle, IconKey,
+  IconMoon, IconLogout, IconMenu, IconOpportunities, IconActivity, IconSparkle, IconKey,
 } from "./Icons";
 
 type NavItem = { to: string; label: string; icon: React.ReactNode; roles?: string[] };
@@ -58,9 +58,7 @@ export function Layout() {
   });
   const [unread, setUnread] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.body.classList.toggle("dark", theme === "dark");
@@ -87,14 +85,6 @@ export function Layout() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
   function toggleTheme() {
@@ -150,7 +140,7 @@ export function Layout() {
             </div>
           );
         })}
-        {(user?.role === "admin" || user?.role === "superadmin") && (
+        {isAdminRole(user?.role) && (
           <div className="nav-section">
             <div className="nav-label">Admin</div>
             <NavLink to="/users" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconUsers />Users</NavLink>
@@ -168,13 +158,13 @@ export function Layout() {
           </div>
         )}
         <div className="nav-footer">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <NavLink to="/account" className="nav-footer-profile" onClick={() => setMobileNavOpen(false)}>
             <UserAvatar user={user} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 550, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
               <div style={{ fontSize: 11, color: "var(--text3)" }}>{user?.email}</div>
             </div>
-          </div>
+          </NavLink>
           <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={handleLogout}>
             <IconLogout size={14} /> Log out
           </button>
@@ -203,29 +193,6 @@ export function Layout() {
             <IconBell size={16} />
             {unread > 0 && <span className="nav-badge">{unread}</span>}
           </button>
-          <div className="dropdown" ref={userMenuRef}>
-            <button type="button" className="topbar-btn" style={{ width: "auto", gap: 6, padding: "0 8px" }} onClick={() => setUserMenuOpen((v) => !v)} aria-label="Account menu" aria-expanded={userMenuOpen}>
-              <UserAvatar user={user} size={24} />
-              <IconChevronDown size={13} />
-            </button>
-            {userMenuOpen && (
-              <div className="dropdown-panel" style={{ minWidth: 200 }}>
-                <div className="dropdown-header">
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.name}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--text3)" }}>{user?.email}</div>
-                  <div className="role-badge" style={{ marginTop: 8, display: "inline-block" }}>{user?.role}</div>
-                </div>
-                <div className="dropdown-footer" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <NavLink to="/account" className="btn btn-ghost btn-sm" style={{ width: "100%" }} onClick={() => setUserMenuOpen(false)}>
-                    Account &amp; 2FA
-                  </NavLink>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ width: "100%" }} onClick={handleLogout}>
-                    <IconLogout size={14} /> Log out
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
         <div className="content">
           <Outlet />
