@@ -36,10 +36,6 @@ export function Marketing() {
             <div className="logo-sub" style={{ color: "var(--text3)" }}>Internal CRM by Zoffec</div>
           </div>
         </div>
-        <div className="marketing-nav-links">
-          <a href="#features">Features</a>
-          <a href="#roles">Roles</a>
-        </div>
         <Link to="/login" className="btn btn-primary">Login</Link>
       </nav>
 
@@ -117,53 +113,16 @@ export function Marketing() {
         </div>
       </header>
 
-      <section id="features" className="marketing-section">
-        <div className="marketing-section-head">
-          <div className="section-title">One CRM, every team</div>
-          <p className="page-subtitle">Built around the way Zoffec actually sells, delivers, and bills.</p>
-        </div>
-        <div className="marketing-feature-grid">
-          {FEATURES.map((f) => (
-            <div className="card marketing-feature-card" key={f.title}>
-              <div className="page-icon">{f.icon}</div>
-              <div className="card-title" style={{ marginBottom: 6 }}>{f.title}</div>
-              <p className="marketing-feature-body">{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="roles" className="marketing-section marketing-roles">
-        <div className="marketing-section-head">
-          <div className="section-title">Access scoped to your role</div>
-          <p className="page-subtitle">Sign in and Zentinel shows you exactly what your role needs — nothing you don't.</p>
-        </div>
-        <div className="marketing-role-grid">
-          {ROLES.map((r) => (
-            <div className="card marketing-role-card" key={r.name}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <IconCheck size={15} />
-                <span className="card-title" style={{ marginBottom: 0 }}>{r.name}</span>
-              </div>
-              <p className="marketing-feature-body">{r.detail}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="marketing-cta">
-        <div className="marketing-cta-inner">
-          <div className="logo-mark"><Logo size={38} /></div>
-          <h2 className="marketing-cta-title">Ready to sign in?</h2>
-          <p className="marketing-hero-sub" style={{ margin: "0 auto" }}>Use the account your admin set up for you.</p>
-          <Link to="/login" className="btn btn-primary">
-            Login to Zentinel <IconArrowRight size={15} />
-          </Link>
-        </div>
-      </section>
+      <div className="marketing-strip">
+        {FEATURES.map((f) => (
+          <div className="marketing-strip-item" key={f.title}>
+            {f.icon}
+            <span>{f.title}</span>
+          </div>
+        ))}
+      </div>
 
       <footer className="marketing-footer">
-        <div className="logo-mark"><Logo size={20} /></div>
         <span>Zentinel — internal use only, Zoffec Infotech Pvt. Ltd.</span>
       </footer>
     </div>
