@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/pool";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { requireAuth, requireRole, isAdminRole } from "../middleware/auth";
 import { writeActivityLog } from "../lib/activityLog";
 import { createNotification } from "../lib/notifications";
 import { buildSingleEventIcs } from "../lib/ics";
@@ -450,7 +450,7 @@ router.delete("/:id/time-entries/:entryId", async (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
-  if (req.user!.role !== "admin" && result.rows[0].user_id !== req.user!.id) {
+  if (!isAdminRole(req.user!.role) && result.rows[0].user_id !== req.user!.id) {
     res.status(403).json({ error: "forbidden", message: "You can only delete your own time entries." });
     return;
   }
