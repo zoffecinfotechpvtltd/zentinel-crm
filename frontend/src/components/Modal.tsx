@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 export function Modal({
   title, onClose, children, footer, wide, xwide,
@@ -10,6 +10,14 @@ export function Modal({
   wide?: boolean;
   xwide?: boolean;
 }) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={`modal${xwide ? " xwide" : wide ? " wide" : ""}`}>

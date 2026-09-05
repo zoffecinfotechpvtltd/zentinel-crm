@@ -185,7 +185,13 @@ export function Layout() {
         <div className="topbar">
           <button type="button" className="icon-btn menu-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu"><IconMenu size={16} /></button>
           <div className="topbar-spacer" />
-          <div className="topbar-search" onClick={() => setPaletteOpen(true)}>
+          <div
+            className="topbar-search"
+            role="button"
+            tabIndex={0}
+            onClick={() => setPaletteOpen(true)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPaletteOpen(true); } }}
+          >
             <IconSearch size={14} />
             <span>Search or jump to…</span>
             <kbd>Ctrl K</kbd>
@@ -198,7 +204,7 @@ export function Layout() {
             {unread > 0 && <span className="nav-badge">{unread}</span>}
           </button>
           <div className="dropdown" ref={userMenuRef}>
-            <button type="button" className="topbar-btn" style={{ width: "auto", gap: 6, padding: "0 8px" }} onClick={() => setUserMenuOpen((v) => !v)}>
+            <button type="button" className="topbar-btn" style={{ width: "auto", gap: 6, padding: "0 8px" }} onClick={() => setUserMenuOpen((v) => !v)} aria-label="Account menu" aria-expanded={userMenuOpen}>
               <UserAvatar user={user} size={24} />
               <IconChevronDown size={13} />
             </button>

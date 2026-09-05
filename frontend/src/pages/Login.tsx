@@ -91,7 +91,7 @@ export function Login() {
                 <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Enter your account email — we'll send a link to set a new password.</p>
                 <div className="form-group" style={{ marginBottom: 18 }}>
                   <label className="form-label" htmlFor="forgot-email">Email</label>
-                  <input id="forgot-email" className="form-input" type="email" required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} autoFocus />
+                  <input id="forgot-email" className="form-input" type="email" autoComplete="email" spellCheck={false} required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} autoFocus />
                 </div>
                 <button className="btn btn-primary" type="submit" disabled={forgotBusy} style={{ width: "100%", justifyContent: "center" }}>
                   {forgotBusy ? "Sending…" : "Send reset link"}
@@ -123,7 +123,7 @@ export function Login() {
               {error && <div className="banner banner-error">{error}</div>}
               <div className="form-group" style={{ marginBottom: 18 }}>
                 <label className="form-label" htmlFor="twofactor-code">Code</label>
-                <input id="twofactor-code" className="form-input mono" style={{ fontSize: 18, letterSpacing: 2, textAlign: "center" }} required value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+                <input id="twofactor-code" className="form-input mono" style={{ fontSize: 18, letterSpacing: 2, textAlign: "center" }} spellCheck={false} autoComplete="one-time-code" required value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
               </div>
               <button className="btn btn-primary" type="submit" disabled={submitting || !code} style={{ width: "100%", justifyContent: "center" }}>
                 {submitting ? "Verifying…" : "Verify"}
@@ -151,11 +151,11 @@ export function Login() {
             {error && <div className="banner banner-error">{error}</div>}
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label className="form-label">Email</label>
-              <input className="form-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+              <input className="form-input" type="email" autoComplete="username" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
             </div>
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label className="form-label">Password</label>
-              <input className="form-input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input className="form-input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

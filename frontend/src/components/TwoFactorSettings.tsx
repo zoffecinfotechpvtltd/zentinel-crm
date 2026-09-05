@@ -87,7 +87,7 @@ export function TwoFactorSettings() {
 
       {step === "setup" && (
         <>
-          {error && <div className="banner banner-error">{error}</div>}
+          {error && <div className="banner banner-error" role="alert">{error}</div>}
           <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 10 }}>
             In your authenticator app, add a new account and enter this key manually (most apps call it "manual entry" or "enter a setup key" — no camera/QR needed):
           </p>
@@ -97,8 +97,8 @@ export function TwoFactorSettings() {
             <code className="mono" style={{ display: "block", fontSize: 11, color: "var(--text3)", marginTop: 6, wordBreak: "break-all" }}>{otpauthUri}</code>
           </details>
           <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Enter the 6-digit code it shows</label>
-            <input className="form-input mono" style={{ fontSize: 16, letterSpacing: 2 }} value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+            <label className="form-label" htmlFor="totp-setup-code">Enter the 6-digit code it shows</label>
+            <input id="totp-setup-code" className="form-input mono" style={{ fontSize: 16, letterSpacing: 2 }} spellCheck={false} autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-ghost" onClick={() => setStep("idle")}>Cancel</button>
@@ -109,7 +109,7 @@ export function TwoFactorSettings() {
 
       {step === "backup-codes" && (
         <>
-          <div className="banner banner-info">2FA is on. Save these backup codes somewhere safe — each works once, and this is the only time they're shown.</div>
+          <div className="banner banner-info" role="status">2FA is on. Save these backup codes somewhere safe — each works once, and this is the only time they're shown.</div>
           <div className="mono" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, background: "var(--bg3)", padding: 14, borderRadius: 8, marginBottom: 14, fontSize: 14 }}>
             {backupCodes.map((c) => <div key={c}>{c}</div>)}
           </div>
@@ -119,10 +119,10 @@ export function TwoFactorSettings() {
 
       {step === "disable" && (
         <>
-          {error && <div className="banner banner-error">{error}</div>}
+          {error && <div className="banner banner-error" role="alert">{error}</div>}
           <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Confirm your password to turn off 2FA</label>
-            <input className="form-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+            <label className="form-label" htmlFor="totp-disable-password">Confirm your password to turn off 2FA</label>
+            <input id="totp-disable-password" className="form-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-ghost" onClick={() => { setStep("idle"); setPassword(""); }}>Cancel</button>

@@ -195,7 +195,7 @@ export function Projects() {
       />
 
       <div className="filter-bar">
-        <input className="filter-input" placeholder="Search project / client..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className="filter-input" placeholder="Search project / client…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <CustomSelect
           value={status}
           onChange={setStatus}

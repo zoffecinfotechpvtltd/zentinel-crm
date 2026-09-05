@@ -62,7 +62,7 @@ export function SignDocument() {
               </p>
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Your full name</label>
-                <input className="form-input" required value={signerName} onChange={(e) => setSignerName(e.target.value)} autoFocus />
+                <input className="form-input" autoComplete="name" required value={signerName} onChange={(e) => setSignerName(e.target.value)} autoFocus />
               </div>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 18 }}>
                 <input type="checkbox" id="agree" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />

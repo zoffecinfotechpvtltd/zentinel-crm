@@ -49,20 +49,20 @@ export function Setup({ onDone }: { onDone: () => void }) {
           <form onSubmit={onSubmit}>
             {error && <div className="banner banner-error">{error}</div>}
             <div className="form-group" style={{ marginBottom: 14 }}>
-              <label className="form-label">Your name</label>
-              <input className="form-input" required value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+              <label className="form-label" htmlFor="setup-name">Your name</label>
+              <input id="setup-name" className="form-input" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             </div>
             <div className="form-group" style={{ marginBottom: 14 }}>
-              <label className="form-label">Email</label>
-              <input className="form-input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <label className="form-label" htmlFor="setup-email">Email</label>
+              <input id="setup-email" className="form-input" type="email" autoComplete="email" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="form-group" style={{ marginBottom: 14 }}>
-              <label className="form-label">Password</label>
-              <input className="form-input" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <label className="form-label" htmlFor="setup-password">Password</label>
+              <input id="setup-password" className="form-input" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <div className="form-group" style={{ marginBottom: 18 }}>
-              <label className="form-label">Confirm password</label>
-              <input className="form-input" type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <label className="form-label" htmlFor="setup-confirm">Confirm password</label>
+              <input id="setup-confirm" className="form-input" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             </div>
             <button className="btn btn-primary" type="submit" disabled={submitting} style={{ width: "100%", justifyContent: "center" }}>
               {submitting ? "Creating…" : "Create admin account"}

@@ -233,7 +233,7 @@ export function Settings() {
             <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 8 }}>
               Fires a JSON POST here when a lead is Won or Lost, an invoice is fully paid, or a project is marked Completed — paste in a Slack incoming-webhook URL or a Make.com/n8n/Zapier webhook trigger.
             </p>
-            <input className="form-input" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://hooks.slack.com/services/..." />
+            <input className="form-input" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://hooks.slack.com/services/…" />
           </div>
           {webhookSaved && <div className="banner banner-info">Saved.</div>}
           <button type="button" className="btn btn-primary btn-sm" onClick={saveOutboundWebhook}>Save</button>

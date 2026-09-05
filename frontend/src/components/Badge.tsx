@@ -6,7 +6,6 @@ const STATUS_CLASS: Record<string, string> = {
   Pending: "badge-pending", Paid: "badge-paid", Overdue: "badge-overdue", Cancelled: "badge-cancelled", Partial: "badge-partial",
   "In Progress": "badge-inprogress", "Not Started": "badge-notstarted", Completed: "badge-completed",
   "On Hold": "badge-onhold", "Awaiting Client": "badge-awaiting",
-  not_synced: "badge-notsynced", pending: "badge-syncpending", synced: "badge-synced", failed: "badge-syncfailed",
 };
 
 export function Badge({ status }: { status: string }) {

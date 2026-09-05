@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { IconAlert } from "./Icons";
 
 type ConfirmOptions = {
@@ -36,6 +36,16 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     resolveRef.current = null;
     setPending(null);
   }
+
+  useEffect(() => {
+    if (!pending) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") settle(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
 
   return (
     <ConfirmContext.Provider value={confirmFn}>

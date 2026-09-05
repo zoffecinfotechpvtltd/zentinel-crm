@@ -328,7 +328,7 @@ export function Leads() {
       />
 
       <div className="filter-bar">
-        <input className="filter-input" placeholder="Search company / contact..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className="filter-input" placeholder="Search company / contact…" value={search} onChange={(e) => setSearch(e.target.value)} />
         {view === "list" && (
           <CustomSelect
             value={status}
@@ -452,6 +452,9 @@ export function Leads() {
                     onDragStart={() => setDragId(l.id)}
                     onDragEnd={() => setDragId(null)}
                     onClick={() => canEdit && openEdit(l)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (canEdit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openEdit(l); } }}
                   >
                     <div className="kanban-card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
                       <span>{l.company}</span>
@@ -498,7 +501,7 @@ export function Leads() {
             </div>
             <div className="form-group">
               <label className="form-label">Email *</label>
-              <input className="form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <input className="form-input" type="email" autoComplete="email" spellCheck={false} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               {fieldErrors.email && <div className="form-error">{fieldErrors.email}</div>}
             </div>
             <div className="form-group">
@@ -576,7 +579,7 @@ export function Leads() {
           {interactionErr && <div className="banner banner-error">{interactionErr}</div>}
           <div className="form-group" style={{ marginBottom: 14 }}>
             <label className="form-label">What happened? *</label>
-            <textarea className="form-textarea" value={interactionNote} onChange={(e) => setInteractionNote(e.target.value)} placeholder="Had a call, discussed pricing..." />
+            <textarea className="form-textarea" value={interactionNote} onChange={(e) => setInteractionNote(e.target.value)} placeholder="Had a call, discussed pricing…" />
           </div>
           {(interactionLead.status === "Won" || interactionLead.status === "Lost") && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>

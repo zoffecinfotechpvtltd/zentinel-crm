@@ -86,7 +86,7 @@ function ProfileCard() {
       <div className="form-group full">
         <label className="form-label">Name</label>
         <div style={{ display: "flex", gap: 8 }}>
-          <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="form-input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
           <button type="button" className="btn btn-ghost btn-sm" disabled={savingName || !name.trim() || name.trim() === user?.name} onClick={saveName}>
             {savingName ? "Saving…" : "Save"}
           </button>

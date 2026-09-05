@@ -20,10 +20,12 @@ interface CustomSelectProps {
   searchable?: boolean;
   /** Allows typing a value with no matching option (e.g. a brand-new company name). */
   allowCustomValue?: boolean;
+  /** Accessible name when there's no visible `<label htmlFor>` pointing at this control (e.g. a dynamically-generated field). */
+  ariaLabel?: string;
 }
 
 export function CustomSelect({
-  value, onChange, options, placeholder = "Select…", className = "", disabled, searchable, allowCustomValue,
+  value, onChange, options, placeholder = "Select…", className = "", disabled, searchable, allowCustomValue, ariaLabel,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -108,6 +110,9 @@ export function CustomSelect({
       className={`custom-select ${className}`}
       data-open={open || undefined}
       data-disabled={disabled || undefined}
+      role="combobox"
+      aria-expanded={open}
+      aria-label={ariaLabel}
       tabIndex={searchable ? -1 : disabled ? -1 : 0}
       onKeyDown={onKeyDown}
       onClick={() => (open ? undefined : openMenu())}

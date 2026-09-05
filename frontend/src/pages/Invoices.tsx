@@ -253,7 +253,7 @@ export function Invoices() {
       )}
 
       <div className="filter-bar">
-        <input className="filter-input" placeholder="Search invoice / client..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className="filter-input" placeholder="Search invoice / client…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <CustomSelect
           value={status}
           onChange={setStatus}
@@ -403,7 +403,7 @@ export function Invoices() {
           {payError && <div className="banner banner-error">{payError}</div>}
           <div className="form-group" style={{ marginBottom: 12 }}><label className="form-label">Amount (₹) *</label><input className="form-input" type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} /></div>
           <div className="form-group" style={{ marginBottom: 12 }}><label className="form-label">Payment Date *</label><CustomDatePicker value={payDate} onChange={setPayDate} /></div>
-          <div className="form-group"><label className="form-label">Method</label><input className="form-input" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} placeholder="Bank transfer, cheque..." /></div>
+          <div className="form-group"><label className="form-label">Method</label><input className="form-input" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} placeholder="Bank transfer, cheque…" /></div>
         </Modal>
       )}
 

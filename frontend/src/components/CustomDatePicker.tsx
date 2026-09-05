@@ -12,6 +12,8 @@ interface CustomDatePickerProps {
   disabled?: boolean;
   min?: string;
   max?: string;
+  /** Accessible name when there's no visible `<label htmlFor>` pointing at this control. */
+  ariaLabel?: string;
 }
 
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -30,7 +32,7 @@ function formatDisplay(iso: string): string {
   return `${d} ${MONTH_LABELS[m - 1].slice(0, 3)} ${y}`;
 }
 
-export function CustomDatePicker({ value, onChange, className = "", placeholder = "Select date…", disabled, min, max }: CustomDatePickerProps) {
+export function CustomDatePicker({ value, onChange, className = "", placeholder = "Select date…", disabled, min, max, ariaLabel }: CustomDatePickerProps) {
   const [open, setOpen] = useState(false);
   const parsed = value ? value.split("-").map(Number) : null;
   const today = new Date();
@@ -84,6 +86,10 @@ export function CustomDatePicker({ value, onChange, className = "", placeholder 
       className={`custom-datepicker ${className}`}
       data-open={open || undefined}
       data-disabled={disabled || undefined}
+      role="button"
+      aria-label={ariaLabel ?? (value ? formatDisplay(value) : placeholder)}
+      aria-haspopup="dialog"
+      aria-expanded={open}
       tabIndex={disabled ? -1 : 0}
       onClick={() => !disabled && setOpen(true)}
       onKeyDown={(e) => { if (!disabled && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setOpen(true); } }}

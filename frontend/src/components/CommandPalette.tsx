@@ -76,13 +76,20 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             placeholder="Jump to a page or action…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="cmdk-listbox"
+            aria-activedescendant={filtered[active] ? `cmdk-item-${active}` : undefined}
           />
         </div>
-        <div className="cmdk-list">
+        <div className="cmdk-list" id="cmdk-listbox" role="listbox">
           {filtered.length === 0 && <div className="cmdk-empty">Nothing matches "{query}"</div>}
           {filtered.map((c, i) => (
             <div
               key={c.label}
+              id={`cmdk-item-${i}`}
+              role="option"
+              aria-selected={i === active}
               className={`cmdk-item${i === active ? " active" : ""}`}
               onMouseEnter={() => setActive(i)}
               onClick={() => go(c)}

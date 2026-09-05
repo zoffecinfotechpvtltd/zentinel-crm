@@ -132,6 +132,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
           <textarea
             className="form-textarea"
             style={{ minHeight: 44, flex: 1 }}
+            aria-label="Add a note"
             placeholder="Add a note…"
             value={noteBody}
             onChange={(e) => setNoteBody(e.target.value)}
@@ -203,7 +204,7 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
                     a.document_type && <span className="badge badge-draft">{a.document_type}</span>
                   )}
                   {a.version > 1 && (
-                    <button type="button" className="badge badge-draft" style={{ border: "none", cursor: "pointer" }} onClick={() => setHistoryId(historyId === a.id ? null : a.id)}>
+                    <button type="button" className="badge badge-draft" onClick={() => setHistoryId(historyId === a.id ? null : a.id)}>
                       v{a.version} · history
                     </button>
                   )}

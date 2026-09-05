@@ -319,7 +319,7 @@ export function Opportunities() {
                   </td>
                   <td style={{ fontSize: 12 }}>{o.contact ?? "—"}</td>
                   <td style={{ fontSize: 12, textTransform: "capitalize" }}>{o.kind}</td>
-                  <td style={{ fontSize: 12 }}>{o.value ? formatMoney(Number(o.value)) : "—"}</td>
+                  <td className="mono" style={{ fontSize: 12 }}>{o.value ? formatMoney(Number(o.value)) : "—"}</td>
                   <td style={{ fontSize: 12 }}>{formatDate(o.lead_date)}</td>
                   <td>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 220 }}>

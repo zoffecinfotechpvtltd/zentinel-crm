@@ -85,11 +85,11 @@ export function ResetPassword() {
             {error && <div className="banner banner-error">{error}</div>}
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label className="form-label" htmlFor="new-password">New password</label>
-              <input id="new-password" className="form-input" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+              <input id="new-password" className="form-input" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
             </div>
             <div className="form-group" style={{ marginBottom: 18 }}>
               <label className="form-label" htmlFor="confirm-password">Confirm password</label>
-              <input id="confirm-password" className="form-input" type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <input id="confirm-password" className="form-input" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             </div>
             <button className="btn btn-primary" type="submit" disabled={submitting} style={{ width: "100%", justifyContent: "center" }}>
               {submitting ? "Setting password…" : "Set password"}

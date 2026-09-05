@@ -231,7 +231,7 @@ export function Clients() {
       />
 
       <div className="filter-bar">
-        <input className="filter-input" placeholder="Search client..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className="filter-input" placeholder="Search client…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <CustomSelect
           value={status}
           onChange={setStatus}
@@ -364,7 +364,7 @@ export function Clients() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email</label>
-                  <input className="form-input" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
+                  <input className="form-input" type="email" autoComplete="email" spellCheck={false} value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Mobile</label>

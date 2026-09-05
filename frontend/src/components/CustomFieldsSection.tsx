@@ -28,18 +28,19 @@ export function CustomFieldsSection({
       <div className="form-grid">
         {active.map((d) => (
           <div className="form-group" key={d.id}>
-            <label className="form-label">{d.label}</label>
+            <label className="form-label" htmlFor={`custom-field-${d.key}`}>{d.label}</label>
             {d.field_type === "text" && (
-              <input className="form-input" value={(values[d.key] as string) ?? ""} onChange={(e) => setField(d.key, e.target.value)} />
+              <input id={`custom-field-${d.key}`} className="form-input" value={(values[d.key] as string) ?? ""} onChange={(e) => setField(d.key, e.target.value)} />
             )}
             {d.field_type === "number" && (
-              <input className="form-input" type="number" value={(values[d.key] as string) ?? ""} onChange={(e) => setField(d.key, e.target.value ? Number(e.target.value) : "")} />
+              <input id={`custom-field-${d.key}`} className="form-input" type="number" value={(values[d.key] as string) ?? ""} onChange={(e) => setField(d.key, e.target.value ? Number(e.target.value) : "")} />
             )}
             {d.field_type === "date" && (
-              <CustomDatePicker value={(values[d.key] as string) ?? ""} onChange={(v) => setField(d.key, v)} />
+              <CustomDatePicker ariaLabel={d.label} value={(values[d.key] as string) ?? ""} onChange={(v) => setField(d.key, v)} />
             )}
             {d.field_type === "boolean" && (
               <CustomSelect
+                ariaLabel={d.label}
                 value={values[d.key] === true ? "yes" : values[d.key] === false ? "no" : ""}
                 onChange={(v) => setField(d.key, v === "yes")}
                 placeholder="Select…"
@@ -48,6 +49,7 @@ export function CustomFieldsSection({
             )}
             {d.field_type === "select" && (
               <CustomSelect
+                ariaLabel={d.label}
                 value={(values[d.key] as string) ?? ""}
                 onChange={(v) => setField(d.key, v)}
                 placeholder="Select…"

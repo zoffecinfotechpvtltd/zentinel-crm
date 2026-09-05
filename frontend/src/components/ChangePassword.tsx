@@ -39,18 +39,18 @@ export function ChangePassword() {
   return (
     <div className="card" style={{ maxWidth: 560, marginTop: 16 }}>
       <div className="card-title">Change Password</div>
-      {error && <div className="banner banner-error">{error}</div>}
+      {error && <div className="banner banner-error" role="alert">{error}</div>}
       <div className="form-group" style={{ marginBottom: 12 }}>
-        <label className="form-label">Current password</label>
-        <input className="form-input" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+        <label className="form-label" htmlFor="change-pw-current">Current password</label>
+        <input id="change-pw-current" className="form-input" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
       </div>
       <div className="form-group" style={{ marginBottom: 12 }}>
-        <label className="form-label">New password</label>
-        <input className="form-input" type="password" minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        <label className="form-label" htmlFor="change-pw-new">New password</label>
+        <input id="change-pw-new" className="form-input" type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
       </div>
       <div className="form-group" style={{ marginBottom: 14 }}>
-        <label className="form-label">Confirm new password</label>
-        <input className="form-input" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <label className="form-label" htmlFor="change-pw-confirm">Confirm new password</label>
+        <input id="change-pw-confirm" className="form-input" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
       </div>
       <button
         type="button"
