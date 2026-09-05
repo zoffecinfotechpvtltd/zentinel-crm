@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import multer from "multer";
 import { pool } from "../db/pool";
 import { verifyPassword, hashPassword } from "../lib/password";
 import { createSession, setSessionCookie, clearSessionCookie, getSessionCookieName } from "../lib/session";
@@ -10,6 +13,7 @@ import { sendMail } from "../lib/mail";
 import { generateSecret, buildOtpauthUri, verifyTotpCode, generateBackupCodes, hashBackupCodes, tryConsumeBackupCode } from "../lib/totp";
 import { getAppBaseUrl } from "../lib/appUrl";
 import { passwordSchema } from "../lib/passwordPolicy";
+import { isObjectStorageConfigured, objectStorageKeyFor, uploadObject, downloadObject, deleteObject } from "../lib/objectStorage";
 
 const router = Router();
 
@@ -47,7 +51,7 @@ router.post("/login", async (req, res) => {
   const { email, password, rememberMe } = parsed.data;
 
   const result = await pool.query(
-    `select id, email, name, role, password_hash, is_active, totp_enabled,
+    `select id, email, name, role, password_hash, is_active, totp_enabled, avatar_path,
             failed_login_attempts, last_failed_login_at, locked_until
      from users
      where email = $1 and deleted_at is null`,
@@ -121,7 +125,7 @@ router.post("/login", async (req, res) => {
   });
   setSessionCookie(res, session.id, rememberMe);
 
-  res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
+  res.json({ id: user.id, email: user.email, name: user.name, role: user.role, avatar_url: user.avatar_path ? `/api/auth/avatar/${user.id}` : null });
 });
 
 const login2faSchema = z.object({
@@ -143,7 +147,7 @@ router.post("/login/2fa", async (req, res) => {
   }
 
   const result = await pool.query(
-    `select id, email, name, role, is_active, totp_secret, totp_backup_codes from users where id = $1 and deleted_at is null`,
+    `select id, email, name, role, is_active, totp_secret, totp_backup_codes, avatar_path from users where id = $1 and deleted_at is null`,
     [pending.userId]
   );
   if (result.rows.length === 0 || !result.rows[0].is_active) {
@@ -177,7 +181,7 @@ router.post("/login/2fa", async (req, res) => {
   setSessionCookie(res, session.id, pending.rememberMe);
   await pool.query(`update users set last_login_at = now() where id = $1`, [user.id]);
 
-  res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
+  res.json({ id: user.id, email: user.email, name: user.name, role: user.role, avatar_url: user.avatar_path ? `/api/auth/avatar/${user.id}` : null });
 });
 
 router.post("/logout", async (req, res) => {
@@ -189,8 +193,121 @@ router.post("/logout", async (req, res) => {
   res.json({ ok: true });
 });
 
-router.get("/me", requireAuth, (req, res) => {
-  res.json(req.user);
+router.get("/me", requireAuth, async (req, res) => {
+  const result = await pool.query(`select avatar_path from users where id = $1`, [req.user!.id]);
+  res.json({ ...req.user, avatar_url: result.rows[0]?.avatar_path ? `/api/auth/avatar/${req.user!.id}` : null });
+});
+
+const updateProfileSchema = z.object({ name: z.string().min(1) });
+
+// Self-service profile edit — same "already logged in, just wants to fix
+// their own details" gap as /change-password below, but for the name field.
+// Role/email changes stay admin-only (users.ts) since those affect
+// permissions and login identity, not just display.
+router.patch("/me", requireAuth, async (req, res) => {
+  const parsed = updateProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
+    return;
+  }
+  const result = await pool.query(
+    `update users set name = $1, updated_at = now() where id = $2 returning id, email, name, role`,
+    [parsed.data.name, req.user!.id]
+  );
+  res.json(result.rows[0]);
+});
+
+const avatarUpload = multer({
+  storage: isObjectStorageConfigured ? multer.memoryStorage() : multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = path.join(process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"), "avatars");
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, _file, cb) => cb(null, `${req.user!.id}-${crypto.randomUUID()}`),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith("image/")),
+});
+
+router.post("/me/avatar", requireAuth, (req, res, next) => {
+  avatarUpload.single("file")(req, res, (err: unknown) => {
+    if (!err) { next(); return; }
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      res.status(400).json({ error: "file_too_large", message: "That image is larger than the 5MB limit." });
+      return;
+    }
+    res.status(400).json({ error: "upload_failed", message: err instanceof Error ? err.message : "Couldn't upload that image." });
+  });
+}, async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "invalid_file", message: "Choose an image file (PNG, JPG, etc.)." });
+    return;
+  }
+
+  const previous = await pool.query(`select avatar_path from users where id = $1`, [req.user!.id]);
+
+  let storagePath: string;
+  if (isObjectStorageConfigured) {
+    storagePath = await uploadObject(`avatars/${req.user!.id}-${crypto.randomUUID()}`, req.file.buffer, req.file.mimetype);
+  } else {
+    storagePath = req.file.path;
+  }
+
+  await pool.query(`update users set avatar_path = $1 where id = $2`, [storagePath, req.user!.id]);
+
+  const oldPath = previous.rows[0]?.avatar_path as string | undefined;
+  if (oldPath) {
+    const oldKey = objectStorageKeyFor(oldPath);
+    if (oldKey) deleteObject(oldKey).catch(() => {});
+    else fs.unlink(oldPath, () => {});
+  }
+
+  res.json({ avatar_url: `/api/auth/avatar/${req.user!.id}` });
+});
+
+router.delete("/me/avatar", requireAuth, async (req, res) => {
+  const previous = await pool.query(`select avatar_path from users where id = $1`, [req.user!.id]);
+  await pool.query(`update users set avatar_path = null where id = $1`, [req.user!.id]);
+
+  const oldPath = previous.rows[0]?.avatar_path as string | undefined;
+  if (oldPath) {
+    const oldKey = objectStorageKeyFor(oldPath);
+    if (oldKey) deleteObject(oldKey).catch(() => {});
+    else fs.unlink(oldPath, () => {});
+  }
+
+  res.json({ ok: true });
+});
+
+// Any authenticated user can view any other user's avatar (needed once
+// avatars show up next to names in shared lists) — it's a profile picture,
+// not sensitive data.
+router.get("/avatar/:userId", requireAuth, async (req, res) => {
+  const result = await pool.query(`select avatar_path from users where id = $1 and deleted_at is null`, [req.params.userId]);
+  const avatarPath = result.rows[0]?.avatar_path as string | undefined;
+  if (!avatarPath) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+
+  const s3Key = objectStorageKeyFor(avatarPath);
+  if (s3Key) {
+    try {
+      const { body, contentType } = await downloadObject(s3Key);
+      res.setHeader("Content-Type", contentType ?? "application/octet-stream");
+      body.pipe(res);
+    } catch {
+      res.status(404).json({ error: "file_missing" });
+    }
+    return;
+  }
+
+  if (!fs.existsSync(avatarPath)) {
+    res.status(404).json({ error: "file_missing" });
+    return;
+  }
+  res.sendFile(path.resolve(avatarPath));
 });
 
 router.get("/2fa/status", requireAuth, async (req, res) => {
