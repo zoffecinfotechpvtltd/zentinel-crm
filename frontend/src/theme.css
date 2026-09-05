@@ -101,7 +101,7 @@ html { color-scheme: light; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Bricolage Grotesque Variable", "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
 }
@@ -115,10 +115,10 @@ body {
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
-/* Single-family type system (Plus Jakarta Sans — geometric, distinctive at
-   heading weights, stays clean and neutral at body sizes; self-hosted via
-   @fontsource so it actually loads, unlike the "Satoshi" name this
-   originally referenced with no font file behind it). Hierarchy comes from
+/* Single-family type system (Bricolage Grotesque — a variable font with a
+   distinctive grotesque personality at heading weights via its built-in
+   optical-size axis, while staying clean and readable at body sizes;
+   self-hosted via @fontsource so it actually loads). Hierarchy comes from
    weight and tracking, not a second face — headings/numbers step up to
    bold with tighter tracking, everything else stays regular/medium. */
 .section-title,
@@ -551,11 +551,6 @@ tr.row-selected td { background: var(--accent-soft); }
 .report-stat-val { font-size: 22px; font-weight: 700; }
 .report-stat-label { font-size: 12px; color: var(--text3); margin-top: 4px; }
 
-.pagination { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 14px; }
-.page-btn { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 11px; font-size: 12px; cursor: pointer; color: var(--text2); font-family: inherit; transition: all .12s; }
-.page-btn:hover:not(:disabled) { border-color: var(--border2); color: var(--text); }
-.page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-.page-btn:disabled { opacity: .4; cursor: not-allowed; }
 
 .empty { text-align: center; padding: 44px 20px; color: var(--text3); font-size: 13px; }
 .empty-icon { color: var(--text3); opacity: .5; margin-bottom: 10px; }
@@ -591,7 +586,12 @@ tr.row-selected td { background: var(--accent-soft); }
   position: absolute; top: 50%; right: -60px; transform: translateY(-50%) rotate(-8deg);
   opacity: .05; pointer-events: none; z-index: 0;
 }
-.login-brand-mark { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+.login-brand-mark {
+  display: flex; align-items: center; gap: 12px; position: relative; z-index: 1;
+  text-decoration: none; width: fit-content; padding: 4px 6px; margin: -4px -6px;
+  border-radius: var(--radius); transition: background-color .12s;
+}
+.login-brand-mark:hover { background: rgba(255,255,255,0.06); }
 .login-brand-mark .logo-mark { width: 42px; height: 42px; filter: drop-shadow(0 0 14px rgba(37, 99, 255, 0.55)); }
 .login-brand-name { font-weight: 700; font-size: 17px; color: #fff; letter-spacing: -0.01em; }
 .login-brand-sub { font-size: 12px; color: #8fa3c7; margin-top: 2px; }
@@ -599,10 +599,16 @@ tr.row-selected td { background: var(--accent-soft); }
 .login-brand-foot { font-size: 12px; color: #6b7fa8; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 10px; }
 .login-brand-tag { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #9fb4e8; }
 .login-form-panel { flex: 1 1 58%; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 24px; }
-.login-card { background: transparent; padding: 0; width: 380px; max-width: 100%; }
-.login-card-head { margin-bottom: 24px; }
-.login-card-title { font-weight: 700; font-size: 22px; color: var(--text); letter-spacing: -0.01em; }
-.login-card-sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
+/* Scaled up from the app's normal form controls — this is the one form in
+   the whole product with nothing else competing for attention on the page,
+   so it can afford to be bigger and more deliberate than a dense CRM form. */
+.login-card { background: transparent; padding: 0; width: 420px; max-width: 100%; }
+.login-card-head { margin-bottom: 30px; }
+.login-card-title { font-weight: 750; font-size: 30px; color: var(--text); letter-spacing: -0.02em; }
+.login-card-sub { font-size: 14.5px; color: var(--text3); margin-top: 6px; }
+.login-card .form-label { font-size: 13px; margin-bottom: 7px; }
+.login-card .form-input { padding: 13px 16px; font-size: 15px; border-radius: var(--radius-lg); }
+.login-card .btn { padding: 14px 20px; font-size: 15px; font-weight: 650; border-radius: var(--radius-lg); }
 @media (max-width: 860px) {
   .login-brand { display: none; }
   .login-form-panel { flex: 1 1 100%; }
@@ -610,23 +616,26 @@ tr.row-selected td { background: var(--accent-soft); }
 
 /* -------------------------------------------------------------- marketing */
 
-.marketing { min-height: 100vh; background: var(--bg); }
+/* Locked to exactly one viewport, no page scroll (a deliberate call, not an
+   accident) — nav and footer are fixed-height flex items, the hero absorbs
+   whatever space is left via flex:1, and the feature strip below it takes
+   the place the old scrollable features/roles/CTA sections used to occupy,
+   compressed into one row instead of three separate screens. */
+.marketing { height: 100dvh; width: 100vw; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
 .marketing-nav {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+  flex: 0 0 auto;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px;
   padding: 14px clamp(20px, 4vw, 56px);
-  position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--bg) 85%, transparent);
-  backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+  z-index: 50; border-bottom: 1px solid var(--border);
 }
 .marketing-nav-brand { display: flex; align-items: center; gap: 10px; justify-self: start; }
-.marketing-nav-links { display: flex; align-items: center; gap: 22px; justify-self: center; }
 .marketing-nav > .btn { justify-self: end; }
-.marketing-nav-links a { font-size: 13px; font-weight: 600; color: var(--text2); text-decoration: none; transition: color .12s; }
-.marketing-nav-links a:hover { color: var(--text); }
 
 .marketing-hero {
   position: relative; overflow: hidden; background: var(--primary-navy);
-  padding: clamp(56px, 8vw, 108px) clamp(20px, 4vw, 56px) clamp(64px, 8vw, 100px);
-  display: flex; justify-content: center;
+  flex: 1 1 auto; min-height: 0;
+  padding: clamp(16px, 4vh, 48px) clamp(20px, 4vw, 56px);
+  display: flex; justify-content: center; align-items: center;
 }
 .marketing-hero::before {
   content: ""; position: absolute; width: 720px; height: 720px; border-radius: 50%;
@@ -649,11 +658,11 @@ tr.row-selected td { background: var(--accent-soft); }
 }
 .marketing-hero-copy { text-align: left; }
 .marketing-hero-title {
-  font-weight: 700; font-size: clamp(32px, 3vw + 12px, 58px); line-height: 1.14; letter-spacing: -0.02em;
-  color: #fff; margin: 16px 0 18px; max-width: 720px;
+  font-weight: 700; font-size: clamp(28px, 2vw + 3vh + 8px, 54px); line-height: 1.12; letter-spacing: -0.02em;
+  color: #fff; margin: 14px 0 14px; max-width: 720px;
 }
-.marketing-hero-sub { font-size: clamp(14.5px, 1vw + 10px, 18.5px); line-height: 1.65; color: #b7c1d9; max-width: 580px; }
-.marketing-hero-actions { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
+.marketing-hero-sub { font-size: clamp(13.5px, 0.6vw + 1vh + 7px, 17.5px); line-height: 1.6; color: #b7c1d9; max-width: 580px; }
+.marketing-hero-actions { display: flex; gap: 12px; margin-top: clamp(14px, 3vh, 28px); flex-wrap: wrap; }
 .marketing-hero-actions .btn { padding: 11px 20px; font-size: 13.5px; }
 .marketing-hero .btn-ghost { background: rgba(11,16,32,0.45); border-color: rgba(255,255,255,0.25); color: #fff; }
 .marketing-hero .btn-ghost:hover { background: rgba(11,16,32,0.65); border-color: rgba(255,255,255,0.4); }
@@ -666,9 +675,9 @@ tr.row-selected td { background: var(--accent-soft); }
 /* product-preview mockup — a compact, non-literal echo of the real app
    shell (sidebar + stat tiles + trend line) so the hero fills its half of
    the grid with something built from the brand rather than empty space. */
-.marketing-hero-visual { position: relative; display: flex; justify-content: center; }
+.marketing-hero-visual { position: relative; display: flex; justify-content: center; max-height: 62vh; }
 .hero-preview-card {
-  width: 100%; max-width: 520px; background: rgba(17, 24, 39, 0.72); border: 1px solid rgba(255,255,255,0.1);
+  width: 100%; max-width: 480px; max-height: 100%; background: rgba(17, 24, 39, 0.72); border: 1px solid rgba(255,255,255,0.1);
   border-radius: var(--radius-xl); box-shadow: 0 24px 64px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.02) inset;
   backdrop-filter: blur(16px); overflow: hidden;
 }
@@ -702,31 +711,24 @@ tr.row-selected td { background: var(--accent-soft); }
 .hero-preview-floater-2 { bottom: -14px; left: -8px; }
 .hero-preview-floater-2 svg { color: #a5b4fc; }
 
-.marketing-section { padding: clamp(48px, 6vw, 80px) clamp(20px, 4vw, 56px); max-width: 1440px; margin: 0 auto; }
-.marketing-section-head { text-align: center; max-width: 540px; margin: 0 auto 34px; }
-.marketing-section-head .page-subtitle { margin-top: 6px; }
-.marketing-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.marketing-feature-card { text-align: left; transition: transform .15s var(--ease), box-shadow .15s, border-color .15s; }
-.marketing-feature-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border2); }
-.marketing-feature-card .page-icon { background: linear-gradient(135deg, var(--accent-soft), var(--indigo-soft)); }
-.marketing-feature-body { font-size: 13px; color: var(--text2); line-height: 1.55; }
-
-.marketing-roles { background: var(--bg3); border-radius: var(--radius-xl); }
-.marketing-role-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.marketing-role-card svg { color: var(--success); flex-shrink: 0; }
-
-.marketing-cta {
-  padding: clamp(56px, 7vw, 88px) clamp(20px, 4vw, 56px); text-align: center;
-  background: linear-gradient(135deg, var(--accent-soft), var(--indigo-soft));
-  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+/* Compact stand-in for the old scrollable features/roles/CTA sections —
+   one row, flex-shrink: 0, sized to whatever's left after the hero. Roles
+   already surface as chips inside the hero, so this row only needs to
+   carry the feature list. */
+.marketing-strip {
+  flex: 0 0 auto; display: flex; justify-content: center; gap: clamp(14px, 3vw, 36px);
+  padding: clamp(10px, 1.6vh, 16px) clamp(20px, 4vw, 56px); border-top: 1px solid var(--border);
+  overflow-x: auto;
 }
-.marketing-cta-inner { max-width: 420px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.marketing-cta-title { font-weight: 700; font-size: 28px; letter-spacing: -0.015em; margin: 4px 0 0; }
-.marketing-cta .btn-primary { margin-top: 10px; }
+.marketing-strip-item {
+  display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text2);
+  white-space: nowrap; flex-shrink: 0;
+}
+.marketing-strip-item svg { color: var(--accent2); flex-shrink: 0; }
 
 .marketing-footer {
-  display: flex; align-items: center; justify-content: center; gap: 10px; padding: 22px clamp(20px, 4vw, 56px);
-  font-size: 12px; color: var(--text3);
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  padding: 10px clamp(20px, 4vw, 56px); font-size: 11.5px; color: var(--text3); border-top: 1px solid var(--border);
 }
 
 @media (max-width: 980px) {
@@ -734,15 +736,12 @@ tr.row-selected td { background: var(--accent-soft); }
   .marketing-hero-copy { text-align: center; }
   .marketing-hero-title, .marketing-hero-sub { max-width: 100%; }
   .marketing-hero-actions, .marketing-hero-roles { justify-content: center; }
-  .marketing-hero-visual { margin-top: 12px; }
+  .marketing-hero-visual { display: none; }
   .hero-preview-floater-1, .hero-preview-floater-2 { display: none; }
 }
 
-@media (max-width: 860px) {
-  .marketing-nav-links { display: none; }
-  .marketing-hero-title { font-size: 30px; }
-  .marketing-feature-grid { grid-template-columns: 1fr; }
-  .marketing-role-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 640px), (max-height: 640px) {
+  .marketing-strip { display: none; }
 }
 
 /* --------------------------------------------------------------- skeleton */
