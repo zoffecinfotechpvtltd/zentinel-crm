@@ -289,7 +289,7 @@ router.get("/import-template", async (_req, res) => {
     "Open", "2026-09-01", "Follow up after Diwali", "2026-08-15", "150000",
   ]);
 
-  const reference = workbook.addWorksheet("Reference — do not import");
+  const reference = workbook.addWorksheet("Reference - do not import");
   reference.columns = [
     { header: "Valid Kind values", key: "kind", width: 24 },
     { header: "Valid Stage values", key: "stage", width: 24 },
@@ -380,7 +380,7 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
 
     const dedupeKey = `${kindRaw}::${company.toLowerCase()}`;
     if (seenKeys.has(dedupeKey)) {
-      skipped.push({ row: r, reason: `Duplicate — an opportunity for "${company}" (${kindRaw}) already exists` });
+      skipped.push({ row: r, reason: `Duplicate - an opportunity for "${company}" (${kindRaw}) already exists` });
       duplicates++;
       continue;
     }

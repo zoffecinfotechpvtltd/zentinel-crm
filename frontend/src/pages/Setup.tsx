@@ -44,7 +44,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
         <div className="login-card">
           <div className="login-card-head">
             <div className="login-card-title">Create admin account</div>
-            <div className="login-card-sub">First time here — there's no default login; this is the only account that exists until you create your team's users afterward.</div>
+            <div className="login-card-sub">First time here - there's no default login; this is the only account that exists until you create your team's users afterward.</div>
           </div>
           <form onSubmit={onSubmit}>
             {error && <div className="banner banner-error">{error}</div>}

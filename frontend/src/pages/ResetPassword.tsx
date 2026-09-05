@@ -48,7 +48,7 @@ export function ResetPassword() {
             <div className="login-card-head">
               <div className="login-card-title">Set your password</div>
             </div>
-            <div className="banner banner-error">This link is missing its token — check you copied the whole URL from the email.</div>
+            <div className="banner banner-error">This link is missing its token - check you copied the whole URL from the email.</div>
             <Link className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} to="/login">Back to login</Link>
           </div>
         </div>

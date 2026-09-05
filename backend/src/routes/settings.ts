@@ -98,7 +98,7 @@ router.post("/smtp/test", async (req, res) => {
   } catch (err) {
     res.status(502).json({
       error: "smtp_send_failed",
-      message: err instanceof Error ? err.message : "Failed to send test email — check your SMTP settings.",
+      message: err instanceof Error ? err.message : "Failed to send test email - check your SMTP settings.",
     });
   }
 });

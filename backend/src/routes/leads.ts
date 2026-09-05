@@ -737,7 +737,7 @@ router.get("/:id/followup.ics", async (req, res) => {
   const ics = buildSingleEventIcs({
     uid: lead.id,
     date: lead.next_followup_date,
-    summary: `Follow up — ${lead.company}`,
+    summary: `Follow up - ${lead.company}`,
     description: `Contact: ${lead.contact_person}${lead.mobile ? ` (${lead.mobile})` : ""}`,
   });
   res.setHeader("Content-Type", "text/calendar");

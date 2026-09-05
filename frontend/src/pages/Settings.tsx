@@ -57,7 +57,7 @@ export function Settings() {
     setRegenerating(true);
     try {
       await api.post("/settings/integrations/lead-webhook-secret/regenerate");
-      push("New lead-capture key generated — update your website's form handler with it.", "success");
+      push("New lead-capture key generated - update your website's form handler with it.", "success");
       reloadIntegrations();
     } finally {
       setRegenerating(false);
@@ -92,7 +92,7 @@ export function Settings() {
       setRestoreFile(null);
       setRestoreConfirmText("");
     } catch (err) {
-      push(err instanceof Error ? err.message : "Restore failed — nothing was changed", "error");
+      push(err instanceof Error ? err.message : "Restore failed - nothing was changed", "error");
     } finally {
       setRestoring(false);
     }
@@ -103,7 +103,7 @@ export function Settings() {
     setBusy(true);
     try {
       await api.post("/settings/smtp/test", { to: testTo });
-      setTestResult("Sent — check that inbox.");
+      setTestResult("Sent - check that inbox.");
     } catch (err) {
       setTestResult(err instanceof ApiError ? err.message : "Failed to send test email");
     } finally {
@@ -113,13 +113,13 @@ export function Settings() {
 
   return (
     <div>
-      <PageHeader icon={<IconSettings size={19} />} title="Settings" subtitle="Company-wide configuration — admin only. For your own sessions and 2FA, see Account & 2FA in the user menu." />
+      <PageHeader icon={<IconSettings size={19} />} title="Settings" subtitle="Company-wide configuration - admin only. For your own sessions and 2FA, see Account & 2FA in the user menu." />
 
       <div className="settings-grid">
       <div className="card">
         <div className="card-title">Email (SMTP)</div>
         <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 16 }}>
-          Works with any provider — Gmail, Zoho, Outlook, your own mail server. Used for password-reset links and the daily summary email. Leave unconfigured and emails just get skipped (nothing breaks).
+          Works with any provider - Gmail, Zoho, Outlook, your own mail server. Used for password-reset links and the daily summary email. Leave unconfigured and emails just get skipped (nothing breaks).
         </p>
         {error && <div className="banner banner-error">{error}</div>}
         {saved && <div className="banner banner-info">Saved.</div>}
@@ -138,7 +138,7 @@ export function Settings() {
           </div>
           <div className="form-group">
             <label className="form-label">Password / App key</label>
-            <input className="form-input" type="password" value={form.pass} onChange={(e) => setForm({ ...form, pass: e.target.value })} placeholder={data ? "unchanged — enter to update" : ""} />
+            <input className="form-input" type="password" value={form.pass} onChange={(e) => setForm({ ...form, pass: e.target.value })} placeholder={data ? "unchanged - enter to update" : ""} />
           </div>
           <div className="form-group full">
             <label className="form-label">"From" address</label>
@@ -163,10 +163,10 @@ export function Settings() {
         <div className="card">
           <div className="card-title">File Storage</div>
           {serverInfo.object_storage_configured ? (
-            <div className="banner banner-info">Object storage is active — uploaded files persist across deploys and restarts, and a full database backup is written there automatically every night.</div>
+            <div className="banner banner-info">Object storage is active - uploaded files persist across deploys and restarts, and a full database backup is written there automatically every night.</div>
           ) : (
             <div className="banner banner-error">
-              Attachments are stored on local disk, which is wiped on every redeploy/restart on a free-tier host. Set S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY as environment variables to make uploads permanent — a free Supabase Storage bucket (S3-compatible, no card required) works with these as-is.
+              Attachments are stored on local disk, which is wiped on every redeploy/restart on a free-tier host. Set S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY as environment variables to make uploads permanent - a free Supabase Storage bucket (S3-compatible, no card required) works with these as-is.
             </div>
           )}
         </div>
@@ -198,7 +198,7 @@ export function Settings() {
             disabled={!restoreFile || restoreConfirmText !== RESTORE_CONFIRM_PHRASE || restoring}
             onClick={restoreFromBackup}
           >
-            {restoring ? "Restoring…" : "Restore — replace all data"}
+            {restoring ? "Restoring…" : "Restore - replace all data"}
           </button>
         </div>
       </div>
@@ -206,7 +206,7 @@ export function Settings() {
       <div className="card">
         <div className="card-title">Integrations</div>
         <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14 }}>
-          Internal automation hooks — not a public API. Use these to connect your own website's contact form or your own Slack/Make.com/n8n/Zapier webhook.
+          Internal automation hooks - not a public API. Use these to connect your own website's contact form or your own Slack/Make.com/n8n/Zapier webhook.
         </p>
 
         <div style={{ marginBottom: 20 }}>
@@ -231,7 +231,7 @@ export function Settings() {
           <div className="form-group" style={{ marginBottom: 10 }}>
             <label className="form-label">Outbound webhook URL</label>
             <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 8 }}>
-              Fires a JSON POST here when a lead is Won or Lost, an invoice is fully paid, or a project is marked Completed — paste in a Slack incoming-webhook URL or a Make.com/n8n/Zapier webhook trigger.
+              Fires a JSON POST here when a lead is Won or Lost, an invoice is fully paid, or a project is marked Completed - paste in a Slack incoming-webhook URL or a Make.com/n8n/Zapier webhook trigger.
             </p>
             <input className="form-input" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://hooks.slack.com/services/…" />
           </div>

@@ -40,7 +40,7 @@ export function Login() {
       } else if (err instanceof TypeError) {
         // A request that never reached the server (network/CORS failure, or
         // a cold-start timeout) throws a TypeError, not an ApiError.
-        setError("Can't reach the server. It may be waking up — try again in a moment.");
+        setError("Can't reach the server. It may be waking up - try again in a moment.");
       } else {
         setError("Something went wrong. Try again.");
       }
@@ -88,7 +88,7 @@ export function Login() {
               <div className="banner banner-info">If that email has an account, a reset link is on its way. Check your inbox.</div>
             ) : (
               <form onSubmit={onSubmitForgot}>
-                <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Enter your account email — we'll send a link to set a new password.</p>
+                <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Enter your account email - we'll send a link to set a new password.</p>
                 <div className="form-group" style={{ marginBottom: 18 }}>
                   <label className="form-label" htmlFor="forgot-email">Email</label>
                   <input id="forgot-email" className="form-input" type="email" autoComplete="email" spellCheck={false} required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} autoFocus />
@@ -140,12 +140,12 @@ export function Login() {
 
   return (
     <div className="login-shell">
-      <AuthBrandPanel headline="Every lead, client, and invoice — tracked in one place." />
+      <AuthBrandPanel headline="Every lead, client, and invoice - tracked in one place." />
       <div className="login-form-panel">
         <div className="login-card">
           <div className="login-card-head">
             <div className="login-card-title">Sign in</div>
-            <div className="login-card-sub">Welcome back — enter your details to continue.</div>
+            <div className="login-card-sub">Welcome back - enter your details to continue.</div>
           </div>
           <form onSubmit={onSubmit}>
             {error && <div className="banner banner-error">{error}</div>}

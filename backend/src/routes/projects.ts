@@ -109,7 +109,7 @@ router.get("/:id/due-date.ics", async (req, res) => {
   const ics = buildSingleEventIcs({
     uid: project.id,
     date: project.due_date,
-    summary: `Due — ${project.name}`,
+    summary: `Due - ${project.name}`,
     description: project.client_company ? `Client: ${project.client_company}` : undefined,
   });
   res.setHeader("Content-Type", "text/calendar");

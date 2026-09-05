@@ -98,7 +98,7 @@ export function Reports() {
             <div className="report-stat"><div className="report-stat-val" style={{ color: "var(--warning)" }}>{formatMoney(revenue.outstanding)}</div><div className="report-stat-label">Outstanding</div></div>
             <div className="report-stat"><div className="report-stat-val" style={{ color: "var(--success)" }}>{formatMoney(revenue.fy_actual)}</div><div className="report-stat-label">FY Actual</div></div>
             <div className="report-stat"><div className="report-stat-val" style={{ color: "var(--accent)" }}>{revenue.fy_target ? formatMoney(revenue.fy_target.amount) : "not set"}</div><div className="report-stat-label">FY Target</div></div>
-            <div className="report-stat"><div className="report-stat-val" style={{ color: "var(--info)" }}>{revenue.fy_target ? `${Math.round((revenue.fy_actual / revenue.fy_target.amount) * 100)}%` : "—"}</div><div className="report-stat-label">of Target</div></div>
+            <div className="report-stat"><div className="report-stat-val" style={{ color: "var(--info)" }}>{revenue.fy_target ? `${Math.round((revenue.fy_actual / revenue.fy_target.amount) * 100)}%` : "-"}</div><div className="report-stat-label">of Target</div></div>
           </div>
           <div className="grid2">
             <div className="card">

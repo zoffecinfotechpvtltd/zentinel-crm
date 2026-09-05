@@ -76,7 +76,7 @@ export async function runRecurringInvoicesJob(): Promise<{ created: number; skip
           type: "recurring_invoice_generated",
           entityType: "invoice",
           entityId: invoice.id,
-          title: `A new Draft invoice was generated from a recurring template — review before sending`,
+          title: `A new Draft invoice was generated from a recurring template - review before sending`,
         });
       }
     } catch (err) {

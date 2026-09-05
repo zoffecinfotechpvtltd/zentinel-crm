@@ -40,7 +40,7 @@ export const STATUS_PAGE_HTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Zentinel — System Status</title>
+<title>Zentinel - System Status</title>
 <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%2364748b'/%3E%3C/svg%3E">
 <style>
   :root { color-scheme: dark; }
@@ -164,7 +164,7 @@ export const STATUS_PAGE_HTML = `<!doctype html>
     </div>
     <p class="scope">Live reachability check against this API's own <code>/api/health</code>.</p>
 
-    <div class="vitals" id="meta">—</div>
+    <div class="vitals" id="meta">-</div>
     <button id="btn" type="button">Force Refresh</button>
   </div>
 <script src="/status.js"></script>
@@ -245,7 +245,7 @@ export const STATUS_PAGE_SCRIPT = `
       var maxAttempts = 3;
       function attempt(n) {
         setState("checking", n === 0 ? "Checking…" : "Waking up…", n === 0 ? null : [
-          { text: "Attempt " + (n + 1) + " of " + maxAttempts + " — Render free-tier instances can take 30-50s to wake." }
+          { text: "Attempt " + (n + 1) + " of " + maxAttempts + " - Render free-tier instances can take 30-50s to wake." }
         ]);
         checkOnce().then(function (result) {
           var now = new Date().toLocaleTimeString();

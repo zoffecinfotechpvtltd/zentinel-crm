@@ -26,7 +26,7 @@ function describe(row: LogRow): string {
   if (row.action === "note_added") return `${who} logged a note on ${article} ${row.entity_type}`;
   if (row.action === "contact_added") return `${who} added a contact to ${article} ${row.entity_type}`;
   if (row.action === "contract_added") return `${who} added a contract to ${article} ${row.entity_type}`;
-  return `${who} — ${row.action} on ${row.entity_type}`;
+  return `${who} - ${row.action} on ${row.entity_type}`;
 }
 
 export function AuditLog() {
@@ -65,7 +65,7 @@ export function AuditLog() {
                 <tr key={row.id}>
                   <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>{formatDateTime(row.created_at)}</td>
                   <td>{describe(row)}</td>
-                  <td style={{ fontSize: 12, color: "var(--text3)" }}>{row.actor_email ?? "—"}</td>
+                  <td style={{ fontSize: 12, color: "var(--text3)" }}>{row.actor_email ?? "-"}</td>
                 </tr>
               ))}
             </tbody>

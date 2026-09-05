@@ -538,7 +538,7 @@ router.post("/:id/contracts", requireRole("admin", "finance"), async (req, res) 
   if (!f.service_id && f.value == null) {
     res.status(400).json({
       error: "invalid_input",
-      details: { service_id: "Pick a service or enter a value — a contract can't be completely blank" },
+      details: { service_id: "Pick a service or enter a value - a contract can't be completely blank" },
     });
     return;
   }

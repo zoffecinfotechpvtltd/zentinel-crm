@@ -45,8 +45,8 @@ export function AutomationRules() {
   const [error, setError] = useState<string | null>(null);
 
   const notifyOptions = [
-    ...ROLES.map((r) => ({ value: `role:${r.value}`, label: `Role — ${r.label}` })),
-    ...(users?.map((u) => ({ value: `user:${u.id}`, label: `Person — ${u.name}` })) ?? []),
+    ...ROLES.map((r) => ({ value: `role:${r.value}`, label: `Role - ${r.label}` })),
+    ...(users?.map((u) => ({ value: `user:${u.id}`, label: `Person - ${u.name}` })) ?? []),
   ];
 
   async function createRule() {
@@ -89,7 +89,7 @@ export function AutomationRules() {
       <PageHeader
         icon={<IconSparkle size={19} />}
         title="Automation Rules"
-        subtitle="When a record's status reaches a value, notify someone — automatically"
+        subtitle="When a record's status reaches a value, notify someone - automatically"
       />
 
       <div className="card" style={{ padding: 0, marginBottom: 20 }}>

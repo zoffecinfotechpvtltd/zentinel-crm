@@ -77,7 +77,7 @@ export function MessageTemplates() {
               <div className="form-group full"><label className="form-label">Subject</label><input className="form-input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></div>
             )}
             <div className="form-group full">
-              <label className="form-label">Body * — use {"{{name}}"}, {"{{service}}"}, {"{{amount}}"}, {"{{date}}"}</label>
+              <label className="form-label">Body * - use {"{{name}}"}, {"{{service}}"}, {"{{amount}}"}, {"{{date}}"}</label>
               <textarea className="form-textarea" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
             </div>
           </div>

@@ -110,7 +110,7 @@ router.post("/import-pdf", requireRole("admin", "finance"), pdfUpload.single("fi
     const parsed = await pdfParse(req.file.buffer);
     text = parsed.text;
   } catch {
-    res.status(400).json({ error: "unreadable_pdf", message: "Couldn't read this PDF — it may be a scanned image with no selectable text." });
+    res.status(400).json({ error: "unreadable_pdf", message: "Couldn't read this PDF - it may be a scanned image with no selectable text." });
     return;
   }
 
@@ -403,7 +403,7 @@ router.get("/:id/followup.ics", async (req, res) => {
   const ics = buildSingleEventIcs({
     uid: inv.id,
     date: inv.next_followup_date,
-    summary: `Payment follow-up — ${inv.client_company ?? "Client"}${inv.invoice_number ? ` (${inv.invoice_number})` : ""}`,
+    summary: `Payment follow-up - ${inv.client_company ?? "Client"}${inv.invoice_number ? ` (${inv.invoice_number})` : ""}`,
     description: `Balance due: ${inv.total}`,
   });
   res.setHeader("Content-Type", "text/calendar");

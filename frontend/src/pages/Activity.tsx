@@ -30,7 +30,7 @@ function describe(row: ActivityRow): string {
     const d = row.detail as { template_name?: string; channel?: string };
     return `${who} sent a "${d.template_name ?? "message"}" ${d.channel ?? ""} message`;
   }
-  return `${who} — ${row.action} on ${row.entity_type}`;
+  return `${who} - ${row.action} on ${row.entity_type}`;
 }
 
 export function Activity() {
@@ -43,7 +43,7 @@ export function Activity() {
       <PageHeader
         icon={<IconActivity size={19} />}
         title="Activity"
-        subtitle="What's changed recently — status moves, new records, conversions"
+        subtitle="What's changed recently - status moves, new records, conversions"
       />
       <div className="card" style={{ padding: 0 }}>
         <div className="table-wrap">

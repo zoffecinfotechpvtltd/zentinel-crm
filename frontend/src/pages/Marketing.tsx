@@ -8,10 +8,10 @@ import {
 
 const FEATURES = [
   { icon: <IconLeads />, title: "Lead pipeline", body: "Track every lead from first touch to close with a drag-and-drop pipeline." },
-  { icon: <IconClients />, title: "Client records", body: "One home for every account — contacts, history, and open work." },
+  { icon: <IconClients />, title: "Client records", body: "One home for every account - contacts, history, and open work." },
   { icon: <IconProjects />, title: "Project delivery", body: "Keep delivery work visible from kickoff through handoff." },
   { icon: <IconInvoices />, title: "Invoicing", body: "Raise, send, and reconcile invoices without leaving the CRM." },
-  { icon: <IconFollowups />, title: "Follow-ups", body: "Never miss a next step — overdue items surface automatically." },
+  { icon: <IconFollowups />, title: "Follow-ups", body: "Never miss a next step - overdue items surface automatically." },
   { icon: <IconReports />, title: "Reports", body: "Live pipeline, revenue, and delivery numbers for every team." },
 ];
 
@@ -44,9 +44,9 @@ export function Marketing() {
         <div className="marketing-hero-inner">
           <div className="marketing-hero-copy">
             <span className="login-brand-tag" style={{ color: "var(--indigo)" }}>Intelligent. Protected. Connected.</span>
-            <h1 className="marketing-hero-title">Every lead, client, and invoice — tracked in one place.</h1>
+            <h1 className="marketing-hero-title">Every lead, client, and invoice - tracked in one place.</h1>
             <p className="marketing-hero-sub">
-              Zentinel is Zoffec Infotech's internal CRM — one system for sales, finance, ops, and delivery,
+              Zentinel is Zoffec Infotech's internal CRM - one system for sales, finance, ops, and delivery,
               where every role sees exactly the part of the business that's theirs.
             </p>
             <div className="marketing-hero-actions">
@@ -123,7 +123,7 @@ export function Marketing() {
       </div>
 
       <footer className="marketing-footer">
-        <span>Zentinel — internal use only, Zoffec Infotech Pvt. Ltd.</span>
+        <span>Zentinel - internal use only, Zoffec Infotech Pvt. Ltd.</span>
       </footer>
     </div>
   );

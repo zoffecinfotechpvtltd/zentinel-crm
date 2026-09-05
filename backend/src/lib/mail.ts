@@ -54,7 +54,7 @@ export async function sendMail(params: { to: string; subject: string; text: stri
   if (!config) {
     if (!warnedNoConfig) {
       console.warn(
-        "No SMTP configured (Settings screen, or SMTP_HOST/SMTP_USER/SMTP_PASS env vars) — emails will be logged to console instead of sent."
+        "No SMTP configured (Settings screen, or SMTP_HOST/SMTP_USER/SMTP_PASS env vars) - emails will be logged to console instead of sent."
       );
       warnedNoConfig = true;
     }
@@ -76,7 +76,7 @@ export async function sendTestMail(config: SmtpConfig, to: string): Promise<void
   await transporter.sendMail({
     from: config.from,
     to,
-    subject: "Zentinel — SMTP test",
+    subject: "Zentinel - SMTP test",
     text: "If you're reading this, your SMTP settings are working correctly.",
   });
 }

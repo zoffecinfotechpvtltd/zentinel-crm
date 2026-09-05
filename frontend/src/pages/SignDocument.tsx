@@ -23,7 +23,7 @@ export function SignDocument() {
       await api.post(`/sign/${token}`, { signer_name: signerName });
       setDone(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't record your signature — try again.");
+      setError(err instanceof ApiError ? err.message : "Couldn't record your signature - try again.");
     } finally {
       setSubmitting(false);
     }

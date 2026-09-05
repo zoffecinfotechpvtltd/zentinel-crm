@@ -17,7 +17,7 @@ export function AuthBrandPanel({ headline }: { headline: string }) {
       </Link>
       <div className="login-brand-headline">{headline}</div>
       <div className="login-brand-foot">
-        <span>Leads, clients, invoices, and delivery — one system, every role sees only their part.</span>
+        <span>Leads, clients, invoices, and delivery - one system, every role sees only their part.</span>
         <span className="login-brand-tag">Intelligent. Protected. Connected.</span>
       </div>
     </div>

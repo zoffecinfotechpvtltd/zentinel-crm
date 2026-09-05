@@ -47,7 +47,7 @@ export function ApiKeys() {
       <PageHeader
         icon={<IconKey size={19} />}
         title="API Keys"
-        subtitle="Read-only access for external tools — GET /api/v1/leads, /clients, /invoices"
+        subtitle="Read-only access for external tools - GET /api/v1/leads, /clients, /invoices"
       />
 
       <div className="card" style={{ padding: 0, marginBottom: 20 }}>
@@ -91,7 +91,7 @@ export function ApiKeys() {
       {newKey && (
         <Modal title="API Key Created" onClose={() => setNewKey(null)} footer={<button type="button" className="btn btn-primary" onClick={() => setNewKey(null)}>Done</button>}>
           <div className="banner banner-error" style={{ marginBottom: 12 }}>
-            Copy this now — it won't be shown again. If you lose it, delete this key and create a new one.
+            Copy this now - it won't be shown again. If you lose it, delete this key and create a new one.
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <code className="mono" style={{ flex: 1, padding: 10, background: "var(--bg3)", borderRadius: 8, fontSize: 12.5, wordBreak: "break-all" }}>{newKey}</code>

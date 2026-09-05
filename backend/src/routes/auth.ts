@@ -142,7 +142,7 @@ router.post("/login/2fa", async (req, res) => {
   cleanupExpiredPending2fa();
   const pending = pending2fa.get(parsed.data.pending_token);
   if (!pending) {
-    res.status(400).json({ error: "invalid_or_expired", message: "That code entry session has expired — please log in again." });
+    res.status(400).json({ error: "invalid_or_expired", message: "That code entry session has expired - please log in again." });
     return;
   }
 
@@ -339,7 +339,7 @@ router.post("/2fa/enable", requireAuth, async (req, res) => {
     return;
   }
   if (!verifyTotpCode(secret, parsed.data.code)) {
-    res.status(400).json({ error: "invalid_code", message: "That code doesn't match — check the app and try again." });
+    res.status(400).json({ error: "invalid_code", message: "That code doesn't match - check the app and try again." });
     return;
   }
 

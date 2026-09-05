@@ -95,7 +95,7 @@ router.post("/restore", backupUpload.single("file"), async (req, res) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error("[restore] failed and was rolled back:", err);
-    res.status(500).json({ error: "restore_failed", message: err instanceof Error ? err.message : "Restore failed and was rolled back — nothing was changed." });
+    res.status(500).json({ error: "restore_failed", message: err instanceof Error ? err.message : "Restore failed and was rolled back - nothing was changed." });
   } finally {
     client.release();
   }

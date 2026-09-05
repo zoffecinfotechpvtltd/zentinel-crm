@@ -46,7 +46,7 @@ export async function runWeeklyReportDigestJob(): Promise<{ sent: number }> {
     try {
       await sendMail({
         to: user.email,
-        subject: "Zentinel — your weekly business summary",
+        subject: "Zentinel - your weekly business summary",
         text: `Hi ${user.name},\n\nThis week at a glance:\n\n${lines.map((l) => `  - ${l}`).join("\n")}\n\nFull detail in Reports.`,
         html: `<p>Hi ${user.name},</p><p>This week at a glance:</p><ul>${lines.map((l) => `<li>${l}</li>`).join("")}</ul><p>Full detail in Reports.</p>`,
       });

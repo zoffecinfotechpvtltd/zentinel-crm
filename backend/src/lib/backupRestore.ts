@@ -84,7 +84,7 @@ export async function restoreDatabase(client: PoolClient, backup: BackupFile): P
   const dumpedTableNames = new Set(backup.tables.map((t) => t.table));
   for (const table of BACKUP_TABLES_IN_ORDER) {
     if (!dumpedTableNames.has(table)) {
-      throw new Error(`Backup file is missing table "${table}" — refusing to restore a partial/incompatible backup.`);
+      throw new Error(`Backup file is missing table "${table}" - refusing to restore a partial/incompatible backup.`);
     }
   }
 
