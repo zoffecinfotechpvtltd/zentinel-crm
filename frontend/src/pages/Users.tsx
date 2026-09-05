@@ -51,6 +51,20 @@ export function Users() {
     reload();
   }
 
+  const isSuperadmin = currentUser?.role === "superadmin";
+
+  async function changeRole(u: User, role: string) {
+    if (role === u.role) return;
+    if (!(await confirm({ message: `Change ${u.name}'s role from ${u.role} to ${role}?`, confirmLabel: "Change role" }))) return;
+    try {
+      await api.patch(`/users/${u.id}`, { role });
+      push(`${u.name} is now ${role}`, "success");
+      reload();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Couldn't change that role", "error");
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -66,7 +80,19 @@ export function Users() {
             <tbody>
               {data?.map((u) => (
                 <tr key={u.id}>
-                  <td style={{ fontWeight: 550, color: "var(--text)" }}>{u.name}</td><td>{u.email}</td><td><span className="role-badge">{u.role}</span></td>
+                  <td style={{ fontWeight: 550, color: "var(--text)" }}>{u.name}</td><td>{u.email}</td>
+                  <td>
+                    {isSuperadmin ? (
+                      <CustomSelect
+                        className="sm"
+                        value={u.role}
+                        onChange={(v) => changeRole(u, v)}
+                        options={ROLES.map((r) => ({ value: r, label: r }))}
+                      />
+                    ) : (
+                      <span className="role-badge">{u.role}</span>
+                    )}
+                  </td>
                   <td>{u.is_active ? <span style={{ color: "var(--success)" }}>Active</span> : <span style={{ color: "var(--text3)" }}>Deactivated</span>}</td>
                   <td><button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleActive(u)}>{u.is_active ? "Deactivate" : "Reactivate"}</button></td>
                 </tr>

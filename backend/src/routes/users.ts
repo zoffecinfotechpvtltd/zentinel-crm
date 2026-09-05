@@ -114,8 +114,12 @@ router.patch("/:id", async (req, res) => {
 
   const fields = parsed.data;
 
-  if (fields.role === "superadmin" && req.user!.role !== "superadmin") {
-    res.status(403).json({ error: "forbidden", message: "Only a superadmin can grant the superadmin role." });
+  // Changing a user's role at all — not just granting superadmin — is
+  // superadmin-only. A plain admin (who reaches this route via the
+  // admin-superset check in requireRole) can still deactivate/rename
+  // people, just not re-assign what they're allowed to do.
+  if (fields.role !== undefined && req.user!.role !== "superadmin") {
+    res.status(403).json({ error: "forbidden", message: "Only a superadmin can change a user's role." });
     return;
   }
 
