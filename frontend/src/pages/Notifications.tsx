@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useFetch } from "../lib/useFetch";
 import { api } from "../lib/api";
 import { useToast } from "../components/Toast";
@@ -7,8 +8,39 @@ import {
   IconBell, IconInvoices, IconLeads, IconProjects, IconFollowups, IconX, IconInbox, IconCheck,
 } from "../components/Icons";
 
-type Notification = { id: string; type: string; title: string; body: string | null; read_at: string | null; created_at: string };
+type Notification = {
+  id: string; type: string; title: string; body: string | null; read_at: string | null; created_at: string;
+  entity_type: "lead" | "opportunity" | "client" | "project" | "invoice" | null;
+  entity_id: string | null;
+};
 type ListResponse<T> = { data: T[]; total: number };
+
+const ENTITY_TARGET: Record<string, string> = {
+  lead: "/leads", opportunity: "/opportunities", client: "/clients", project: "/projects", invoice: "/invoices",
+};
+
+// Every notification should land you somewhere useful, not just mark itself
+// read and do nothing — bundled reminders (multiple leads/invoices due) go
+// to the pre-filtered Follow-ups view; single-entity ones go to that
+// entity's list (no per-record deep-link yet, but far better than nowhere).
+function targetFor(n: Notification): string | null {
+  switch (n.type) {
+    case "followup_due":
+      return "/followups?section=sales&tab=today";
+    case "opportunity_followup_due":
+      return "/followups?section=sales&tab=today";
+    case "invoice_followup_due":
+      return "/followups?section=finance&tab=today";
+    case "followup_escalated":
+      return "/followups?section=sales&tab=overdue";
+    case "invoice_overdue":
+      return "/invoices";
+    default:
+      break;
+  }
+  if (n.entity_type && ENTITY_TARGET[n.entity_type]) return ENTITY_TARGET[n.entity_type];
+  return null;
+}
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
   followup_due: <IconFollowups size={16} />,
@@ -24,11 +56,18 @@ const TYPE_TONE: Record<string, string> = {
 
 export function Notifications() {
   const { push } = useToast();
+  const navigate = useNavigate();
   const { data, reload } = useFetch<ListResponse<Notification>>("/notifications?per_page=50");
 
   async function markRead(id: string) {
     await api.patch(`/notifications/${id}/read`);
     reload();
+  }
+
+  function openNotification(n: Notification) {
+    if (!n.read_at) markRead(n.id);
+    const target = targetFor(n);
+    if (target) navigate(target);
   }
   async function markAllRead() {
     await api.post("/notifications/mark-all-read");
@@ -57,8 +96,9 @@ export function Notifications() {
           className={`notif${!n.read_at ? " unread" : ""}`}
           role="button"
           tabIndex={0}
-          onClick={() => !n.read_at && markRead(n.id)}
-          onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !n.read_at) { e.preventDefault(); markRead(n.id); } }}
+          style={{ cursor: "pointer" }}
+          onClick={() => openNotification(n)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openNotification(n); } }}
         >
           <div style={{ color: TYPE_TONE[n.type] ?? "var(--text3)", marginTop: 1 }}>{TYPE_ICON[n.type] ?? <IconBell size={16} />}</div>
           <div style={{ flex: 1 }}>

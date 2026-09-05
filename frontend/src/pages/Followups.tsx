@@ -33,9 +33,17 @@ const CATEGORY_TONE: Record<string, string> = {
 
 export function Followups() {
   const { user } = useAuth();
-  const canSales = user?.role === "admin" || user?.role === "sales";
-  const canFinance = user?.role === "admin" || user?.role === "finance";
-  const [section, setSection] = useState<"sales" | "finance">(canSales ? "sales" : "finance");
+  const canSales = user?.role === "admin" || user?.role === "superadmin" || user?.role === "sales";
+  const canFinance = user?.role === "admin" || user?.role === "superadmin" || user?.role === "finance";
+  // Lets a notification (e.g. "N invoice follow-ups due") link straight into
+  // the right section/tab instead of dropping the user on a default view
+  // they then have to re-filter by hand.
+  const params = new URLSearchParams(window.location.search);
+  const requestedSection = params.get("section");
+  const [section, setSection] = useState<"sales" | "finance">(
+    requestedSection === "finance" && canFinance ? "finance" : requestedSection === "sales" && canSales ? "sales" : canSales ? "sales" : "finance"
+  );
+  const initialTab = params.get("tab") ?? "today";
 
   return (
     <div>
@@ -50,15 +58,15 @@ export function Followups() {
           </div>
         )}
       />
-      {section === "sales" && canSales && <SalesFollowups />}
-      {section === "finance" && canFinance && <FinanceFollowups />}
+      {section === "sales" && canSales && <SalesFollowups initialTab={initialTab} />}
+      {section === "finance" && canFinance && <FinanceFollowups initialTab={initialTab} />}
     </div>
   );
 }
 
-function SalesFollowups() {
+function SalesFollowups({ initialTab }: { initialTab: string }) {
   const { push } = useToast();
-  const [tab, setTab] = useState("today");
+  const [tab, setTab] = useState(initialTab);
   const { data, reload } = useFetch<ListResponse<Lead>>(`/leads?followup=${tab}&per_page=50`, [tab]);
   const { data: templates } = useFetch<Template[]>("/message-templates");
 
@@ -148,9 +156,9 @@ function SalesFollowups() {
   );
 }
 
-function FinanceFollowups() {
+function FinanceFollowups({ initialTab }: { initialTab: string }) {
   const { push } = useToast();
-  const [tab, setTab] = useState("today");
+  const [tab, setTab] = useState(initialTab);
   const { data, reload } = useFetch<ListResponse<Invoice>>(`/invoices?followup=${tab}&per_page=50`, [tab]);
   const { data: clientsResp } = useFetch<ListResponse<Client>>("/clients?per_page=200");
   const [draftDates, setDraftDates] = useState<Record<string, string>>({});

@@ -5,7 +5,6 @@ import { z } from "zod";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { writeActivityLog } from "../lib/activityLog";
-import { buildTallySalesVoucherXml } from "../lib/tallyExport";
 import { parseInvoicePdfText } from "../lib/invoicePdfParse";
 import { computeTotals } from "../lib/invoiceMath";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
@@ -35,10 +34,6 @@ router.get("/", async (req, res) => {
   if (req.query.client_id) {
     conditions.push(`i.client_id = $${i++}`);
     values.push(req.query.client_id);
-  }
-  if (req.query.tally_sync_status) {
-    conditions.push(`i.tally_sync_status = $${i++}`);
-    values.push(req.query.tally_sync_status);
   }
   // Payment follow-ups — only ever meaningful for invoices that still owe
   // money, same as Leads' equivalent filter never involving Won/Lost leads.
@@ -99,8 +94,14 @@ router.post("/import-pdf", requireRole("admin", "finance"), pdfUpload.single("fi
     res.status(400).json({ error: "no_file" });
     return;
   }
-  if (req.file.mimetype !== "application/pdf") {
-    res.status(400).json({ error: "not_a_pdf" });
+  // Browsers/OSes report inconsistent mimetypes for PDFs (some send
+  // "application/octet-stream" or nothing at all depending on file
+  // associations), so a valid PDF was being rejected before pdf-parse ever
+  // got a chance to look at it. Check the actual file signature ("%PDF-")
+  // instead of trusting the client-supplied mimetype; pdf-parse below still
+  // catches anything that claims to be a PDF but isn't readable.
+  if (req.file.buffer.subarray(0, 5).toString("latin1") !== "%PDF-") {
+    res.status(400).json({ error: "not_a_pdf", message: "That file doesn't look like a PDF." });
     return;
   }
 
@@ -119,8 +120,7 @@ router.post("/import-pdf", requireRole("admin", "finance"), pdfUpload.single("fi
   if (extracted.party_name) {
     const clientMatch = await pool.query(
       `select id, company from clients
-       where deleted_at is null and (company ilike $1 or tally_ledger_name ilike $1)
-       order by (tally_ledger_name ilike $1) desc
+       where deleted_at is null and company ilike $1
        limit 1`,
       [`%${extracted.party_name}%`]
     );
@@ -314,18 +314,9 @@ router.post("/", requireRole("admin", "finance"), async (req, res) => {
   }
   const f = parsed.data;
 
-  const clientResult = await pool.query(`select tally_ledger_name from clients where id = $1 and deleted_at is null`, [
-    f.client_id,
-  ]);
+  const clientResult = await pool.query(`select id from clients where id = $1 and deleted_at is null`, [f.client_id]);
   if (clientResult.rows.length === 0) {
     res.status(404).json({ error: "client_not_found" });
-    return;
-  }
-  if (!clientResult.rows[0].tally_ledger_name) {
-    res.status(400).json({
-      error: "tally_ledger_name_required",
-      message: "Client must have a tally_ledger_name set before an invoice can be created for them.",
-    });
     return;
   }
 
@@ -639,8 +630,6 @@ router.post("/:id/credit-notes", requireRole("admin", "finance"), async (req, re
   res.status(201).json(result.rows[0]);
 });
 
-// --- Phase 6a: manual payment recording + Tally export/mark-synced ---
-
 const recordPaymentSchema = z.object({
   amount: z.number().positive(),
   payment_date: z.string(),
@@ -742,62 +731,6 @@ router.post("/:id/payments", requireRole("admin", "finance"), async (req, res) =
   } finally {
     client.release();
   }
-});
-
-router.get("/:id/tally-export", requireRole("admin", "finance"), async (req, res) => {
-  const result = await pool.query(
-    `select i.*, c.tally_ledger_name from invoices i
-     join clients c on c.id = i.client_id
-     where i.id = $1 and i.deleted_at is null`,
-    [req.params.id]
-  );
-  if (result.rows.length === 0) {
-    res.status(404).json({ error: "not_found" });
-    return;
-  }
-  const invoice = result.rows[0];
-
-  if (invoice.status === "Draft") {
-    res.status(400).json({ error: "invoice_not_finalized", message: "Only Final (or later) invoices can be exported." });
-    return;
-  }
-
-  const xml = buildTallySalesVoucherXml({
-    invoiceNumber: invoice.invoice_number,
-    invoiceDate: new Date(invoice.invoice_date).toISOString().slice(0, 10),
-    ledgerName: invoice.tally_ledger_name,
-    subtotal: Number(invoice.subtotal),
-    tax: Number(invoice.tax),
-    total: Number(invoice.total),
-  });
-
-  await pool.query(`update invoices set tally_sync_status = 'pending' where id = $1`, [invoice.id]);
-
-  res.setHeader("Content-Type", "application/xml");
-  res.setHeader("Content-Disposition", `attachment; filename="${invoice.invoice_number}.xml"`);
-  res.send(xml);
-});
-
-const markSyncedSchema = z.object({ tally_voucher_ref: z.string().min(1) });
-
-router.post("/:id/mark-synced", requireRole("admin", "finance"), async (req, res) => {
-  const parsed = markSyncedSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
-    return;
-  }
-
-  const result = await pool.query(
-    `update invoices set tally_sync_status = 'synced', tally_voucher_ref = $1, updated_by = $2, updated_at = now()
-     where id = $3 and deleted_at is null and status <> 'Draft'
-     returning *`,
-    [parsed.data.tally_voucher_ref, req.user!.id, req.params.id]
-  );
-  if (result.rows.length === 0) {
-    res.status(404).json({ error: "not_found_or_not_finalized" });
-    return;
-  }
-  res.json(result.rows[0]);
 });
 
 mountNotesAndAttachments(router, "invoice");
