@@ -478,7 +478,6 @@ router.delete("/:id", requireRole("admin"), async (req, res) => {
 
 const convertSchema = z.object({
   won_value: z.number().nonnegative().optional(),
-  tally_ledger_name: z.string().optional(),
   gstin: z.string().optional(),
   billing_address: z.string().optional(),
 });
@@ -517,10 +516,10 @@ router.post("/:id/convert", requireRole("admin", "sales"), async (req, res) => {
     await client.query("begin");
 
     const clientResult = await client.query(
-      `insert into clients (company, gstin, billing_address, tally_ledger_name, converted_from_lead_id, created_by, updated_by)
-       values ($1, $2, $3, $4, $5, $6, $6)
+      `insert into clients (company, gstin, billing_address, converted_from_lead_id, created_by, updated_by)
+       values ($1, $2, $3, $4, $5, $5)
        returning *`,
-      [lead.company, f.gstin ?? null, f.billing_address ?? null, f.tally_ledger_name ?? null, lead.id, req.user!.id]
+      [lead.company, f.gstin ?? null, f.billing_address ?? null, lead.id, req.user!.id]
     );
     const newClient = clientResult.rows[0];
 

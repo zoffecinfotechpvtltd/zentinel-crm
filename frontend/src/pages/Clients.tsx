@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth } from "../context/AuthContext";
-import { useFetch } from "../lib/useFetch";
+import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { Modal } from "../components/Modal";
-import { Pagination } from "../components/Pagination";
+import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
 import { PageHeader } from "../components/PageHeader";
 import { NotesAndFiles } from "../components/NotesAndFiles";
 import { TableSkeleton } from "../components/Skeleton";
@@ -18,7 +18,7 @@ import { CustomSelect } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
 
 type Client = {
-  id: string; company: string; gstin: string | null; tally_ledger_name: string | null; status: string;
+  id: string; company: string; gstin: string | null; status: string;
   primary_contact_name: string | null; primary_contact_email: string | null; primary_contact_mobile: string | null;
   primary_service_name: string | null; contract_value_total: string | number; contract_end_date: string | null;
 };
@@ -70,15 +70,18 @@ export function Clients() {
   const { user } = useAuth();
   const { push } = useToast();
   const confirm = useConfirm();
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [status, setStatus] = useState("");
 
-  const query = new URLSearchParams({ page: String(page), per_page: "8" });
-  if (search) query.set("search", search);
-  if (status) query.set("status", status);
-
-  const { data, loading, reload: reloadList } = useFetch<ListResponse<Client>>(`/clients?${query.toString()}`, [page, search, status]);
+  const { items: clients, total, loading, loadingMore, hasMore, loadMore, reload: reloadList } = useInfiniteFetch<Client>(
+    (p) => {
+      const query = new URLSearchParams({ page: String(p), per_page: "20" });
+      if (search) query.set("search", search);
+      if (status) query.set("status", status);
+      return `/clients?${query.toString()}`;
+    },
+    [search, status]
+  );
   const { data: services } = useFetch<Service[]>("/services");
 
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -88,11 +91,9 @@ export function Clients() {
   const [addOpen, setAddOpen] = useState(false);
   const [newCompany, setNewCompany] = useState("");
   const [newGstin, setNewGstin] = useState("");
-  const [newLedger, setNewLedger] = useState("");
 
   const [contactForm, setContactForm] = useState({ name: "", email: "", mobile: "", designation: "" });
   const [contractForm, setContractForm] = useState({ service_id: "", value: "", start_date: "", end_date: "" });
-  const [ledgerDraft, setLedgerDraft] = useState("");
 
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const { data: duplicates, reload: reloadDuplicates } = useFetch<DuplicatePair[]>(duplicatesOpen ? "/clients/duplicates" : "");
@@ -116,9 +117,9 @@ export function Clients() {
 
   async function createClient() {
     try {
-      await api.post("/clients", { company: newCompany, gstin: newGstin || undefined, tally_ledger_name: newLedger || undefined });
+      await api.post("/clients", { company: newCompany, gstin: newGstin || undefined });
       setAddOpen(false);
-      setNewCompany(""); setNewGstin(""); setNewLedger("");
+      setNewCompany(""); setNewGstin("");
       push("Client added", "success");
       reloadList();
     } catch (err) {
@@ -137,22 +138,12 @@ export function Clients() {
     }
   }
 
-  useEffect(() => {
-    setLedgerDraft(detail?.tally_ledger_name ?? "");
-  }, [detail?.tally_ledger_name]);
-
   const { data: clientFieldDefs } = useFetch<{ is_active: boolean }[]>(detailId ? "/custom-fields?entity_type=client" : "");
   const hasCustomFields = (clientFieldDefs ?? []).some((d) => d.is_active);
   const [customFieldsDraft, setCustomFieldsDraft] = useState<Record<string, unknown>>({});
   useEffect(() => {
     setCustomFieldsDraft(detail?.custom_fields ?? {});
   }, [detail?.custom_fields]);
-
-  async function saveLedger() {
-    if (!detailId) return;
-    await api.patch(`/clients/${detailId}`, { tally_ledger_name: ledgerDraft || null });
-    reloadDetail();
-  }
 
   async function saveCustomFields() {
     if (!detailId) return;
@@ -232,7 +223,7 @@ export function Clients() {
       <PageHeader
         icon={<IconClients size={19} />}
         title="Client Management"
-        subtitle={data ? `${data.total} client${data.total === 1 ? "" : "s"} on file` : undefined}
+        subtitle={!loading ? `${total} client${total === 1 ? "" : "s"} on file` : undefined}
         actions={canEdit && <>
           <button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(true)}>Duplicates</button>
           <button type="button" className="btn btn-primary" onClick={() => setAddOpen(true)}><IconPlus size={14} /> Add Client</button>
@@ -240,10 +231,10 @@ export function Clients() {
       />
 
       <div className="filter-bar">
-        <input className="filter-input" placeholder="Search client..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <input className="filter-input" placeholder="Search client..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <CustomSelect
           value={status}
-          onChange={(v) => { setStatus(v); setPage(1); }}
+          onChange={setStatus}
           placeholder="All Status"
           options={[{ value: "", label: "All Status" }, { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }]}
         />
@@ -255,12 +246,12 @@ export function Clients() {
             <thead><tr><th>Company</th><th>Contact</th><th>Service</th><th>Contract Value</th><th>Renewal</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
               {loading && <TableSkeleton rows={6} cols={7} />}
-              {!loading && data?.data.length === 0 && (
+              {!loading && clients.length === 0 && (
                 <tr><td colSpan={7}>
                   <div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>No clients match these filters yet.</div>
                 </td></tr>
               )}
-              {data?.data.map((c) => (
+              {clients.map((c) => (
                 <tr key={c.id}>
                   <td>
                     <div style={{ fontWeight: 550, color: "var(--text)" }}>{c.company}</div>
@@ -285,9 +276,7 @@ export function Clients() {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "0 16px 14px" }}>
-          {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
-        </div>
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
       </div>
 
       {addOpen && (
@@ -298,7 +287,6 @@ export function Clients() {
           <div className="form-grid">
             <div className="form-group full"><label className="form-label">Company Name *</label><input className="form-input" value={newCompany} onChange={(e) => setNewCompany(e.target.value)} /></div>
             <div className="form-group"><label className="form-label">GSTIN</label><input className="form-input" value={newGstin} onChange={(e) => setNewGstin(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">Tally Ledger Name</label><input className="form-input" value={newLedger} onChange={(e) => setNewLedger(e.target.value)} /></div>
           </div>
         </Modal>
       )}
@@ -321,19 +309,6 @@ export function Clients() {
             )}
           </div>
 
-          {!detail.tally_ledger_name && (
-            <div className="banner banner-error">No Tally ledger name set — invoices can't be created for this client until Finance sets one.</div>
-          )}
-
-          {canEdit && (
-            <div className="form-group full" style={{ marginBottom: 20 }}>
-              <label className="form-label">Tally Ledger Name</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input className="form-input" value={ledgerDraft} onChange={(e) => setLedgerDraft(e.target.value)} />
-                <button type="button" className="btn btn-ghost btn-sm" onClick={saveLedger}>Save</button>
-              </div>
-            </div>
-          )}
 
           {canEdit && (
             <div className="form-group full" style={{ marginBottom: 20 }}>

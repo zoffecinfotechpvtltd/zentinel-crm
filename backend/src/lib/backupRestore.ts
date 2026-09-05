@@ -49,8 +49,6 @@ export const BACKUP_TABLES_IN_ORDER = [
   "invoice_line_items",
   "credit_notes",
   "payments",
-  "unmatched_payments",
-  "tally_sync_log",
   "recurring_invoice_templates",
   "message_templates",
   "notifications",

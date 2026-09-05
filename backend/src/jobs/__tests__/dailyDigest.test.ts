@@ -44,7 +44,7 @@ describe("daily digest job", () => {
       const { agent: adminAgent } = await loginAs("admin");
       const { user: finance } = await loginAs("finance");
       const { user: sales } = await loginAs("sales");
-      const clientRes = await adminAgent.post("/api/clients").send({ company: `Overdue Digest Co ${Date.now()}`, tally_ledger_name: "L1" });
+      const clientRes = await adminAgent.post("/api/clients").send({ company: `Overdue Digest Co ${Date.now()}` });
       const invoiceRes = await adminAgent.post("/api/invoices").send({
         client_id: clientRes.body.id,
         line_items: [{ description: "Service", rate: 1000 }],

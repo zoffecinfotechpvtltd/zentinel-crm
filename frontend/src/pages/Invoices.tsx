@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useFetch } from "../lib/useFetch";
-import { api, ApiError, API_BASE } from "../lib/api";
+import { useFetch, useInfiniteFetch } from "../lib/useFetch";
+import { api, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { Modal } from "../components/Modal";
-import { Pagination } from "../components/Pagination";
+import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
 import { PageHeader } from "../components/PageHeader";
 import { NotesAndFiles } from "../components/NotesAndFiles";
 import { StatCard } from "../components/StatCard";
@@ -19,13 +19,12 @@ import { CustomDatePicker } from "../components/CustomDatePicker";
 type Invoice = {
   id: string; invoice_number: string | null; client_id: string; status: string;
   invoice_date: string; total: string; tax: string; balance: string; due_date: string | null;
-  tally_sync_status: string; tally_voucher_ref: string | null;
 };
 type Summary = { total_invoiced: number; amount_received: number; outstanding: number; overdue_count: number };
 type LineItem = { id: string; description: string; quantity: string; rate: string; gst_rate: string };
 type Payment = { id: string; amount: string; payment_date: string; method: string | null; source: string };
 type InvoiceDetail = Invoice & { subtotal: string; tax: string; line_items: LineItem[]; payments: Payment[] };
-type Client = { id: string; company: string; tally_ledger_name: string | null };
+type Client = { id: string; company: string };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
 type DraftLine = { description: string; quantity: string; rate: string; gst_rate: string };
@@ -43,14 +42,17 @@ export function Invoices() {
   const { user } = useAuth();
   const { push } = useToast();
   const confirm = useConfirm();
-  const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
 
-  const query = new URLSearchParams({ page: String(page), per_page: "8" });
-  if (status) query.set("status", status);
-
-  const { data, loading, reload } = useFetch<ListResponse<Invoice>>(`/invoices?${query.toString()}`, [page, status]);
+  const { items: invoices, total, loading, loadingMore, hasMore, loadMore, reload } = useInfiniteFetch<Invoice>(
+    (p) => {
+      const query = new URLSearchParams({ page: String(p), per_page: "20" });
+      if (status) query.set("status", status);
+      return `/invoices?${query.toString()}`;
+    },
+    [status]
+  );
   const { data: summary, reload: reloadSummary } = useFetch<Summary>("/invoices/summary");
   const { data: clientsResp } = useFetch<ListResponse<Client>>("/clients?per_page=200");
 
@@ -114,8 +116,8 @@ export function Invoices() {
   const canViewOnly = user?.role === "sales";
   const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "—";
   const filtered = search
-    ? data?.data.filter((inv) => (inv.invoice_number ?? "").toLowerCase().includes(search.toLowerCase()) || clientName(inv.client_id).toLowerCase().includes(search.toLowerCase()))
-    : data?.data;
+    ? invoices.filter((inv) => (inv.invoice_number ?? "").toLowerCase().includes(search.toLowerCase()) || clientName(inv.client_id).toLowerCase().includes(search.toLowerCase()))
+    : invoices;
 
   function addLine() {
     setLines([...lines, { description: "", quantity: "1", rate: "", gst_rate: "18" }]);
@@ -219,26 +221,12 @@ export function Invoices() {
     }
   }
 
-  function exportTally() {
-    if (!detailId) return;
-    window.open(`${API_BASE}/api/invoices/${detailId}/tally-export`, "_blank");
-    setTimeout(reloadDetail, 1000);
-  }
-
-  async function markSynced() {
-    if (!detailId) return;
-    const ref = prompt("Tally voucher reference (from Tally after import):");
-    if (!ref) return;
-    await api.post(`/invoices/${detailId}/mark-synced`, { tally_voucher_ref: ref });
-    reloadDetail();
-  }
-
   return (
     <div>
       <PageHeader
         icon={<IconInvoices size={19} />}
         title="Invoice Management"
-        subtitle={data ? `${data.total} invoice${data.total === 1 ? "" : "s"}` : undefined}
+        subtitle={!loading ? `${total} invoice${total === 1 ? "" : "s"}` : undefined}
         actions={canEdit && <>
           <label className="btn btn-ghost" style={{ cursor: importing ? "wait" : "pointer" }}>
             {importing ? "Reading PDF…" : "Import PDF"}
@@ -268,7 +256,7 @@ export function Invoices() {
         <input className="filter-input" placeholder="Search invoice / client..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <CustomSelect
           value={status}
-          onChange={(v) => { setStatus(v); setPage(1); }}
+          onChange={setStatus}
           placeholder="All Status"
           options={[{ value: "", label: "All Status" }, ...["Draft", "Final", "Sent", "Partial", "Paid", "Overdue", "Cancelled"].map((s) => ({ value: s, label: s }))]}
         />
@@ -277,11 +265,11 @@ export function Invoices() {
       <div className="card" style={{ padding: 0 }}>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Invoice #</th><th>Client</th><th>Date</th><th>Due</th><th>Total</th><th>GST</th><th>Received</th><th>Balance</th><th>Status</th><th>Tally</th><th></th></tr></thead>
+            <thead><tr><th>Invoice #</th><th>Client</th><th>Date</th><th>Due</th><th>Total</th><th>GST</th><th>Received</th><th>Balance</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {loading && <TableSkeleton rows={6} cols={11} />}
+              {loading && <TableSkeleton rows={6} cols={10} />}
               {!loading && filtered?.length === 0 && (
-                <tr><td colSpan={11}><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>No invoices match these filters yet.</div></td></tr>
+                <tr><td colSpan={10}><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>No invoices match these filters yet.</div></td></tr>
               )}
               {filtered?.map((inv) => (
                 <tr key={inv.id} className={inv.status === "Overdue" ? "row-urgent" : undefined}>
@@ -294,7 +282,6 @@ export function Invoices() {
                   <td className="mono">{formatMoneyExact(Number(inv.total) - Number(inv.balance))}</td>
                   <td className="mono">{formatMoneyExact(inv.balance)}</td>
                   <td><Badge status={inv.status} /></td>
-                  <td><Badge status={inv.tally_sync_status} /></td>
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDetailId(inv.id)}>View</button>
@@ -306,9 +293,7 @@ export function Invoices() {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: "0 16px 14px" }}>
-          {data && <Pagination page={page} perPage={data.per_page} total={data.total} onChange={setPage} />}
-        </div>
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
       </div>
 
       {createOpen && (
@@ -337,10 +322,7 @@ export function Invoices() {
                 value={clientId}
                 onChange={setClientId}
                 placeholder="Select client…"
-                options={clientsResp?.data.map((c) => ({
-                  value: c.id, disabled: !c.tally_ledger_name,
-                  label: `${c.company}${!c.tally_ledger_name ? " (needs Tally ledger name)" : ""}`,
-                })) ?? []}
+                options={clientsResp?.data.map((c) => ({ value: c.id, label: c.company })) ?? []}
               />
             </div>
             <div className="form-group"><label className="form-label">Due Date</label><CustomDatePicker value={dueDate} onChange={setDueDate} /></div>
@@ -372,12 +354,10 @@ export function Invoices() {
             <button type="button" className="btn btn-ghost" onClick={() => setDetailId(null)}>Close</button>
             {canEdit && detail.status === "Draft" && <button type="button" className="btn btn-primary" onClick={finalize}>Finalize</button>}
             {canEdit && detail.status !== "Draft" && <button type="button" className="btn btn-ghost" onClick={() => setPaymentOpen(true)}>Record Payment</button>}
-            {canEdit && detail.status !== "Draft" && <button type="button" className="btn btn-ghost" onClick={exportTally}>Export for Tally</button>}
-            {canEdit && detail.status !== "Draft" && detail.tally_sync_status !== "synced" && <button type="button" className="btn btn-ghost" onClick={markSynced}>Mark Synced</button>}
           </>
         }>
           <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <Badge status={detail.status} /><Badge status={detail.tally_sync_status} />
+            <Badge status={detail.status} />
           </div>
           <div className="table-wrap" style={{ marginBottom: 14 }}>
             <table>
@@ -457,10 +437,7 @@ export function Invoices() {
               <label className="form-label">Client *</label>
               <CustomSelect
                 value={rClientId} onChange={setRClientId} placeholder="Select client…"
-                options={clientsResp?.data.map((c) => ({
-                  value: c.id, disabled: !c.tally_ledger_name,
-                  label: `${c.company}${!c.tally_ledger_name ? " (needs Tally ledger name)" : ""}`,
-                })) ?? []}
+                options={clientsResp?.data.map((c) => ({ value: c.id, label: c.company })) ?? []}
               />
             </div>
             <div className="form-group">

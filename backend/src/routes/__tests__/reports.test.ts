@@ -29,7 +29,7 @@ describe("reports routes", () => {
 
     it("revenue trend rolls a recorded payment into monthly_trend and client_wise", async () => {
       const { agent } = await loginAs("admin");
-      const clientRes = await agent.post("/api/clients").send({ company: `Revenue Trend Co ${Date.now()}`, tally_ledger_name: "RT-1" });
+      const clientRes = await agent.post("/api/clients").send({ company: `Revenue Trend Co ${Date.now()}` });
       const invoiceRes = await agent.post("/api/invoices").send({
         client_id: clientRes.body.id,
         line_items: [{ description: "Consulting", quantity: 1, rate: 40000, gst_rate: 18 }],
@@ -56,7 +56,7 @@ describe("reports routes", () => {
     it("service-wise breakdown attributes a payment to the service its invoice's contract is for", async () => {
       const { agent } = await loginAs("admin");
       const serviceRes = await agent.post("/api/services").send({ name: `Trend Service ${Date.now()}` });
-      const clientRes = await agent.post("/api/clients").send({ company: `Service Wise Co ${Date.now()}`, tally_ledger_name: "SW-1" });
+      const clientRes = await agent.post("/api/clients").send({ company: `Service Wise Co ${Date.now()}` });
       const contractRes = await agent.post(`/api/clients/${clientRes.body.id}/contracts`).send({ service_id: serviceRes.body.id, value: 100000 });
       const invoiceRes = await agent.post("/api/invoices").send({
         client_id: clientRes.body.id,

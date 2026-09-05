@@ -141,8 +141,8 @@ describe("follow-up reminder job", () => {
   });
 
   describe("invoice follow-ups", () => {
-    async function createInvoice(agent: ReturnType<typeof supertest.agent>, company: string, ledger: string) {
-      const clientRes = await agent.post("/api/clients").send({ company, tally_ledger_name: ledger });
+    async function createInvoice(agent: ReturnType<typeof supertest.agent>, company: string) {
+      const clientRes = await agent.post("/api/clients").send({ company });
       const invoiceRes = await agent.post("/api/invoices").send({
         client_id: clientRes.body.id,
         line_items: [{ description: "Service", rate: 1000 }],
@@ -154,7 +154,7 @@ describe("follow-up reminder job", () => {
       const { agent, user: admin } = await loginAs("admin");
       const { user: finance } = await loginAs("finance");
       const { user: sales } = await loginAs("sales");
-      const invoiceId = await createInvoice(agent, "Invoice Followup Co", "Ledger X");
+      const invoiceId = await createInvoice(agent, "Invoice Followup Co");
       await pool.query(`update invoices set status = 'Sent', next_followup_date = current_date where id = $1`, [invoiceId]);
 
       await runFollowupReminderJob();
@@ -166,7 +166,7 @@ describe("follow-up reminder job", () => {
 
     it("does not notify for a Draft invoice even if next_followup_date is due", async () => {
       const { agent, user: admin } = await loginAs("admin");
-      const invoiceId = await createInvoice(agent, "Draft Invoice Co", "Ledger Y");
+      const invoiceId = await createInvoice(agent, "Draft Invoice Co");
       // Left as Draft (default status) — never sent, so nothing to chase yet.
       await pool.query(`update invoices set next_followup_date = current_date where id = $1`, [invoiceId]);
 
@@ -177,7 +177,7 @@ describe("follow-up reminder job", () => {
 
     it("does not notify for a future invoice follow-up date", async () => {
       const { agent, user: admin } = await loginAs("admin");
-      const invoiceId = await createInvoice(agent, "Future Invoice Co", "Ledger Z");
+      const invoiceId = await createInvoice(agent, "Future Invoice Co");
       await pool.query(`update invoices set status = 'Sent', next_followup_date = current_date + 4 where id = $1`, [invoiceId]);
 
       await runFollowupReminderJob();

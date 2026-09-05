@@ -17,8 +17,6 @@ type ScheduledJob = {
 // Jobs are registered here as each feature phase adds them:
 // - invoice overdue detection (Phase 5) — daily at 01:00
 // - follow-up reminder + escalation (Phase 7)
-// - Tally sync poll (Phase 6b)
-// - sync health check (Phase 6b)
 const jobs: ScheduledJob[] = [
   {
     name: "invoice-overdue-detection",

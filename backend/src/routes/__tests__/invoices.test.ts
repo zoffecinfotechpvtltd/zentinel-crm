@@ -7,7 +7,7 @@ import { resetDb, loginAs } from "../../test-support/testApp";
 // for the subsequent invoice operations (invoices routes allow admin *and* finance).
 async function makeInvoiceableClient(): Promise<string> {
   const { agent: adminAgent } = await loginAs("admin");
-  const res = await adminAgent.post("/api/clients").send({ company: `Client-${Date.now()}-${Math.random()}`, tally_ledger_name: "TEST-LEDGER" });
+  const res = await adminAgent.post("/api/clients").send({ company: `Client-${Date.now()}-${Math.random()}` });
   return res.body.id as string;
 }
 
@@ -52,18 +52,14 @@ describe("invoices routes", () => {
   });
 
   describe("validation / edge case", () => {
-    it("rejects creating an invoice for a client with no tally_ledger_name", async () => {
+    it("rejects creating an invoice for a nonexistent client", async () => {
       const { agent } = await loginAs("finance");
-      // POST /api/clients is admin-only (see makeInvoiceableClient comment above),
-      // so the client itself has to be created by an admin agent.
-      const { agent: adminAgent } = await loginAs("admin");
-      const clientRes = await adminAgent.post("/api/clients").send({ company: `No Ledger ${Date.now()}` });
       const res = await agent.post("/api/invoices").send({
-        client_id: clientRes.body.id,
+        client_id: "00000000-0000-0000-0000-000000000000",
         line_items: [{ description: "X", quantity: 1, rate: 1000, gst_rate: 18 }],
       });
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("tally_ledger_name_required");
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe("client_not_found");
     });
 
     it("rejects a payment larger than the outstanding balance", async () => {

@@ -39,7 +39,7 @@ describe("weekly report digest job", () => {
       const { agent, user: admin } = await loginAs("admin");
       await agent.post("/api/leads").send({ company: "Pipeline Lead", contact_person: "A", email: "pl@x.com", value_estimate: 50000 });
 
-      const clientRes = await agent.post("/api/clients").send({ company: `Weekly Overdue Co ${Date.now()}`, tally_ledger_name: "L2" });
+      const clientRes = await agent.post("/api/clients").send({ company: `Weekly Overdue Co ${Date.now()}` });
       const invoiceRes = await agent.post("/api/invoices").send({
         client_id: clientRes.body.id,
         line_items: [{ description: "Service", rate: 1000 }],

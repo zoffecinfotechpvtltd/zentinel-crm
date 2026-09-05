@@ -35,7 +35,7 @@ afterAll(async () => {
 // Phase 4 test-coverage pass.)
 const APP_TABLES = [
   "activity_log", "attachments", "notes", "signature_requests",
-  "payments", "unmatched_payments", "tally_sync_log",
+  "payments",
   "credit_notes", "invoice_line_items", "invoices", "invoice_number_counters",
   "recurring_invoice_templates",
   "project_tasks", "project_time_entries", "projects",

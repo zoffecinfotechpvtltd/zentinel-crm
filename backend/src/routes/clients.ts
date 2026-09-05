@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/pool";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { requireAuth, requireRole, isAdminRole } from "../middleware/auth";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 import { writeActivityLog } from "../lib/activityLog";
 
@@ -211,7 +211,6 @@ const createClientSchema = z.object({
   company: z.string().min(1),
   gstin: z.string().optional(),
   billing_address: z.string().optional(),
-  tally_ledger_name: z.string().optional(),
   custom_fields: z.record(z.unknown()).optional(),
 });
 
@@ -223,9 +222,9 @@ router.post("/", requireRole("admin"), async (req, res) => {
   }
   const f = parsed.data;
   const result = await pool.query(
-    `insert into clients (company, gstin, billing_address, tally_ledger_name, custom_fields, created_by, updated_by)
-     values ($1,$2,$3,$4,$5,$6,$6) returning *`,
-    [f.company, f.gstin ?? null, f.billing_address ?? null, f.tally_ledger_name ?? null, JSON.stringify(f.custom_fields ?? {}), req.user!.id]
+    `insert into clients (company, gstin, billing_address, custom_fields, created_by, updated_by)
+     values ($1,$2,$3,$4,$5,$5) returning *`,
+    [f.company, f.gstin ?? null, f.billing_address ?? null, JSON.stringify(f.custom_fields ?? {}), req.user!.id]
   );
   await writeActivityLog(pool, {
     entityType: "client",
@@ -241,7 +240,6 @@ const updateClientSchema = z.object({
   company: z.string().min(1).optional(),
   gstin: z.string().nullable().optional(),
   billing_address: z.string().nullable().optional(),
-  tally_ledger_name: z.string().nullable().optional(),
   is_archived: z.boolean().optional(),
   parent_client_id: z.string().uuid().nullable().optional(),
   custom_fields: z.record(z.unknown()).optional(),
@@ -255,7 +253,7 @@ router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
   }
   const f = parsed.data;
 
-  if (f.is_archived !== undefined && req.user!.role !== "admin") {
+  if (f.is_archived !== undefined && !isAdminRole(req.user!.role)) {
     res.status(403).json({ error: "forbidden", message: "Only Admin can archive/unarchive a client." });
     return;
   }

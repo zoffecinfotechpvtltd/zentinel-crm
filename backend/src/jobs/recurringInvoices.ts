@@ -23,8 +23,7 @@ function advance(date: Date, frequency: string): string {
 // invoices the moment it resumes.
 export async function runRecurringInvoicesJob(): Promise<{ created: number; skipped: number }> {
   const dueResult = await pool.query(
-    `select rt.*, c.tally_ledger_name from recurring_invoice_templates rt
-     join clients c on c.id = rt.client_id
+    `select rt.* from recurring_invoice_templates rt
      where rt.deleted_at is null and rt.is_active and rt.next_run_date <= current_date`
   );
 
@@ -32,14 +31,6 @@ export async function runRecurringInvoicesJob(): Promise<{ created: number; skip
   let skipped = 0;
 
   for (const template of dueResult.rows) {
-    if (!template.tally_ledger_name) {
-      // Can't create an invoice without one (same rule as the manual create
-      // route) — leave next_run_date alone so it retries once this is fixed,
-      // rather than silently skipping the cycle forever.
-      skipped++;
-      continue;
-    }
-
     const lineItems = template.line_items as LineItemInput[];
     const { subtotal, tax, total, lines } = computeTotals(lineItems);
 
