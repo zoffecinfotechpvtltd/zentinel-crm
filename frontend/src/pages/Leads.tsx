@@ -192,17 +192,17 @@ export function Leads() {
   async function save() {
     setSaving(true);
     setFieldErrors({});
-    const nullable = (v: string) => v || (editing ? null : undefined);
-    const payload: Record<string, unknown> = {
-      company: form.company, contact_person: form.contact_person, email: form.email,
-      designation: nullable(form.designation), mobile: nullable(form.mobile),
-      industry: nullable(form.industry), source: nullable(form.source),
-      service_id: nullable(form.service_id),
-      value_estimate: form.value_estimate ? Number(form.value_estimate) : (editing ? null : undefined),
-      next_followup_date: nullable(form.next_followup_date), notes: nullable(form.notes),
-      custom_fields: form.custom_fields,
-    };
     try {
+      const nullable = (v: string) => v || (editing ? null : undefined);
+      const payload: Record<string, unknown> = {
+        company: form.company, contact_person: form.contact_person, email: form.email,
+        designation: nullable(form.designation), mobile: nullable(form.mobile),
+        industry: nullable(form.industry), source: nullable(form.source),
+        service_id: nullable(form.service_id),
+        value_estimate: form.value_estimate ? Number(form.value_estimate) : (editing ? null : undefined),
+        next_followup_date: nullable(form.next_followup_date), notes: nullable(form.notes),
+        custom_fields: form.custom_fields,
+      };
       if (editing) {
         await api.patch(`/leads/${editing.id}`, payload);
         push("Lead updated", "success");

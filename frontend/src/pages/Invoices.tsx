@@ -62,9 +62,6 @@ export function Invoices() {
   const [lines, setLines] = useState<DraftLine[]>([{ description: "", quantity: "1", rate: "", gst_rate: "18" }]);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const [importing, setImporting] = useState(false);
-  const [importNote, setImportNote] = useState<{ partyName: string | null; matched: boolean; duplicate: { id: string; invoice_number: string | null } | null } | null>(null);
-
   const [detailId, setDetailId] = useState<string | null>(null);
   const { data: detail, reload: reloadDetail } = useFetch<InvoiceDetail>(detailId ? `/invoices/${detailId}` : "", [detailId]);
 
@@ -142,45 +139,11 @@ export function Invoices() {
       });
       setCreateOpen(false);
       setClientId(""); setDueDate(""); setLines([{ description: "", quantity: "1", rate: "", gst_rate: "18" }]);
-      setImportNote(null);
       push("Invoice saved as draft", "success");
       reload();
       reloadSummary();
     } catch (err) {
       setCreateError(err instanceof ApiError ? err.message : "Failed to create invoice");
-    }
-  }
-
-  async function importPdf(file: File) {
-    setImporting(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const result = await api.postForm<{
-        extracted: { invoice_number: string | null; invoice_date: string | null; due_date: string | null; party_name: string | null; subtotal: number | null; gst_rate: number | null; tax: number | null; total: number | null };
-        matched_client: { id: string; company: string } | null;
-        duplicate: { id: string; invoice_number: string | null } | null;
-      }>("/invoices/import-pdf", form);
-
-      const { extracted, matched_client, duplicate } = result;
-      setClientId(matched_client?.id ?? "");
-      setDueDate(extracted.due_date ?? "");
-      const rate = extracted.subtotal ?? extracted.total ?? 0;
-      setLines([{
-        description: `Imported invoice${extracted.invoice_number ? ` - ${extracted.invoice_number}` : ""}`,
-        quantity: "1",
-        rate: String(rate),
-        gst_rate: String(extracted.gst_rate ?? 18),
-      }]);
-      setImportNote({ partyName: extracted.party_name, matched: !!matched_client, duplicate });
-      setCreateError(null);
-      setCreateOpen(true);
-      if (duplicate) push(`Heads up - this looks like it might already exist as ${duplicate.invoice_number ?? "a draft"}`, "info");
-      else push("PDF read - review the extracted details before saving", "success");
-    } catch (err) {
-      push(err instanceof Error ? err.message : "Couldn't read that PDF", "error");
-    } finally {
-      setImporting(false);
     }
   }
 
@@ -228,18 +191,8 @@ export function Invoices() {
         title="Invoice Management"
         subtitle={!loading ? `${total} invoice${total === 1 ? "" : "s"}` : undefined}
         actions={canEdit && <>
-          <label className="btn btn-ghost" style={{ cursor: importing ? "wait" : "pointer" }}>
-            {importing ? "Reading PDF…" : "Import PDF"}
-            <input
-              type="file"
-              accept="application/pdf"
-              style={{ display: "none" }}
-              disabled={importing}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) importPdf(f); e.target.value = ""; }}
-            />
-          </label>
           <button type="button" className="btn btn-ghost" onClick={() => setRecurringOpen(true)}>Recurring</button>
-          <button type="button" className="btn btn-primary" onClick={() => { setImportNote(null); setCreateOpen(true); }}><IconPlus size={14} /> Create Invoice</button>
+          <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}><IconPlus size={14} /> Create Invoice</button>
         </>}
       />
 
@@ -297,24 +250,11 @@ export function Invoices() {
       </div>
 
       {createOpen && (
-        <Modal title={importNote ? "Review Imported Invoice" : "Create Invoice"} onClose={() => { setCreateOpen(false); setImportNote(null); }} wide footer={<>
-          <button type="button" className="btn btn-ghost" onClick={() => { setCreateOpen(false); setImportNote(null); }}>Cancel</button>
+        <Modal title="Create Invoice" onClose={() => setCreateOpen(false)} wide footer={<>
+          <button type="button" className="btn btn-ghost" onClick={() => setCreateOpen(false)}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={createInvoice} disabled={!clientId || lines.some((l) => !l.description || !l.rate)}>Save as Draft</button>
         </>}>
           {createError && <div className="banner banner-error">{createError}</div>}
-          {importNote?.duplicate && (
-            <div className="banner banner-error">
-              This looks like it might already be in the system as {importNote.duplicate.invoice_number ?? "an existing draft"} - check before saving a second copy.
-            </div>
-          )}
-          {importNote && !importNote.matched && (
-            <div className="banner banner-info">
-              Couldn't confidently match{importNote.partyName ? ` "${importNote.partyName}"` : " the party on this PDF"} to a client - pick the right one below.
-            </div>
-          )}
-          {importNote && (
-            <div className="banner banner-info">Extracted from the PDF - double-check every field before saving, this is a best-effort read.</div>
-          )}
           <div className="form-grid" style={{ marginBottom: 16 }}>
             <div className="form-group">
               <label className="form-label">Client *</label>

@@ -189,10 +189,10 @@ export function Layout() {
             <span>Search or jump to…</span>
             <kbd>Ctrl K</kbd>
           </div>
-          <button type="button" className="topbar-btn" onClick={toggleTheme} title="Toggle theme">
+          <button type="button" className="topbar-btn" onClick={toggleTheme} title="Toggle theme" aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>
             {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
           </button>
-          <button type="button" className="topbar-btn" onClick={() => navigate("/notifications")} title="Notifications">
+          <button type="button" className="topbar-btn" onClick={() => navigate("/notifications")} title="Notifications" aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}>
             <IconBell size={16} />
             {unread > 0 && <span className="nav-badge">{unread}</span>}
           </button>

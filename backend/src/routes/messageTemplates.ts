@@ -8,7 +8,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get("/", async (_req, res) => {
-  const result = await pool.query(`select * from message_templates order by category, name`);
+  const result = await pool.query(`select * from message_templates where deleted_at is null order by category, name`);
   res.json(result.rows);
 });
 
@@ -65,7 +65,7 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
   values.push(req.params.id);
 
   const result = await pool.query(
-    `update message_templates set ${setClauses.join(", ")} where id = $${i} returning *`,
+    `update message_templates set ${setClauses.join(", ")} where id = $${i} and deleted_at is null returning *`,
     values
   );
   if (result.rows.length === 0) {
@@ -73,6 +73,18 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
     return;
   }
   res.json(result.rows[0]);
+});
+
+router.delete("/:id", requireRole("admin"), async (req, res) => {
+  const result = await pool.query(
+    `update message_templates set deleted_at = now() where id = $1 and deleted_at is null returning id`,
+    [req.params.id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 export default router;

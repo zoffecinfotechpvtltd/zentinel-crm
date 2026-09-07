@@ -12,7 +12,7 @@ const router = Router();
 router.use(requireAuth, requireRole("superadmin"));
 
 const ENTITY_TYPES = ["lead", "opportunity", "invoice", "project"] as const;
-const ROLES = ["admin", "sales", "finance", "ops"] as const;
+const ROLES = ["admin", "sales", "finance", "ops", "superadmin"] as const;
 
 router.get("/", async (_req, res) => {
   const result = await pool.query(

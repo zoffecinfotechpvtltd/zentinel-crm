@@ -32,6 +32,7 @@ const ROLES = [
   { value: "sales", label: "Sales" },
   { value: "finance", label: "Finance" },
   { value: "ops", label: "Ops" },
+  { value: "superadmin", label: "Superadmin" },
 ];
 
 const emptyForm = { name: "", entity_type: "lead", trigger_status: "", notify_target: "", message_template: "{company} moved to {status}" };
@@ -107,7 +108,7 @@ export function AutomationRules() {
                     <div style={{ fontSize: 11, color: "var(--text3)" }}>{r.message_template}</div>
                   </td>
                   <td style={{ fontSize: 12, textTransform: "capitalize" }}>{r.entity_type} → {r.trigger_status}</td>
-                  <td style={{ fontSize: 12 }}>{r.notify_user_name ?? `Role: ${r.notify_role}`}</td>
+                  <td style={{ fontSize: 12 }}>{r.notify_user_name ?? `Role: ${ROLES.find((role) => role.value === r.notify_role)?.label ?? r.notify_role}`}</td>
                   <td>
                     <Badge status={r.is_active ? "Active" : "Inactive"} />
                   </td>

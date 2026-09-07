@@ -8,19 +8,26 @@ export function useFetch<T>(path: string, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(Boolean(path));
   const [error, setError] = useState<string | null>(null);
+  // Bumped on every reload() call and checked before applying a response —
+  // without this, two overlapping requests (e.g. the mount fetch still
+  // in flight when a delete's reload() fires a second one) can resolve
+  // out of order and let the stale response's setData clobber the fresh one.
+  const requestId = useRef(0);
 
   const reload = useCallback(() => {
     if (!path) {
+      requestId.current += 1;
       setData(null);
       setLoading(false);
       return;
     }
+    const id = ++requestId.current;
     setLoading(true);
     setError(null);
     api.get<T>(path)
-      .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
-      .finally(() => setLoading(false));
+      .then((res) => { if (id === requestId.current) setData(res); })
+      .catch((err) => { if (id === requestId.current) setError(err instanceof Error ? err.message : "Failed to load"); })
+      .finally(() => { if (id === requestId.current) setLoading(false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, ...deps]);
 
@@ -55,19 +62,25 @@ export function useInfiniteFetch<T>(pathBuilder: (page: number) => string, deps:
   // every re-render.
   const pathBuilderRef = useRef(pathBuilder);
   pathBuilderRef.current = pathBuilder;
+  // Same out-of-order-response guard as useFetch above — a reload() fired
+  // while the initial page is still loading must not let that stale
+  // response's setItems clobber the reload's result once it lands.
+  const requestId = useRef(0);
 
   const fetchPage = useCallback((p: number, append: boolean) => {
+    const id = ++requestId.current;
     const setBusy = append ? setLoadingMore : setLoading;
     setBusy(true);
     setError(null);
     api.get<ListResponse<T>>(pathBuilderRef.current(p))
       .then((res) => {
+        if (id !== requestId.current) return;
         setItems((prev) => (append ? [...prev, ...res.data] : res.data));
         setTotal(res.total);
         setPage(p);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
-      .finally(() => setBusy(false));
+      .catch((err) => { if (id === requestId.current) setError(err instanceof Error ? err.message : "Failed to load"); })
+      .finally(() => { if (id === requestId.current) setBusy(false); });
   }, []);
 
   const reload = useCallback(() => fetchPage(1, false), [fetchPage]);

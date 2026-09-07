@@ -1,11 +1,8 @@
 import { Router } from "express";
-import multer from "multer";
-import pdfParse from "pdf-parse";
 import { z } from "zod";
 import { pool } from "../db/pool";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { writeActivityLog } from "../lib/activityLog";
-import { parseInvoicePdfText } from "../lib/invoicePdfParse";
 import { computeTotals } from "../lib/invoiceMath";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 import { buildSingleEventIcs } from "../lib/ics";
@@ -13,7 +10,6 @@ import { fireWebhook } from "../lib/outboundWebhook";
 import { runAutomationRules } from "../lib/automationRules";
 
 const router = Router();
-const pdfUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Invoices are Finance's domain — Sales has no access at all now (mirrors
 // Leads being Sales' domain with no Finance access). Clients still bridges
@@ -82,81 +78,6 @@ router.get("/summary", async (_req, res) => {
     amount_received: Number(row.amount_received),
     outstanding: Number(row.outstanding),
     overdue_count: Number(row.overdue_count),
-  });
-});
-
-// Reads a Tally-exported invoice PDF's text layer and returns best-effort
-// extracted fields plus a client match and a duplicate check — nothing is
-// written to the database here. The caller reviews/edits the draft and
-// saves it through the normal POST /invoices path, same as manual entry.
-router.post("/import-pdf", requireRole("admin", "finance"), pdfUpload.single("file"), async (req, res) => {
-  if (!req.file) {
-    res.status(400).json({ error: "no_file" });
-    return;
-  }
-  // Browsers/OSes report inconsistent mimetypes for PDFs (some send
-  // "application/octet-stream" or nothing at all depending on file
-  // associations), so a valid PDF was being rejected before pdf-parse ever
-  // got a chance to look at it. Check the actual file signature ("%PDF-")
-  // instead of trusting the client-supplied mimetype; pdf-parse below still
-  // catches anything that claims to be a PDF but isn't readable.
-  if (req.file.buffer.subarray(0, 5).toString("latin1") !== "%PDF-") {
-    res.status(400).json({ error: "not_a_pdf", message: "That file doesn't look like a PDF." });
-    return;
-  }
-
-  let text: string;
-  try {
-    const parsed = await pdfParse(req.file.buffer);
-    text = parsed.text;
-  } catch {
-    res.status(400).json({ error: "unreadable_pdf", message: "Couldn't read this PDF - it may be a scanned image with no selectable text." });
-    return;
-  }
-
-  const extracted = parseInvoicePdfText(text);
-
-  let matchedClient: { id: string; company: string } | null = null;
-  if (extracted.party_name) {
-    const clientMatch = await pool.query(
-      `select id, company from clients
-       where deleted_at is null and company ilike $1
-       limit 1`,
-      [`%${extracted.party_name}%`]
-    );
-    if (clientMatch.rows.length > 0) matchedClient = clientMatch.rows[0];
-  }
-
-  let duplicate: { id: string; invoice_number: string | null } | null = null;
-  if (extracted.invoice_number) {
-    const byNumber = await pool.query(
-      `select id, invoice_number from invoices where invoice_number = $1 and deleted_at is null`,
-      [extracted.invoice_number]
-    );
-    if (byNumber.rows.length > 0) duplicate = byNumber.rows[0];
-  }
-  if (!duplicate && matchedClient && extracted.total != null && extracted.invoice_date) {
-    const byFingerprint = await pool.query(
-      `select id, invoice_number from invoices
-       where deleted_at is null and client_id = $1 and total = $2 and invoice_date = $3`,
-      [matchedClient.id, extracted.total, extracted.invoice_date]
-    );
-    if (byFingerprint.rows.length > 0) duplicate = byFingerprint.rows[0];
-  }
-
-  res.json({
-    extracted: {
-      invoice_number: extracted.invoice_number,
-      invoice_date: extracted.invoice_date,
-      due_date: extracted.due_date,
-      party_name: extracted.party_name,
-      subtotal: extracted.subtotal,
-      gst_rate: extracted.gst_rate,
-      tax: extracted.tax,
-      total: extracted.total,
-    },
-    matched_client: matchedClient,
-    duplicate,
   });
 });
 

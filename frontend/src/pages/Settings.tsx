@@ -4,7 +4,7 @@ import { api, ApiError, API_BASE } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
-import { IconSettings } from "../components/Icons";
+import { IconSettings, IconEye, IconEyeOff } from "../components/Icons";
 
 const RESTORE_CONFIRM_PHRASE = "REPLACE ALL DATA";
 
@@ -21,6 +21,8 @@ export function Settings() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSaved, setWebhookSaved] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [secretRevealed, setSecretRevealed] = useState(false);
+  const [smtpPassRevealed, setSmtpPassRevealed] = useState(false);
   const [form, setForm] = useState({ host: "", port: "587", user: "", pass: "", from: "" });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,7 @@ export function Settings() {
     try {
       await api.post("/settings/integrations/lead-webhook-secret/regenerate");
       push("New lead-capture key generated - update your website's form handler with it.", "success");
+      setSecretRevealed(false);
       reloadIntegrations();
     } finally {
       setRegenerating(false);
@@ -138,7 +141,20 @@ export function Settings() {
           </div>
           <div className="form-group">
             <label className="form-label">Password / App key</label>
-            <input className="form-input" type="password" value={form.pass} onChange={(e) => setForm({ ...form, pass: e.target.value })} placeholder={data ? "unchanged - enter to update" : ""} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="form-input"
+                type={smtpPassRevealed ? "text" : "password"}
+                value={form.pass}
+                onChange={(e) => setForm({ ...form, pass: e.target.value })}
+                placeholder={data ? "unchanged - enter to update" : ""}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button type="button" className="icon-btn" style={{ flexShrink: 0 }} onClick={() => setSmtpPassRevealed((v) => !v)} aria-label={smtpPassRevealed ? "Hide password" : "Reveal password"} title={smtpPassRevealed ? "Hide" : "Reveal"}>
+                {smtpPassRevealed ? <IconEyeOff size={13} /> : <IconEye size={13} />}
+              </button>
+            </div>
           </div>
           <div className="form-group full">
             <label className="form-label">"From" address</label>
@@ -216,7 +232,14 @@ export function Settings() {
           </p>
           {integrations?.lead_webhook_secret ? (
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-              <code className="mono" style={{ background: "var(--bg3)", padding: "6px 10px", borderRadius: 6, fontSize: 12, flex: 1, wordBreak: "break-all" }}>{integrations.lead_webhook_secret}</code>
+              <code className="mono" style={{ background: "var(--bg3)", padding: "6px 10px", borderRadius: 6, fontSize: 12, flex: 1, wordBreak: "break-all" }}>
+                {secretRevealed
+                  ? integrations.lead_webhook_secret
+                  : `${integrations.lead_webhook_secret.slice(0, 4)}${"•".repeat(Math.max(integrations.lead_webhook_secret.length - 8, 4))}${integrations.lead_webhook_secret.slice(-4)}`}
+              </code>
+              <button type="button" className="icon-btn" style={{ flexShrink: 0 }} onClick={() => setSecretRevealed((v) => !v)} aria-label={secretRevealed ? "Hide secret" : "Reveal secret"} title={secretRevealed ? "Hide" : "Reveal"}>
+                {secretRevealed ? <IconEyeOff size={13} /> : <IconEye size={13} />}
+              </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => { navigator.clipboard.writeText(integrations.lead_webhook_secret ?? ""); push("Copied", "success"); }}>Copy</button>
             </div>
           ) : (

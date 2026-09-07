@@ -57,7 +57,7 @@ const TYPE_TONE: Record<string, string> = {
 export function Notifications() {
   const { push } = useToast();
   const navigate = useNavigate();
-  const { data, reload } = useFetch<ListResponse<Notification>>("/notifications?per_page=50");
+  const { data, loading, error, reload } = useFetch<ListResponse<Notification>>("/notifications?per_page=50");
 
   async function markRead(id: string) {
     await api.patch(`/notifications/${id}/read`);
@@ -87,10 +87,19 @@ export function Notifications() {
         subtitle={data ? `${data.data.filter((n) => !n.read_at).length} unread` : undefined}
         actions={<button type="button" className="btn btn-ghost btn-sm" onClick={markAllRead}><IconCheck size={14} /> Mark all read</button>}
       />
-      {data?.data.length === 0 && (
+      {loading && (
+        <div className="card"><div className="empty">Loading notifications…</div></div>
+      )}
+      {error && !loading && (
+        <div className="banner banner-error" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span>Couldn't load notifications - {error}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Retry</button>
+        </div>
+      )}
+      {!loading && !error && data?.data.length === 0 && (
         <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing to catch up on.</div></div>
       )}
-      {data?.data.map((n) => (
+      {!loading && data?.data.map((n) => (
         <div
           key={n.id}
           className={`notif${!n.read_at ? " unread" : ""}`}

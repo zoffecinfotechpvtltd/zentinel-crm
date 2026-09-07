@@ -67,6 +67,12 @@ export const IconX = ({ size = 17, ...p }: IconProps) => (
 export const IconCheck = ({ size = 17, ...p }: IconProps) => (
   <svg {...base(size, p)}><path d="M4 12l5.5 5.5L20 6.5" /></svg>
 );
+export const IconEye = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+);
+export const IconEyeOff = ({ size = 17, ...p }: IconProps) => (
+  <svg {...base(size, p)}><path d="M2 12s3.5-7 10-7c2.1 0 3.9.6 5.4 1.5M22 12s-1.2 2.4-3.4 4.2M9.5 9.8a3 3 0 004.2 4.2" /><path d="M3 3l18 18" /></svg>
+);
 export const IconLogout = ({ size = 17, ...p }: IconProps) => (
   <svg {...base(size, p)}><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
 );
