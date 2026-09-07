@@ -315,13 +315,20 @@ router.patch("/:id", requireRole("admin", "ops"), async (req, res) => {
 
 router.delete("/:id", requireRole("admin"), async (req, res) => {
   const result = await pool.query(
-    `update projects set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2 and deleted_at is null returning id`,
+    `update projects set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2 and deleted_at is null returning id, name`,
     [req.user!.id, req.params.id]
   );
   if (result.rows.length === 0) {
     res.status(404).json({ error: "not_found" });
     return;
   }
+  await writeActivityLog(pool, {
+    entityType: "project",
+    entityId: result.rows[0].id,
+    actorId: req.user!.id,
+    action: "deleted",
+    detail: { name: result.rows[0].name },
+  });
   res.json({ ok: true });
 });
 

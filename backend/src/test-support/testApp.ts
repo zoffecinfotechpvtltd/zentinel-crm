@@ -55,7 +55,7 @@ export async function resetDb(): Promise<void> {
 const TEST_PASSWORD = "TestPass123";
 
 export async function loginAs(
-  role: "admin" | "sales" | "finance" | "ops",
+  role: "admin" | "sales" | "finance" | "ops" | "superadmin",
   overrides: Partial<{ name: string; email: string }> = {}
 ): Promise<{ agent: ReturnType<typeof supertest.agent>; user: { id: string; email: string; name: string; role: string } }> {
   const email = overrides.email ?? `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.local`;

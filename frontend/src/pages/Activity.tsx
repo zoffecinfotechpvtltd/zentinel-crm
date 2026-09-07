@@ -4,34 +4,12 @@ import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
 import { TableSkeleton } from "../components/Skeleton";
 import { formatDateTime } from "../lib/format";
 import { IconActivity, IconInbox } from "../components/Icons";
+import { describeEvent } from "../lib/describeEvent";
 
 type ActivityRow = {
   id: string; entity_type: string; entity_id: string; action: string;
   detail: Record<string, unknown>; created_at: string; actor_name: string | null;
 };
-
-function describe(row: ActivityRow): string {
-  const who = row.actor_name ?? "Someone";
-  if (row.action === "status_changed") {
-    const d = row.detail as { from?: string; to?: string; invoice_number?: string };
-    return `${who} changed ${row.entity_type} status from "${d.from}" to "${d.to}"${d.invoice_number ? ` (${d.invoice_number})` : ""}`;
-  }
-  if (row.action === "created") return `${who} created a new ${row.entity_type}`;
-  if (row.action === "reassigned") return `${who} reassigned a ${row.entity_type}`;
-  if (row.action === "note_added") return `${who} logged an interaction`;
-  if (row.action === "contact_added") return `${who} added a contact`;
-  if (row.action === "contract_added") return `${who} added a contract`;
-  if (row.action === "converted_to_client") return `${who} converted an opportunity to a client`;
-  if (row.action === "merged") {
-    const d = row.detail as { merged_company?: string };
-    return `${who} merged a duplicate ${row.entity_type}${d.merged_company ? ` ("${d.merged_company}")` : ""} into this one`;
-  }
-  if (row.action === "message_sent") {
-    const d = row.detail as { template_name?: string; channel?: string };
-    return `${who} sent a "${d.template_name ?? "message"}" ${d.channel ?? ""} message`;
-  }
-  return `${who} - ${row.action} on ${row.entity_type}`;
-}
 
 export function Activity() {
   const { items, loading, loadingMore, hasMore, loadMore } = useInfiniteFetch<ActivityRow>(
@@ -57,7 +35,7 @@ export function Activity() {
               {items.map((row) => (
                 <tr key={row.id}>
                   <td style={{ fontSize: 12, whiteSpace: "nowrap", color: "var(--text3)" }}>{formatDateTime(row.created_at)}</td>
-                  <td style={{ fontSize: 13 }}>{describe(row)}</td>
+                  <td style={{ fontSize: 13 }}>{describeEvent(row)}</td>
                 </tr>
               ))}
             </tbody>

@@ -117,21 +117,49 @@ export function Dashboard() {
 
       <div className="card">
         <div className="card-title">
-          Upcoming Follow-ups
+          Follow-ups Due
           <div style={{ display: "flex", gap: 8 }}>
             <Link className="btn btn-ghost btn-sm" to="/activity">View Activity</Link>
             <Link className="btn btn-primary btn-sm" to="/followups">View All</Link>
           </div>
         </div>
-        <div className="followup-list">
-          {data.upcoming_followups.length === 0 && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Nothing due</div>}
-          {data.upcoming_followups.map((f) => (
-            <div className={`followup-item${isOverdue(f.next_followup_date) ? " overdue" : ""}`} key={f.id}>
-              <div className="followup-company">{f.company}</div>
-              <div className="followup-detail">{f.contact_person} - due {formatDate(f.next_followup_date)}</div>
-            </div>
-          ))}
-        </div>
+        {(() => {
+          const overdue = data.upcoming_followups.filter((f) => isOverdue(f.next_followup_date));
+          const dueToday = data.upcoming_followups.filter((f) => !isOverdue(f.next_followup_date));
+          if (overdue.length === 0 && dueToday.length === 0) {
+            return <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Nothing due</div>;
+          }
+          return (
+            <>
+              {overdue.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--danger)", textTransform: "uppercase", letterSpacing: ".05em", margin: "4px 0 6px" }}>Overdue</div>
+                  <div className="followup-list">
+                    {overdue.map((f) => (
+                      <div className="followup-item overdue" key={f.id}>
+                        <div className="followup-company">{f.company}</div>
+                        <div className="followup-detail">{f.contact_person} - due {formatDate(f.next_followup_date)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {dueToday.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".05em", margin: "14px 0 6px" }}>Due Today</div>
+                  <div className="followup-list">
+                    {dueToday.map((f) => (
+                      <div className="followup-item" key={f.id}>
+                        <div className="followup-company">{f.company}</div>
+                        <div className="followup-detail">{f.contact_person} - due {formatDate(f.next_followup_date)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          );
+        })()}
       </div>
     </div>
   );

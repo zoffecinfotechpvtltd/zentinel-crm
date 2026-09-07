@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useFetch } from "../lib/useFetch";
 import { api, API_BASE } from "../lib/api";
 import { useAuth, isAdminRole } from "../context/AuthContext";
@@ -35,15 +36,22 @@ export function Followups() {
   const { user } = useAuth();
   const canSales = isAdminRole(user?.role) || user?.role === "sales";
   const canFinance = isAdminRole(user?.role) || user?.role === "finance";
-  // Lets a notification (e.g. "N invoice follow-ups due") link straight into
-  // the right section/tab instead of dropping the user on a default view
-  // they then have to re-filter by hand.
-  const params = new URLSearchParams(window.location.search);
+  // Section and tab both live in the URL now (not just section before) - a
+  // notification deep link and the back button both need to land on the
+  // exact same view either way, and one control writing to the URL while
+  // the other reset it was the inconsistency the audit flagged.
+  const [params, setParams] = useSearchParams();
   const requestedSection = params.get("section");
-  const [section, setSection] = useState<"sales" | "finance">(
-    requestedSection === "finance" && canFinance ? "finance" : requestedSection === "sales" && canSales ? "sales" : canSales ? "sales" : "finance"
-  );
-  const initialTab = params.get("tab") ?? "today";
+  const section: "sales" | "finance" =
+    requestedSection === "finance" && canFinance ? "finance" : requestedSection === "sales" && canSales ? "sales" : canSales ? "sales" : "finance";
+  const tab = params.get("tab") ?? "today";
+
+  function setSection(next: "sales" | "finance") {
+    setParams({ section: next, tab: "today" });
+  }
+  function setTab(next: string) {
+    setParams({ section, tab: next });
+  }
 
   return (
     <div>
@@ -58,16 +66,15 @@ export function Followups() {
           </div>
         )}
       />
-      {section === "sales" && canSales && <SalesFollowups initialTab={initialTab} />}
-      {section === "finance" && canFinance && <FinanceFollowups initialTab={initialTab} />}
+      {section === "sales" && canSales && <SalesFollowups tab={tab} setTab={setTab} />}
+      {section === "finance" && canFinance && <FinanceFollowups tab={tab} setTab={setTab} />}
     </div>
   );
 }
 
-function SalesFollowups({ initialTab }: { initialTab: string }) {
+function SalesFollowups({ tab, setTab }: { tab: string; setTab: (t: string) => void }) {
   const { push } = useToast();
-  const [tab, setTab] = useState(initialTab);
-  const { data, reload } = useFetch<ListResponse<Lead>>(`/leads?followup=${tab}&per_page=50`, [tab]);
+  const { data, loading, error, reload } = useFetch<ListResponse<Lead>>(`/leads?followup=${tab}&per_page=50`, [tab]);
   const { data: templates } = useFetch<Template[]>("/message-templates");
 
   // WhatsApp templates open wa.me with the message pre-filled — one click
@@ -110,10 +117,17 @@ function SalesFollowups({ initialTab }: { initialTab: string }) {
       </div>
       <div className="grid2">
         <div>
-          {data?.data.length === 0 && (
+          {loading && <div className="card"><div className="empty">Loading…</div></div>}
+          {error && !loading && (
+            <div className="banner banner-error" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <span>Couldn't load follow-ups - {error}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Retry</button>
+            </div>
+          )}
+          {!loading && !error && data?.data.length === 0 && (
             <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing here - you're caught up.</div></div>
           )}
-          {data?.data.map((l) => (
+          {!loading && data?.data.map((l) => (
             <div className={`followup-item${isOverdue(l.next_followup_date) ? " overdue" : ""}`} key={l.id} style={{ position: "relative" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                 <div>
@@ -156,10 +170,9 @@ function SalesFollowups({ initialTab }: { initialTab: string }) {
   );
 }
 
-function FinanceFollowups({ initialTab }: { initialTab: string }) {
+function FinanceFollowups({ tab, setTab }: { tab: string; setTab: (t: string) => void }) {
   const { push } = useToast();
-  const [tab, setTab] = useState(initialTab);
-  const { data, reload } = useFetch<ListResponse<Invoice>>(`/invoices?followup=${tab}&per_page=50`, [tab]);
+  const { data, loading, error, reload } = useFetch<ListResponse<Invoice>>(`/invoices?followup=${tab}&per_page=50`, [tab]);
   const { data: clientsResp } = useFetch<ListResponse<Client>>("/clients?per_page=200");
   const [draftDates, setDraftDates] = useState<Record<string, string>>({});
 
@@ -182,11 +195,18 @@ function FinanceFollowups({ initialTab }: { initialTab: string }) {
           <button type="button" key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>
         ))}
       </div>
-      {data?.data.length === 0 && (
+      {loading && <div className="card"><div className="empty">Loading…</div></div>}
+      {error && !loading && (
+        <div className="banner banner-error" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span>Couldn't load follow-ups - {error}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reload}>Retry</button>
+        </div>
+      )}
+      {!loading && !error && data?.data.length === 0 && (
         <div className="card"><div className="empty"><div className="empty-icon"><IconInbox size={30} /></div>Nothing to chase - every outstanding invoice is scheduled or paid.</div></div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {data?.data.map((inv) => (
+        {!loading && data?.data.map((inv) => (
           <div className={`followup-item${isOverdue(inv.next_followup_date) ? " overdue" : ""}`} key={inv.id}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
               <div>

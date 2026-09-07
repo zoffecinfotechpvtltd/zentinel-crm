@@ -6,6 +6,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import { formatDateTime } from "../lib/format";
 import { IconFollowups, IconInbox } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
+import { describeEvent } from "../lib/describeEvent";
 
 type LogRow = {
   id: string; entity_type: string; entity_id: string; action: string;
@@ -13,21 +14,6 @@ type LogRow = {
 };
 
 const ENTITY_TYPES = ["lead", "client", "project", "invoice", "opportunity"];
-
-function describe(row: LogRow): string {
-  const who = row.actor_name ?? "System";
-  const article = /^[aeiou]/i.test(row.entity_type) ? "an" : "a";
-  if (row.action === "status_changed") {
-    const d = row.detail as { from?: string; to?: string };
-    return `${who} changed ${row.entity_type} status from "${d.from}" to "${d.to}"`;
-  }
-  if (row.action === "created") return `${who} created ${article} ${row.entity_type}`;
-  if (row.action === "reassigned") return `${who} reassigned ${article} ${row.entity_type}`;
-  if (row.action === "note_added") return `${who} logged a note on ${article} ${row.entity_type}`;
-  if (row.action === "contact_added") return `${who} added a contact to ${article} ${row.entity_type}`;
-  if (row.action === "contract_added") return `${who} added a contract to ${article} ${row.entity_type}`;
-  return `${who} - ${row.action} on ${row.entity_type}`;
-}
 
 export function AuditLog() {
   const [entityType, setEntityType] = useState("");
@@ -64,7 +50,7 @@ export function AuditLog() {
               {items.map((row) => (
                 <tr key={row.id}>
                   <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>{formatDateTime(row.created_at)}</td>
-                  <td>{describe(row)}</td>
+                  <td>{describeEvent(row, "System")}</td>
                   <td style={{ fontSize: 12, color: "var(--text3)" }}>{row.actor_email ?? "-"}</td>
                 </tr>
               ))}

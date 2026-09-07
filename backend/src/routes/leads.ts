@@ -13,7 +13,7 @@ const router = Router();
 
 router.use(requireAuth);
 
-const INDUSTRIES = [
+export const INDUSTRIES = [
   "Banking & Finance", "IT/Software", "Healthcare", "Government",
   "Manufacturing", "E-commerce", "Telecom", "Other",
 ] as const;
@@ -466,13 +466,20 @@ router.post("/:id/merge", requireRole("admin"), async (req, res) => {
 
 router.delete("/:id", requireRole("admin"), async (req, res) => {
   const result = await pool.query(
-    `update leads set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2 and deleted_at is null returning id`,
+    `update leads set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2 and deleted_at is null returning id, company`,
     [req.user!.id, req.params.id]
   );
   if (result.rows.length === 0) {
     res.status(404).json({ error: "not_found" });
     return;
   }
+  await writeActivityLog(pool, {
+    entityType: "lead",
+    entityId: result.rows[0].id,
+    actorId: req.user!.id,
+    action: "deleted",
+    detail: { company: result.rows[0].company },
+  });
   res.json({ ok: true });
 });
 
@@ -516,10 +523,10 @@ router.post("/:id/convert", requireRole("admin", "sales"), async (req, res) => {
     await client.query("begin");
 
     const clientResult = await client.query(
-      `insert into clients (company, gstin, billing_address, converted_from_lead_id, created_by, updated_by)
-       values ($1, $2, $3, $4, $5, $5)
+      `insert into clients (company, gstin, billing_address, industry, converted_from_lead_id, created_by, updated_by)
+       values ($1, $2, $3, $4, $5, $6, $6)
        returning *`,
-      [lead.company, f.gstin ?? null, f.billing_address ?? null, lead.id, req.user!.id]
+      [lead.company, f.gstin ?? null, f.billing_address ?? null, lead.industry ?? null, lead.id, req.user!.id]
     );
     const newClient = clientResult.rows[0];
 
@@ -527,6 +534,18 @@ router.post("/:id/convert", requireRole("admin", "sales"), async (req, res) => {
       `insert into client_contacts (client_id, name, email, mobile, designation, is_primary, created_by, updated_by)
        values ($1, $2, $3, $4, $5, true, $6, $6)`,
       [newClient.id, lead.contact_person, lead.email, lead.mobile, lead.designation, req.user!.id]
+    );
+
+    // Carries the lead's Service + Value Estimate forward as the client's
+    // opening contract, rather than dropping them at conversion - this also
+    // gives the new client an active, undated contract immediately, so its
+    // computed status (routes/clients.ts's STATUS_EXPR) reads Active from
+    // the moment of conversion instead of Inactive until someone manually
+    // adds a contract later.
+    await client.query(
+      `insert into contracts (client_id, service_id, value, start_date, status, created_by, updated_by)
+       values ($1, $2, $3, current_date, 'active', $4, $4)`,
+      [newClient.id, lead.service_id ?? null, wonValue ?? null, req.user!.id]
     );
 
     await client.query(

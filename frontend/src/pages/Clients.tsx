@@ -16,9 +16,10 @@ import { formatDate, formatMoney, formatDateTime } from "../lib/format";
 import { IconClients, IconPlus, IconInbox, IconCheck } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
+import { describeEvent } from "../lib/describeEvent";
 
 type Client = {
-  id: string; company: string; gstin: string | null; status: string;
+  id: string; company: string; gstin: string | null; status: string; industry: string | null;
   primary_contact_name: string | null; primary_contact_email: string | null; primary_contact_mobile: string | null;
   primary_service_name: string | null; contract_value_total: string | number; contract_end_date: string | null;
 };
@@ -43,24 +44,6 @@ type ClientDetail = Client & {
   custom_fields: Record<string, unknown>;
 };
 
-function describeTimelineEntry(row: TimelineEntry): string {
-  const who = row.actor_name ?? "Someone";
-  if (row.action === "status_changed") {
-    const d = row.detail as { from?: string; to?: string };
-    return `${who} changed ${row.entity_type} status from "${d.from}" to "${d.to}"`;
-  }
-  if (row.action === "created") return `${who} created a new ${row.entity_type}`;
-  if (row.action === "merged") {
-    const d = row.detail as { merged_company?: string };
-    return `${who} merged a duplicate${d.merged_company ? ` ("${d.merged_company}")` : ""} in`;
-  }
-  if (row.action === "converted_to_client") return `${who} converted this to a client`;
-  if (row.action === "message_sent") {
-    const d = row.detail as { template_name?: string };
-    return `${who} sent a "${d.template_name ?? "message"}" message`;
-  }
-  return `${who} - ${row.action} on ${row.entity_type}`;
-}
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type Service = { id: string; name: string };
 type DuplicateClientSummary = { id: string; company: string; gstin: string | null; created_at: string };
@@ -255,7 +238,7 @@ export function Clients() {
                 <tr key={c.id}>
                   <td>
                     <div style={{ fontWeight: 550, color: "var(--text)" }}>{c.company}</div>
-                    <div style={{ fontSize: 11, color: "var(--text3)" }}>{c.gstin ?? "no GSTIN"}</div>
+                    <div style={{ fontSize: 11, color: "var(--text3)" }}>{c.gstin ?? "no GSTIN"}{c.industry ? ` · ${c.industry}` : ""}</div>
                   </td>
                   <td>
                     <div>{c.primary_contact_name ?? "-"}</div>
@@ -295,6 +278,7 @@ export function Clients() {
         <Modal title={detail.company} onClose={() => setDetailId(null)} xwide footer={<button type="button" className="btn btn-ghost" onClick={() => setDetailId(null)}>Close</button>}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
             <Badge status={detail.status} />
+            {detail.industry && <span style={{ fontSize: 12, color: "var(--text3)" }}>{detail.industry}</span>}
             {detail.originating_lead && <span style={{ fontSize: 12, color: "var(--text3)" }}>Converted from lead: {detail.originating_lead.company}</span>}
             {detail.originating_opportunity && (
               <span style={{ fontSize: 12, color: "var(--text3)" }}>
@@ -497,7 +481,7 @@ export function Clients() {
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
                 {detail.timeline.map((row) => (
                   <div key={row.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)" }}>
-                    <span style={{ color: "var(--text2)" }}>{describeTimelineEntry(row)}</span>
+                    <span style={{ color: "var(--text2)" }}>{describeEvent(row)}</span>
                     <span style={{ color: "var(--text3)", flexShrink: 0 }}>{formatDateTime(row.created_at)}</span>
                   </div>
                 ))}

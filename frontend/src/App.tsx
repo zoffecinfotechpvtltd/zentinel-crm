@@ -141,7 +141,7 @@ function App() {
               <Route
                 path="/audit-log"
                 element={
-                  <RequireRole roles={["admin"]}>
+                  <RequireRole roles={["superadmin"]}>
                     <AuditLog />
                   </RequireRole>
                 }

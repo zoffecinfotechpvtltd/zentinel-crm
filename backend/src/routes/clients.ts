@@ -4,6 +4,7 @@ import { pool } from "../db/pool";
 import { requireAuth, requireRole, isAdminRole } from "../middleware/auth";
 import { mountNotesAndAttachments } from "../lib/attachNotesAndFiles";
 import { writeActivityLog } from "../lib/activityLog";
+import { INDUSTRIES } from "./leads";
 
 const router = Router();
 
@@ -240,6 +241,7 @@ const updateClientSchema = z.object({
   company: z.string().min(1).optional(),
   gstin: z.string().nullable().optional(),
   billing_address: z.string().nullable().optional(),
+  industry: z.enum(INDUSTRIES).nullable().optional(),
   is_archived: z.boolean().optional(),
   parent_client_id: z.string().uuid().nullable().optional(),
   custom_fields: z.record(z.unknown()).optional(),
@@ -388,13 +390,20 @@ router.post("/:id/merge", requireRole("admin"), async (req, res) => {
 
 router.delete("/:id", requireRole("admin"), async (req, res) => {
   const result = await pool.query(
-    `update clients set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2 and deleted_at is null returning id`,
+    `update clients set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2 and deleted_at is null returning id, company`,
     [req.user!.id, req.params.id]
   );
   if (result.rows.length === 0) {
     res.status(404).json({ error: "not_found" });
     return;
   }
+  await writeActivityLog(pool, {
+    entityType: "client",
+    entityId: result.rows[0].id,
+    actorId: req.user!.id,
+    action: "deleted",
+    detail: { company: result.rows[0].company },
+  });
   res.json({ ok: true });
 });
 

@@ -363,7 +363,7 @@ export function Leads() {
               <thead>
                 <tr>
                   <th style={{ width: 32 }}><input type="checkbox" checked={leads.length > 0 && leads.every((l) => selected.has(l.id))} onChange={toggleSelectAll} /></th>
-                  <th>Company</th><th>Contact</th><th>Service</th><th>Source</th><th title="Stage progress + deal size + source quality + how recently touched">Score</th><th>Status</th><th>Follow-up</th><th>Actions</th>
+                  <th>Company</th><th>Contact</th><th>Service</th><th>Source</th><th title="Stage progress + deal size + source quality + how recently touched">Score</th><th>Status</th><th>Follow-up</th><th className="col-sticky-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -405,7 +405,7 @@ export function Leads() {
                       ) : <Badge status={l.status} />}
                     </td>
                     <td style={{ fontSize: 12 }}>{formatDate(l.next_followup_date)}</td>
-                    <td>
+                    <td className="col-sticky-right">
                       <div style={{ display: "flex", gap: 6 }}>
                         {canEdit && <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(l)}>Edit</button>}
                         {canEdit && <button type="button" className="btn btn-ghost btn-sm" onClick={() => openInteraction(l)}>Log</button>}

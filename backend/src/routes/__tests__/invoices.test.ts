@@ -106,17 +106,30 @@ describe("invoices routes", () => {
       expect((await opsAgent.get("/api/invoices")).status).toBe(403);
     });
 
-    it("rejects deleting a finalized (non-Draft) invoice with a clear message, not a bare 404", async () => {
+    it("allows deleting a finalized (non-Draft) invoice and writes it to the audit log", async () => {
       const { agent } = await loginAs("finance");
       const clientId = await makeInvoiceableClient();
       const createRes = await agent.post("/api/invoices").send({
         client_id: clientId, line_items: [{ description: "X", quantity: 1, rate: 1000, gst_rate: 0 }],
       });
-      await agent.post(`/api/invoices/${createRes.body.id}/finalize`);
+      const finalizeRes = await agent.post(`/api/invoices/${createRes.body.id}/finalize`);
       const res = await agent.delete(`/api/invoices/${createRes.body.id}`);
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe("not_draft");
-      expect(res.body.message).toMatch(/credit note/i);
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+
+      const { agent: superadminAgent } = await loginAs("superadmin");
+      const logRes = await superadminAgent.get("/api/system/audit-log?entity_type=invoice");
+      const entry = logRes.body.data.find((r: { entity_id: string }) => r.entity_id === createRes.body.id);
+      expect(entry).toBeTruthy();
+      expect(entry.action).toBe("deleted");
+      expect(entry.detail.invoice_number).toBe(finalizeRes.body.invoice_number);
+    });
+
+    it("returns not_found (not a generic 500) when deleting an invoice that doesn't exist", async () => {
+      const { agent } = await loginAs("finance");
+      const res = await agent.delete(`/api/invoices/00000000-0000-0000-0000-000000000000`);
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe("not_found");
     });
   });
 });

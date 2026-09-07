@@ -149,7 +149,6 @@ export function Layout() {
             <NavLink to="/users" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconUsers />Users</NavLink>
             <NavLink to="/templates" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconTemplate />Message Templates</NavLink>
             <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Settings</NavLink>
-            <NavLink to="/audit-log" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconFollowups />Audit Log</NavLink>
           </div>
         )}
         {user?.role === "superadmin" && (
@@ -158,6 +157,7 @@ export function Layout() {
             <NavLink to="/automation-rules" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSparkle />Automation Rules</NavLink>
             <NavLink to="/custom-fields" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Custom Fields</NavLink>
             <NavLink to="/api-keys" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconKey />API Keys</NavLink>
+            <NavLink to="/audit-log" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconFollowups />Audit Log</NavLink>
           </div>
         )}
         <div className="nav-footer">

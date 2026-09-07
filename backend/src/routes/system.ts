@@ -10,7 +10,10 @@ const backupUpload = multer({ storage: multer.memoryStorage(), limits: { fileSiz
 
 router.use(requireAuth, requireRole("admin"));
 
-router.get("/audit-log", async (req, res) => {
+// Audit Log specifically is superadmin-only (tighter than the rest of this
+// router, which plain admin can use) - per-user decision, not a role-tier
+// default: "admin" satisfies every other route registered below.
+router.get("/audit-log", requireRole("superadmin"), async (req, res) => {
   const conditions: string[] = [];
   const values: unknown[] = [];
   let i = 1;

@@ -308,6 +308,12 @@ tr { transition: background .1s; }
 tr:hover td { background: var(--bg3); }
 tr:last-child td { border-bottom: none; }
 .table-wrap { overflow-x: auto; max-height: 70vh; overflow-y: auto; border-radius: var(--radius-lg); }
+/* A wide actions column (multiple buttons) can scroll out of frame on
+   narrower desktop widths with no visual hint that more content exists to
+   the right. Pin it to the viewport edge instead, on any table that opts in. */
+.col-sticky-right { position: sticky; right: 0; background: var(--bg2); box-shadow: -8px 0 12px -8px rgba(0,0,0,.18); }
+th.col-sticky-right { background: var(--bg3); }
+tr:hover td.col-sticky-right { background: var(--bg3); }
 tr.row-urgent td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 tr.row-selected td { background: var(--accent-soft); }
 
@@ -366,7 +372,7 @@ button.badge:hover { opacity: .8; }
 .modal-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg2); border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
 .modal-title { font-size: 16px; }
 .modal-body { padding: 20px; }
-.modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+.modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; position: sticky; bottom: 0; background: var(--bg2); border-radius: 0 0 var(--radius-xl) var(--radius-xl); box-shadow: 0 -8px 12px -8px rgba(0,0,0,.18); }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 

@@ -37,5 +37,17 @@ describe("system routes", () => {
       const res = await agent.get("/api/system/audit-log");
       expect(res.status).toBe(403);
     });
+
+    it("blocks plain admin from the audit log - superadmin only", async () => {
+      const { agent } = await loginAs("admin");
+      const res = await agent.get("/api/system/audit-log");
+      expect(res.status).toBe(403);
+    });
+
+    it("allows superadmin to read the audit log", async () => {
+      const { agent } = await loginAs("superadmin");
+      const res = await agent.get("/api/system/audit-log");
+      expect(res.status).toBe(200);
+    });
   });
 });

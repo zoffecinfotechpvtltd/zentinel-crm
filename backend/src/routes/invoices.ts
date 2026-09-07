@@ -441,17 +441,14 @@ router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
   }
 });
 
+// Deleting is intentionally not restricted to Draft invoices - any invoice
+// can be deleted (soft-delete, same as every other entity), but every
+// deletion is written to the Audit Log (superadmin-only visibility) so
+// there's always a record of who removed a finalized invoice and when.
 router.delete("/:id", requireRole("admin", "finance"), async (req, res) => {
-  const existing = await pool.query(`select status from invoices where id = $1 and deleted_at is null`, [req.params.id]);
+  const existing = await pool.query(`select status, invoice_number from invoices where id = $1 and deleted_at is null`, [req.params.id]);
   if (existing.rows.length === 0) {
     res.status(404).json({ error: "not_found", message: "That invoice doesn't exist (or was already deleted)." });
-    return;
-  }
-  if (existing.rows[0].status !== "Draft") {
-    res.status(400).json({
-      error: "not_draft",
-      message: "Only a Draft invoice can be deleted. This one has already been finalized — use a credit note instead.",
-    });
     return;
   }
 
@@ -459,6 +456,13 @@ router.delete("/:id", requireRole("admin", "finance"), async (req, res) => {
     `update invoices set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2`,
     [req.user!.id, req.params.id]
   );
+  await writeActivityLog(pool, {
+    entityType: "invoice",
+    entityId: req.params.id,
+    actorId: req.user!.id,
+    action: "deleted",
+    detail: { invoice_number: existing.rows[0].invoice_number, status_at_deletion: existing.rows[0].status },
+  });
   res.json({ ok: true });
 });
 
