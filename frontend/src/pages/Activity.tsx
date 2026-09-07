@@ -12,7 +12,7 @@ type ActivityRow = {
 };
 
 export function Activity() {
-  const { items, loading, loadingMore, hasMore, loadMore } = useInfiniteFetch<ActivityRow>(
+  const { items, total, loading, loadingMore, hasMore, loadMore } = useInfiniteFetch<ActivityRow>(
     (p) => `/dashboard/activity?page=${p}&per_page=25`
   );
 
@@ -42,6 +42,11 @@ export function Activity() {
           </table>
         </div>
         <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
+        {!loading && items.length > 0 && (
+          <div style={{ padding: "8px 14px", fontSize: 11.5, color: "var(--text3)", borderTop: "1px solid var(--border)" }}>
+            Showing {items.length} of {total}
+          </div>
+        )}
       </div>
     </div>
   );

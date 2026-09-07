@@ -275,7 +275,7 @@ export function Clients() {
       )}
 
       {detailId && detail && (
-        <Modal title={detail.company} onClose={() => setDetailId(null)} xwide footer={<button type="button" className="btn btn-ghost" onClick={() => setDetailId(null)}>Close</button>}>
+        <Modal title={detail.company} onClose={() => setDetailId(null)} xwide>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
             <Badge status={detail.status} />
             {detail.industry && <span style={{ fontSize: 12, color: "var(--text3)" }}>{detail.industry}</span>}
@@ -494,8 +494,7 @@ export function Clients() {
       )}
 
       {duplicatesOpen && (
-        <Modal title="Possible Duplicate Clients" onClose={() => setDuplicatesOpen(false)} xwide
-          footer={<button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(false)}>Close</button>}>
+        <Modal title="Possible Duplicate Clients" onClose={() => setDuplicatesOpen(false)} xwide>
           {!duplicates && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Loading…</div>}
           {duplicates?.length === 0 && <div className="empty"><div className="empty-icon"><IconCheck size={26} /></div>No duplicates found.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

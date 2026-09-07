@@ -111,6 +111,7 @@ export function Layout() {
 
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       {mobileNavOpen && <div className="sidebar-scrim" onClick={() => setMobileNavOpen(false)} />}
       <div className={`sidebar${mobileNavOpen ? " open" : ""}`}>
         <div className="logo">
@@ -197,7 +198,7 @@ export function Layout() {
             {unread > 0 && <span className="nav-badge">{unread}</span>}
           </button>
         </div>
-        <div className="content">
+        <div className="content" id="main-content" tabIndex={-1}>
           <Outlet />
         </div>
       </div>

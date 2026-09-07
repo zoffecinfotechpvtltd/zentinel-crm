@@ -597,8 +597,7 @@ export function Leads() {
       )}
 
       {duplicatesOpen && (
-        <Modal title="Possible Duplicate Leads" onClose={() => setDuplicatesOpen(false)} wide
-          footer={<button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(false)}>Close</button>}>
+        <Modal title="Possible Duplicate Leads" onClose={() => setDuplicatesOpen(false)} wide>
           {!duplicates && <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>Loading…</div>}
           {duplicates?.length === 0 && <div className="empty"><div className="empty-icon"><IconCheck size={26} /></div>No duplicates found.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

@@ -53,7 +53,6 @@ export function Marketing() {
               <Link to="/login" className="btn btn-primary">
                 Login to Zentinel <IconArrowRight size={15} />
               </Link>
-              <a href="#features" className="btn btn-ghost">See what's inside</a>
             </div>
             <div className="marketing-hero-roles">
               {ROLES.map((r) => (

@@ -18,7 +18,7 @@ const ENTITY_TYPES = ["lead", "client", "project", "invoice", "opportunity"];
 export function AuditLog() {
   const [entityType, setEntityType] = useState("");
 
-  const { items, loading, loadingMore, hasMore, loadMore } = useInfiniteFetch<LogRow>(
+  const { items, total, loading, loadingMore, hasMore, loadMore } = useInfiniteFetch<LogRow>(
     (p) => {
       const query = new URLSearchParams({ page: String(p), per_page: "40" });
       if (entityType) query.set("entity_type", entityType);
@@ -58,6 +58,11 @@ export function AuditLog() {
           </table>
         </div>
         <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
+        {!loading && items.length > 0 && (
+          <div style={{ padding: "8px 14px", fontSize: 11.5, color: "var(--text3)", borderTop: "1px solid var(--border)" }}>
+            Showing {items.length} of {total}
+          </div>
+        )}
       </div>
     </div>
   );

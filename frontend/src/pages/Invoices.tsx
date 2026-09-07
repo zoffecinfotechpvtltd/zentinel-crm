@@ -348,8 +348,7 @@ export function Invoices() {
       )}
 
       {recurringOpen && (
-        <Modal title="Recurring Invoice Templates" onClose={() => setRecurringOpen(false)} wide
-          footer={<button type="button" className="btn btn-ghost" onClick={() => setRecurringOpen(false)}>Close</button>}>
+        <Modal title="Recurring Invoice Templates" onClose={() => setRecurringOpen(false)} wide>
           <div className="card-title">Existing Templates</div>
           {(recurringTemplates?.length ?? 0) === 0 && <div className="empty" style={{ padding: 16 }}>No recurring templates yet</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
@@ -390,10 +389,10 @@ export function Invoices() {
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-            <input className="form-input" placeholder="Description" value={rLine.description} onChange={(e) => setRLine({ ...rLine, description: e.target.value })} />
-            <input className="form-input" type="number" placeholder="Qty" value={rLine.quantity} onChange={(e) => setRLine({ ...rLine, quantity: e.target.value })} />
-            <input className="form-input" type="number" placeholder="Rate" value={rLine.rate} onChange={(e) => setRLine({ ...rLine, rate: e.target.value })} />
-            <input className="form-input" type="number" placeholder="GST%" value={rLine.gst_rate} onChange={(e) => setRLine({ ...rLine, gst_rate: e.target.value })} />
+            <input className="form-input" aria-label="Line item description" placeholder="Description" value={rLine.description} onChange={(e) => setRLine({ ...rLine, description: e.target.value })} />
+            <input className="form-input" aria-label="Quantity" type="number" placeholder="Qty" value={rLine.quantity} onChange={(e) => setRLine({ ...rLine, quantity: e.target.value })} />
+            <input className="form-input" aria-label="Rate" type="number" placeholder="Rate" value={rLine.rate} onChange={(e) => setRLine({ ...rLine, rate: e.target.value })} />
+            <input className="form-input" aria-label="GST percentage" type="number" placeholder="GST%" value={rLine.gst_rate} onChange={(e) => setRLine({ ...rLine, gst_rate: e.target.value })} />
           </div>
           <button type="button" className="btn btn-primary btn-sm" onClick={createRecurring} disabled={!rClientId || !rNextRun || !rLine.description || !rLine.rate}>
             + Create Template

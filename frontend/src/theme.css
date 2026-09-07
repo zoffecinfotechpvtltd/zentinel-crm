@@ -151,6 +151,12 @@ td.mono,
 /* ---------------------------------------------------------------- shell */
 
 .app-shell { display: flex; min-height: 100vh; }
+.skip-link {
+  position: absolute; top: -40px; left: 8px; z-index: 300;
+  background: var(--accent); color: #fff; padding: 8px 16px; border-radius: var(--radius);
+  font-size: 13px; font-weight: 600; text-decoration: none; transition: top .12s var(--ease);
+}
+.skip-link:focus { top: 8px; }
 
 .sidebar {
   width: 232px; min-width: 232px; background: var(--primary-navy); border-right: 1px solid rgba(255,255,255,0.06);
@@ -251,7 +257,11 @@ body.dark .btn-primary:hover { background: var(--accent); filter: brightness(1.1
 .btn-danger:hover { background: #dc2626; }
 .btn-sm { padding: 6px 12px; font-size: 12px; }
 .btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
+/* .5 read too faint against the page background specifically on
+   btn-ghost (its own background is already close to the page's) - .65
+   keeps the disabled affordance without dropping below a readable
+   minimum. */
+.btn:disabled { opacity: .65; cursor: not-allowed; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .icon-btn {
   width: 30px; height: 30px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg2);
