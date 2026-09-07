@@ -1,0 +1,46 @@
+/* Tailwind v4, CSS-first config - no tailwind.config.js. Progressive
+   adoption alongside theme.css: old hand-rolled classes and new Tailwind
+   utilities coexist, one screen-specific fix at a time (the point of
+   pulling Tailwind in at all - a one-off layout bug becomes a utility
+   class in the JSX itself, not a new rule risked in an 800-line
+   stylesheet). Preflight (Tailwind's base-element reset) is intentionally
+   skipped - theme.css already has its own resets, and a second global
+   reset fighting the first is exactly the kind of regression risk this
+   migration is supposed to avoid across an app that already shipped.
+   Utilities-only import instead. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Existing semantic tokens (theme.css's :root / body.dark, already
+   theme-switched at runtime) mapped straight into Tailwind's namespace,
+   so bg-bg, text-text2, border-border etc. are available immediately -
+   no tokens redefined twice. */
+@theme {
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-bg3: var(--bg3);
+  --color-bg4: var(--bg4);
+  --color-text: var(--text);
+  --color-text2: var(--text2);
+  --color-text3: var(--text3);
+  --color-border: var(--border);
+  --color-border2: var(--border2);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent2);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-purple: var(--purple);
+  --color-purple-soft: var(--purple-soft);
+
+  /* Tailwind's default --spacing: 0.25rem already IS a 4px base scale at a
+     16px root font (p-1=4px, p-4=16px, p-6=24px, p-16=64px, ...) - exactly
+     the spacing scale this app already uses informally, so nothing to
+     override here. */
+}
