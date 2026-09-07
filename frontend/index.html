@@ -10,8 +10,15 @@
     <meta name="theme-color" content="#0b1020" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Zentinel</title>
-    <link rel="preconnect" href="https://api.fontshare.com" />
-    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
+    <style>
+      /* Paints the correct-theme background before the JS bundle (and the
+         localStorage-driven theme class it applies) has a chance to load,
+         so a hard reload doesn't flash the *other* theme's background for
+         a frame. Matches the OS preference only - a saved in-app override
+         is applied a moment later by Layout, same as it always was. */
+      html { background: #f1f5f9; }
+      @media (prefers-color-scheme: dark) { html { background: #0b1020; } }
+    </style>
   </head>
   <body>
     <div id="root"></div>
