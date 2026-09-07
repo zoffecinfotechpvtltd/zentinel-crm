@@ -100,10 +100,13 @@ export function Layout() {
     navigate("/login");
   }
 
+  // "Remember me" means exactly that — a session that survives being idle,
+  // not just surviving a closed browser. Skip the inactivity auto-logout
+  // entirely for a remembered session; everyone else still gets it.
   useIdleLogout(() => {
     handleLogout();
     push("Signed out after 10 minutes of inactivity", "info");
-  });
+  }, !user?.rememberMe);
 
 
   return (
@@ -120,7 +123,7 @@ export function Layout() {
           </div>
         </div>
         {NAV.map((group) => {
-          const items = group.items.filter((i) => !i.roles || (user && i.roles.includes(user.role)));
+          const items = group.items.filter((i) => !i.roles || (user && (i.roles.includes(user.role) || (user.role === "superadmin" && i.roles.includes("admin")))));
           if (items.length === 0) return null;
           return (
             <div className="nav-section" key={group.section}>

@@ -521,15 +521,23 @@ router.patch("/:id", requireRole("admin", "finance"), async (req, res) => {
 });
 
 router.delete("/:id", requireRole("admin", "finance"), async (req, res) => {
-  const result = await pool.query(
-    `update invoices set deleted_at = now(), updated_by = $1, updated_at = now()
-     where id = $2 and status = 'Draft' and deleted_at is null returning id`,
-    [req.user!.id, req.params.id]
-  );
-  if (result.rows.length === 0) {
-    res.status(404).json({ error: "not_found_or_not_draft" });
+  const existing = await pool.query(`select status from invoices where id = $1 and deleted_at is null`, [req.params.id]);
+  if (existing.rows.length === 0) {
+    res.status(404).json({ error: "not_found", message: "That invoice doesn't exist (or was already deleted)." });
     return;
   }
+  if (existing.rows[0].status !== "Draft") {
+    res.status(400).json({
+      error: "not_draft",
+      message: "Only a Draft invoice can be deleted. This one has already been finalized — use a credit note instead.",
+    });
+    return;
+  }
+
+  await pool.query(
+    `update invoices set deleted_at = now(), updated_by = $1, updated_at = now() where id = $2`,
+    [req.user!.id, req.params.id]
+  );
   res.json({ ok: true });
 });
 

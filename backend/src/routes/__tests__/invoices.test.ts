@@ -106,7 +106,7 @@ describe("invoices routes", () => {
       expect((await opsAgent.get("/api/invoices")).status).toBe(403);
     });
 
-    it("returns 404 deleting a finalized (non-Draft) invoice", async () => {
+    it("rejects deleting a finalized (non-Draft) invoice with a clear message, not a bare 404", async () => {
       const { agent } = await loginAs("finance");
       const clientId = await makeInvoiceableClient();
       const createRes = await agent.post("/api/invoices").send({
@@ -114,8 +114,9 @@ describe("invoices routes", () => {
       });
       await agent.post(`/api/invoices/${createRes.body.id}/finalize`);
       const res = await agent.delete(`/api/invoices/${createRes.body.id}`);
-      expect(res.status).toBe(404);
-      expect(res.body.error).toBe("not_found_or_not_draft");
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("not_draft");
+      expect(res.body.message).toMatch(/credit note/i);
     });
   });
 });

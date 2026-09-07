@@ -125,7 +125,7 @@ router.post("/login", async (req, res) => {
   });
   setSessionCookie(res, session.id, rememberMe);
 
-  res.json({ id: user.id, email: user.email, name: user.name, role: user.role, avatar_url: user.avatar_path ? `/api/auth/avatar/${user.id}` : null });
+  res.json({ id: user.id, email: user.email, name: user.name, role: user.role, rememberMe, avatar_url: user.avatar_path ? `/api/auth/avatar/${user.id}` : null });
 });
 
 const login2faSchema = z.object({
@@ -181,7 +181,7 @@ router.post("/login/2fa", async (req, res) => {
   setSessionCookie(res, session.id, pending.rememberMe);
   await pool.query(`update users set last_login_at = now() where id = $1`, [user.id]);
 
-  res.json({ id: user.id, email: user.email, name: user.name, role: user.role, avatar_url: user.avatar_path ? `/api/auth/avatar/${user.id}` : null });
+  res.json({ id: user.id, email: user.email, name: user.name, role: user.role, rememberMe: pending.rememberMe, avatar_url: user.avatar_path ? `/api/auth/avatar/${user.id}` : null });
 });
 
 router.post("/logout", async (req, res) => {

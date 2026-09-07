@@ -3,12 +3,13 @@ import { useEffect, useRef } from "react";
 const IDLE_LIMIT_MS = 10 * 60 * 1000;
 const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "wheel"] as const;
 
-export function useIdleLogout(onIdle: () => void): void {
+export function useIdleLogout(onIdle: () => void, enabled = true): void {
   const lastActivity = useRef(Date.now());
   const onIdleRef = useRef(onIdle);
   onIdleRef.current = onIdle;
 
   useEffect(() => {
+    if (!enabled) return;
     function markActive() {
       lastActivity.current = Date.now();
     }
@@ -24,5 +25,5 @@ export function useIdleLogout(onIdle: () => void): void {
       ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, markActive));
       clearInterval(interval);
     };
-  }, []);
+  }, [enabled]);
 }

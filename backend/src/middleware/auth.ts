@@ -16,6 +16,7 @@ export type AuthUser = {
   email: string;
   name: string;
   role: Role;
+  rememberMe: boolean;
 };
 
 declare global {
@@ -66,7 +67,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   await pool.query(`update sessions set expires_at = $1 where id = $2`, [newExpiresAt, row.session_id]);
   setSessionCookie(res, row.session_id, row.remember_me);
 
-  req.user = { id: row.id, email: row.email, name: row.name, role: row.role };
+  req.user = { id: row.id, email: row.email, name: row.name, role: row.role, rememberMe: row.remember_me };
   req.sessionId = row.session_id;
   next();
 }

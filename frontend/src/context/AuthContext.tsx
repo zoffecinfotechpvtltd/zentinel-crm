@@ -15,6 +15,7 @@ export type AuthUser = {
   email: string;
   name: string;
   role: Role;
+  rememberMe: boolean;
   avatar_url: string | null;
 };
 

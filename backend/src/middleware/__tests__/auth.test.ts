@@ -31,7 +31,7 @@ describe("requireRole", () => {
   it("403s an authenticated user whose role isn't in the allowed list", () => {
     const res = mockRes();
     const next = vi.fn();
-    const salesUser: AuthUser = { id: "u1", email: "rep@zoffec.com", name: "Rep", role: "sales" };
+    const salesUser: AuthUser = { id: "u1", email: "rep@zoffec.com", name: "Rep", role: "sales", rememberMe: false };
     requireRole("admin", "finance")(mockReq(salesUser), res as unknown as import("express").Response, next);
     expect(res.statusCode).toBe(403);
     expect(res.body).toEqual({ error: "forbidden" });
@@ -41,7 +41,7 @@ describe("requireRole", () => {
   it("calls next() for a role that IS in the allowed list, without touching the response", () => {
     const res = mockRes();
     const next = vi.fn();
-    const adminUser: AuthUser = { id: "u2", email: "admin@zoffec.com", name: "Admin", role: "admin" };
+    const adminUser: AuthUser = { id: "u2", email: "admin@zoffec.com", name: "Admin", role: "admin", rememberMe: false };
     requireRole("admin", "finance")(mockReq(adminUser), res as unknown as import("express").Response, next);
     expect(next).toHaveBeenCalledOnce();
     expect(res.statusCode).toBeUndefined();
@@ -50,7 +50,7 @@ describe("requireRole", () => {
   it("allows any one of multiple permitted roles, not just the first", () => {
     const res = mockRes();
     const next = vi.fn();
-    const financeUser: AuthUser = { id: "u3", email: "fin@zoffec.com", name: "Finance", role: "finance" };
+    const financeUser: AuthUser = { id: "u3", email: "fin@zoffec.com", name: "Finance", role: "finance", rememberMe: false };
     requireRole("admin", "finance")(mockReq(financeUser), res as unknown as import("express").Response, next);
     expect(next).toHaveBeenCalledOnce();
   });
