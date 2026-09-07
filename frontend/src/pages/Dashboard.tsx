@@ -1,5 +1,4 @@
-import "chart.js/auto";
-import { Bar, Doughnut } from "react-chartjs-2";
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useFetch } from "../lib/useFetch";
 import { StatCard } from "../components/StatCard";
 import { StatCardSkeleton } from "../components/Skeleton";
@@ -23,6 +22,12 @@ type DashboardData = {
 
 type RevenueReport = { monthly_trend: { month: string; total: string }[] };
 type ConversionReport = { funnel: { status: string; count: string }[] };
+
+const FUNNEL_COLORS = ["#06b6d4", "#94a3b8", "#16a34a", "#7c3aed", "#b45309", "#16a34a", "#dc2626"];
+
+function ChartEmpty({ children }: { children: React.ReactNode }) {
+  return <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>{children}</div>;
+}
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -86,15 +91,16 @@ export function Dashboard() {
             <div className="card-title">Revenue Trend</div>
             <div className="chart-wrap">
               {revenue?.monthly_trend.some((m) => Number(m.total) > 0) ? (
-                <Bar
-                  data={{
-                    labels: revenue.monthly_trend.map((m) => new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })),
-                    datasets: [{ label: "Revenue", data: revenue.monthly_trend.map((m) => Number(m.total)), backgroundColor: "#2563ff", borderRadius: 4 }],
-                  }}
-                  options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }}
-                />
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenue.monthly_trend.map((m) => ({ month: new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "2-digit" }), total: Number(m.total) }))}>
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => formatMoney(v)} />
+                    <Tooltip formatter={(v) => formatMoney(Number(v))} contentStyle={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="total" name="Revenue" fill="#2563ff" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : revenue && (
-                <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>No payments recorded yet</div>
+                <ChartEmpty>No payments recorded yet</ChartEmpty>
               )}
             </div>
           </div>
@@ -102,14 +108,24 @@ export function Dashboard() {
         <div className="card">
           <div className="card-title">Lead Status Breakdown</div>
           <div className="chart-wrap">
-            {conversion && (
-              <Doughnut
-                data={{
-                  labels: conversion.funnel.map((f) => f.status),
-                  datasets: [{ data: conversion.funnel.map((f) => Number(f.count)), backgroundColor: ["#06b6d4", "#94a3b8", "#16a34a", "#7c3aed", "#b45309", "#16a34a", "#dc2626"], borderWidth: 0 }],
-                }}
-                options={{ maintainAspectRatio: false }}
-              />
+            {conversion && conversion.funnel.some((f) => Number(f.count) > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={conversion.funnel.map((f) => ({ name: f.status, value: Number(f.count) }))}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius="55%"
+                    outerRadius="85%"
+                    paddingAngle={2}
+                  >
+                    {conversion.funnel.map((f, i) => <Cell key={f.status} fill={FUNNEL_COLORS[i % FUNNEL_COLORS.length]} stroke="none" />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : conversion && (
+              <ChartEmpty>No leads yet</ChartEmpty>
             )}
           </div>
         </div>
