@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./components/Toast";
 import { ConfirmProvider } from "./components/ConfirmDialog";
@@ -49,8 +50,17 @@ function SetupGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+// Every mutation's own success callback still calls the affected list's
+// reload() explicitly (see AutomationRules/CustomFields) - staleTime here
+// just means switching tabs and back doesn't re-fetch data that's
+// already fresh.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+});
+
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <ToastProvider>
       <ConfirmProvider>
@@ -177,6 +187,7 @@ function App() {
       </ConfirmProvider>
       </ToastProvider>
     </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

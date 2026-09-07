@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useFetch } from "../lib/useFetch";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { Badge } from "../components/Badge";
@@ -29,39 +29,56 @@ const FIELD_TYPES = [
 const emptyForm = { entity_type: "lead", key: "", label: "", field_type: "text", select_options: "" };
 
 export function CustomFields() {
-  const { data: fields, reload } = useFetch<FieldDefinition[]>("/custom-fields");
+  const queryClient = useQueryClient();
+  const { data: fields } = useQuery({ queryKey: ["custom-fields"], queryFn: () => api.get<FieldDefinition[]>("/custom-fields") });
   const { push } = useToast();
   const confirm = useConfirm();
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
 
-  async function createField() {
-    setError(null);
-    try {
-      await api.post("/custom-fields", {
-        entity_type: form.entity_type,
-        key: form.key,
-        label: form.label,
-        field_type: form.field_type,
-        select_options: form.field_type === "select" ? form.select_options.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
-      });
+  const createMutation = useMutation({
+    mutationFn: (payload: { entity_type: string; key: string; label: string; field_type: string; select_options?: string[] }) =>
+      api.post("/custom-fields", payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["custom-fields"] });
       setForm(emptyForm);
-      reload();
       push("Field added", "success");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to add field");
-    }
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to add field"),
+  });
+
+  function createField() {
+    setError(null);
+    createMutation.mutate({
+      entity_type: form.entity_type,
+      key: form.key,
+      label: form.label,
+      field_type: form.field_type,
+      select_options: form.field_type === "select" ? form.select_options.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+    });
   }
 
-  async function toggleActive(f: FieldDefinition) {
-    await api.patch(`/custom-fields/${f.id}`, { is_active: !f.is_active });
-    reload();
+  const toggleMutation = useMutation({
+    mutationFn: (f: FieldDefinition) => api.patch(`/custom-fields/${f.id}`, { is_active: !f.is_active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["custom-fields"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/custom-fields/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["custom-fields"] });
+      push("Field deleted", "success");
+    },
+    onError: (err) => push(err instanceof Error ? err.message : "Failed to delete field", "error"),
+  });
+
+  function toggleActive(f: FieldDefinition) {
+    toggleMutation.mutate(f);
   }
 
   async function removeField(f: FieldDefinition) {
     if (!(await confirm({ message: `Delete field "${f.label}"? Values already recorded on records stay, but this stops collecting new ones.`, confirmLabel: "Delete", danger: true }))) return;
-    await api.delete(`/custom-fields/${f.id}`);
-    reload();
+    deleteMutation.mutate(f.id);
   }
 
   return (

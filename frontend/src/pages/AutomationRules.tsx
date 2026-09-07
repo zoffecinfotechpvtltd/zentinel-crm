@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useFetch } from "../lib/useFetch";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { Badge } from "../components/Badge";
@@ -38,8 +38,9 @@ const ROLES = [
 const emptyForm = { name: "", entity_type: "lead", trigger_status: "", notify_target: "", message_template: "{company} moved to {status}" };
 
 export function AutomationRules() {
-  const { data: rules, reload } = useFetch<Rule[]>("/automation-rules");
-  const { data: users } = useFetch<User[]>("/users");
+  const queryClient = useQueryClient();
+  const { data: rules } = useQuery({ queryKey: ["automation-rules"], queryFn: () => api.get<Rule[]>("/automation-rules") });
+  const { data: users } = useQuery({ queryKey: ["users"], queryFn: () => api.get<User[]>("/users") });
   const { push } = useToast();
   const confirm = useConfirm();
   const [form, setForm] = useState(emptyForm);
@@ -50,39 +51,55 @@ export function AutomationRules() {
     ...(users?.map((u) => ({ value: `user:${u.id}`, label: `Person - ${u.name}` })) ?? []),
   ];
 
-  async function createRule() {
+  const createMutation = useMutation({
+    mutationFn: (payload: { name: string; entity_type: string; trigger_status: string; notify_role?: string; notify_user_id?: string; message_template: string }) =>
+      api.post("/automation-rules", payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["automation-rules"] });
+      setForm(emptyForm);
+      push("Rule created", "success");
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to create rule"),
+  });
+
+  function createRule() {
     setError(null);
     if (!form.notify_target) {
       setError("Pick who gets notified");
       return;
     }
     const [kind, value] = form.notify_target.split(":");
-    try {
-      await api.post("/automation-rules", {
-        name: form.name,
-        entity_type: form.entity_type,
-        trigger_status: form.trigger_status,
-        notify_role: kind === "role" ? value : undefined,
-        notify_user_id: kind === "user" ? value : undefined,
-        message_template: form.message_template,
-      });
-      setForm(emptyForm);
-      reload();
-      push("Rule created", "success");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create rule");
-    }
+    createMutation.mutate({
+      name: form.name,
+      entity_type: form.entity_type,
+      trigger_status: form.trigger_status,
+      notify_role: kind === "role" ? value : undefined,
+      notify_user_id: kind === "user" ? value : undefined,
+      message_template: form.message_template,
+    });
   }
 
-  async function toggleActive(r: Rule) {
-    await api.patch(`/automation-rules/${r.id}`, { is_active: !r.is_active });
-    reload();
+  const toggleMutation = useMutation({
+    mutationFn: (r: Rule) => api.patch(`/automation-rules/${r.id}`, { is_active: !r.is_active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automation-rules"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/automation-rules/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["automation-rules"] });
+      push("Rule deleted", "success");
+    },
+    onError: (err) => push(err instanceof Error ? err.message : "Failed to delete rule", "error"),
+  });
+
+  function toggleActive(r: Rule) {
+    toggleMutation.mutate(r);
   }
 
   async function removeRule(r: Rule) {
     if (!(await confirm({ message: `Delete rule "${r.name}"?`, confirmLabel: "Delete", danger: true }))) return;
-    await api.delete(`/automation-rules/${r.id}`);
-    reload();
+    deleteMutation.mutate(r.id);
   }
 
   return (
