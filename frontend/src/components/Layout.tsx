@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { Logo } from "./Logo";
@@ -190,8 +191,19 @@ export function Layout() {
             <span>Search or jump to…</span>
             <kbd>Ctrl K</kbd>
           </div>
-          <button type="button" className="topbar-btn" onClick={toggleTheme} title="Toggle theme" aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>
-            {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
+          <button type="button" className="topbar-btn" onClick={toggleTheme} title="Toggle theme" aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} style={{ position: "relative" }}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={theme}
+                style={{ display: "flex" }}
+                initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                transition={{ duration: 0.18 }}
+              >
+                {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
+              </motion.span>
+            </AnimatePresence>
           </button>
           <button type="button" className="topbar-btn" onClick={() => navigate("/notifications")} title="Notifications" aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}>
             <IconBell size={16} />

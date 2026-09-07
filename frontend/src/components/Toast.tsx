@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { IconCheck, IconAlert, IconX } from "./Icons";
 
 type ToastKind = "success" | "error" | "info";
@@ -32,13 +33,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ push }}>
       {children}
       <div className="toast-stack">
-        {items.map((t) => (
-          <div className={`toast ${t.kind}`} key={t.id} role="status">
-            {ICON[t.kind]}
-            <div>{t.message}</div>
-            <button type="button" className="toast-close" onClick={() => dismiss(t.id)} aria-label="Dismiss"><IconX size={13} /></button>
-          </div>
-        ))}
+        <AnimatePresence>
+          {items.map((t) => (
+            <motion.div
+              className={`toast ${t.kind}`}
+              key={t.id}
+              role="status"
+              layout
+              initial={{ opacity: 0, y: 12, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
+              transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
+            >
+              {ICON[t.kind]}
+              <div>{t.message}</div>
+              <button type="button" className="toast-close" onClick={() => dismiss(t.id)} aria-label="Dismiss"><IconX size={13} /></button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   );

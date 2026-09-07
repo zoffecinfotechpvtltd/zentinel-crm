@@ -110,6 +110,11 @@ body {
   font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
+  /* Toggling body.dark swapped every color token instantly - a deliberate
+     180ms cross-fade instead of a hard cut. (prefers-reduced-motion's
+     global rule further down zeroes this out for anyone who's asked for
+     that.) */
+  transition: background-color .18s var(--ease), color .18s var(--ease);
 }
 
 ::selection { background: var(--accent-soft); color: var(--text); }
@@ -790,13 +795,11 @@ button.badge:hover { opacity: .8; }
 .toast {
   background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
   box-shadow: var(--shadow-lg); display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--text);
-  animation: toast-in .18s var(--ease);
 }
 .toast.success { border-left: 3px solid var(--success); }
 .toast.error { border-left: 3px solid var(--danger); }
 .toast.info { border-left: 3px solid var(--info); }
 .toast-close { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; padding: 0; line-height: 1; }
-@keyframes toast-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
 
 /* ---------------------------------------------------------- command palette */
 
