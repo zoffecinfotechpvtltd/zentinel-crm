@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { IconAlert } from "./Icons";
 
 type ConfirmOptions = {
@@ -37,46 +38,46 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setPending(null);
   }
 
-  useEffect(() => {
-    if (!pending) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") settle(false);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending]);
-
   return (
     <ConfirmContext.Provider value={confirmFn}>
       {children}
-      {pending && (
-        <div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) settle(false); }}>
-          <div className="modal confirm-dialog">
-            <div className="confirm-dialog-body">
-              <div className={`confirm-dialog-icon${pending.danger ? " danger" : ""}`}>
-                <IconAlert size={20} />
+      {/* Radix's AlertDialog (redesign spec, Component Library category),
+          not the plain Dialog Modal.tsx uses - an alert dialog only closes
+          on Escape or an explicit button, never an outside click, which is
+          the right default for "delete this?" (a stray click shouldn't
+          silently cancel or confirm a destructive prompt). Real
+          focus-trapping and correct ARIA role="alertdialog" come from
+          Radix rather than the hand-rolled keydown listener this used to
+          need. */}
+      <AlertDialog.Root open={!!pending} onOpenChange={(next) => { if (!next) settle(false); }}>
+        {pending && (
+          <AlertDialog.Portal>
+            <AlertDialog.Overlay className="modal-overlay" />
+            <AlertDialog.Content className="modal confirm-dialog">
+              <div className="confirm-dialog-body">
+                <div className={`confirm-dialog-icon${pending.danger ? " danger" : ""}`}>
+                  <IconAlert size={20} />
+                </div>
+                <div>
+                  <AlertDialog.Title className="confirm-dialog-title">{pending.title ?? "Are you sure?"}</AlertDialog.Title>
+                  <AlertDialog.Description className="confirm-dialog-message">{pending.message}</AlertDialog.Description>
+                </div>
               </div>
-              <div>
-                <div className="confirm-dialog-title">{pending.title ?? "Are you sure?"}</div>
-                <div className="confirm-dialog-message">{pending.message}</div>
+              <div className="modal-footer">
+                <AlertDialog.Cancel className="btn btn-ghost" autoFocus>
+                  {pending.cancelLabel ?? "Cancel"}
+                </AlertDialog.Cancel>
+                <AlertDialog.Action
+                  className={pending.danger ? "btn btn-danger" : "btn btn-primary"}
+                  onClick={() => settle(true)}
+                >
+                  {pending.confirmLabel ?? "Confirm"}
+                </AlertDialog.Action>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-ghost" onClick={() => settle(false)} autoFocus>
-                {pending.cancelLabel ?? "Cancel"}
-              </button>
-              <button
-                type="button"
-                className={pending.danger ? "btn btn-danger" : "btn btn-primary"}
-                onClick={() => settle(true)}
-              >
-                {pending.confirmLabel ?? "Confirm"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </AlertDialog.Content>
+          </AlertDialog.Portal>
+        )}
+      </AlertDialog.Root>
     </ConfirmContext.Provider>
   );
 }

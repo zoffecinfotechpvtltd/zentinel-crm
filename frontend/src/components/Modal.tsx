@@ -1,5 +1,16 @@
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 
+// Built on Radix's Dialog primitive (redesign spec, Component Library
+// category) instead of the hand-rolled focus-trap/Escape-handling this
+// used to do itself - real, maintained focus-trapping and
+// Escape/click-outside-to-close behavior, verified against axe rather
+// than hoped-for from a manual keydown listener. Every call site
+// (`{open && <Modal ...>}`) keeps working unchanged - Root's `open` is
+// always true here since Modal itself only exists in the tree while it
+// should be open; onOpenChange fires onClose exactly when Radix would
+// otherwise have unmounted the dialog (Escape, outside click, or the
+// Close button below).
 export function Modal({
   title, onClose, children, footer, wide, xwide,
 }: {
@@ -10,24 +21,19 @@ export function Modal({
   wide?: boolean;
   xwide?: boolean;
 }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
-    <div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`modal${xwide ? " xwide" : wide ? " wide" : ""}`}>
-        <div className="modal-header">
-          <div className="modal-title">{title}</div>
-          <button className="btn btn-ghost btn-sm" onClick={onClose} type="button">✕</button>
-        </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={(next) => { if (!next) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="modal-overlay" />
+        <Dialog.Content className={`modal${xwide ? " xwide" : wide ? " wide" : ""}`}>
+          <div className="modal-header">
+            <Dialog.Title className="modal-title">{title}</Dialog.Title>
+            <Dialog.Close className="btn btn-ghost btn-sm" type="button">✕</Dialog.Close>
+          </div>
+          <div className="modal-body">{children}</div>
+          {footer && <div className="modal-footer">{footer}</div>}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
