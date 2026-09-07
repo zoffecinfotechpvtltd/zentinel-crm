@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
@@ -16,9 +18,8 @@ import { formatDate, formatMoney, toDateInputValue } from "../lib/format";
 import { IconLeads, IconPlus, IconInbox, IconCheck } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
+import { leadFormSchema, emptyLeadForm, INDUSTRIES, SOURCES, type LeadFormValues } from "../lib/schemas/lead";
 
-const INDUSTRIES = ["Banking & Finance", "IT/Software", "Healthcare", "Government", "Manufacturing", "E-commerce", "Telecom", "Other"];
-const SOURCES = ["Website", "Referral", "LinkedIn", "Cold Call", "Event", "Email Campaign"];
 const STATUSES = ["New", "Contacted", "Qualified", "Proposal Sent", "Negotiation", "Won", "Lost"];
 const STATUS_RAIL: Record<string, string> = {
   New: "var(--info)", Contacted: "var(--text3)", Qualified: "var(--success)",
@@ -44,11 +45,6 @@ type DuplicatePair = { lead1: DuplicateLeadSummary; lead2: DuplicateLeadSummary 
 type Service = { id: string; name: string };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
-const emptyForm = {
-  company: "", contact_person: "", designation: "", email: "", mobile: "", website: "",
-  industry: "", source: "", service_id: "", value_estimate: "", next_followup_date: "", notes: "",
-  custom_fields: {} as Record<string, unknown>,
-};
 
 export function Leads() {
   const { user } = useAuth();
@@ -81,9 +77,11 @@ export function Leads() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
+  const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const {
+    register, handleSubmit, control, reset, formState: { errors, isSubmitting },
+  } = useForm<LeadFormValues>({ resolver: zodResolver(leadFormSchema), defaultValues: emptyLeadForm });
   const { data: leadDetail } = useFetch<Lead & { opportunities: LinkedOpportunity[] }>(editing ? `/leads/${editing.id}` : "", [editing?.id]);
 
   const [interactionLead, setInteractionLead] = useState<Lead | null>(null);
@@ -172,37 +170,43 @@ export function Leads() {
 
   function openAdd() {
     setEditing(null);
-    setForm(emptyForm);
-    setFieldErrors({});
+    reset(emptyLeadForm);
+    setCustomFields({});
+    setSaveError(null);
     setModalOpen(true);
   }
   function openEdit(l: Lead) {
     setEditing(l);
-    setForm({
+    reset({
       company: l.company, contact_person: l.contact_person, designation: l.designation ?? "",
-      email: l.email, mobile: l.mobile ?? "", website: "", industry: l.industry ?? "", source: l.source ?? "",
+      email: l.email, mobile: l.mobile ?? "",
+      industry: (l.industry ?? "") as LeadFormValues["industry"],
+      source: (l.source ?? "") as LeadFormValues["source"],
       service_id: l.service_id ?? "", value_estimate: l.value_estimate ?? "",
-      next_followup_date: toDateInputValue(l.next_followup_date), notes: l.notes ?? "",
-      custom_fields: l.custom_fields ?? {},
+      next_followup_date: toDateInputValue(l.next_followup_date) ?? "", notes: l.notes ?? "",
     });
-    setFieldErrors({});
+    setCustomFields(l.custom_fields ?? {});
+    setSaveError(null);
     setModalOpen(true);
   }
 
-  async function save() {
-    setSaving(true);
-    setFieldErrors({});
+  // React Hook Form only calls this after leadFormSchema passes - a bad
+  // value_estimate, a missing company name, etc. never reaches the API at
+  // all, which is what structurally rules out the old bug (payload built
+  // and "Saving…" shown before anything was validated).
+  const onSave = handleSubmit(async (values) => {
+    setSaveError(null);
+    const nullable = (v: string | undefined) => v || (editing ? null : undefined);
+    const payload: Record<string, unknown> = {
+      company: values.company, contact_person: values.contact_person, email: values.email,
+      designation: nullable(values.designation), mobile: nullable(values.mobile),
+      industry: nullable(values.industry), source: nullable(values.source),
+      service_id: nullable(values.service_id),
+      value_estimate: values.value_estimate ? Number(values.value_estimate) : (editing ? null : undefined),
+      next_followup_date: nullable(values.next_followup_date), notes: nullable(values.notes),
+      custom_fields: customFields,
+    };
     try {
-      const nullable = (v: string) => v || (editing ? null : undefined);
-      const payload: Record<string, unknown> = {
-        company: form.company, contact_person: form.contact_person, email: form.email,
-        designation: nullable(form.designation), mobile: nullable(form.mobile),
-        industry: nullable(form.industry), source: nullable(form.source),
-        service_id: nullable(form.service_id),
-        value_estimate: form.value_estimate ? Number(form.value_estimate) : (editing ? null : undefined),
-        next_followup_date: nullable(form.next_followup_date), notes: nullable(form.notes),
-        custom_fields: form.custom_fields,
-      };
       if (editing) {
         await api.patch(`/leads/${editing.id}`, payload);
         push("Lead updated", "success");
@@ -214,20 +218,9 @@ export function Leads() {
       reload();
       reloadBoard();
     } catch (err) {
-      if (err instanceof ApiError && err.body && typeof err.body === "object" && "details" in err.body) {
-        const details = (err.body as { details?: { fieldErrors?: Record<string, string[]> } }).details;
-        const fe: Record<string, string> = {};
-        if (details?.fieldErrors) {
-          for (const [k, v] of Object.entries(details.fieldErrors)) fe[k] = v[0];
-        }
-        setFieldErrors(fe);
-      } else {
-        push(err instanceof Error ? err.message : "Failed to save lead", "error");
-      }
-    } finally {
-      setSaving(false);
+      setSaveError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to save lead");
     }
-  }
+  });
 
   async function convert(l: Lead) {
     if (!(await confirm({ message: `Convert ${l.company} to a client?`, confirmLabel: "Convert" }))) return;
@@ -481,71 +474,95 @@ export function Leads() {
           wide={!!editing}
           footer={<>
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Lead"}</button>
+            <button type="button" className="btn btn-primary" onClick={onSave} disabled={isSubmitting}>{isSubmitting ? "Saving…" : "Save Lead"}</button>
           </>}
         >
+          {saveError && <div className="banner banner-error">{saveError}</div>}
           <div className="form-grid">
             <div className="form-group">
               <label className="form-label">Company Name *</label>
-              <input className="form-input" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
-              {fieldErrors.company && <div className="form-error">{fieldErrors.company}</div>}
+              <input className="form-input" {...register("company")} />
+              {errors.company && <div className="form-error">{errors.company.message}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Contact Person *</label>
-              <input className="form-input" value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
-              {fieldErrors.contact_person && <div className="form-error">{fieldErrors.contact_person}</div>}
+              <input className="form-input" {...register("contact_person")} />
+              {errors.contact_person && <div className="form-error">{errors.contact_person.message}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Designation</label>
-              <input className="form-input" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} />
+              <input className="form-input" {...register("designation")} />
             </div>
             <div className="form-group">
               <label className="form-label">Email *</label>
-              <input className="form-input" type="email" autoComplete="email" spellCheck={false} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              {fieldErrors.email && <div className="form-error">{fieldErrors.email}</div>}
+              <input className="form-input" type="email" autoComplete="email" spellCheck={false} {...register("email")} />
+              {errors.email && <div className="form-error">{errors.email.message}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Mobile</label>
-              <input className="form-input" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
+              <input className="form-input" {...register("mobile")} />
             </div>
             <div className="form-group">
               <label className="form-label">Industry</label>
-              <CustomSelect
-                value={form.industry}
-                onChange={(v) => setForm({ ...form, industry: v })}
-                options={INDUSTRIES.map((i) => ({ value: i, label: i }))}
+              <Controller
+                name="industry"
+                control={control}
+                render={({ field }) => (
+                  <CustomSelect
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    options={INDUSTRIES.map((i) => ({ value: i, label: i }))}
+                  />
+                )}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Lead Source</label>
-              <CustomSelect
-                value={form.source}
-                onChange={(v) => setForm({ ...form, source: v })}
-                options={SOURCES.map((s) => ({ value: s, label: s }))}
+              <Controller
+                name="source"
+                control={control}
+                render={({ field }) => (
+                  <CustomSelect
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    options={SOURCES.map((s) => ({ value: s, label: s }))}
+                  />
+                )}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Service Interested In</label>
-              <CustomSelect
-                value={form.service_id}
-                onChange={(v) => setForm({ ...form, service_id: v })}
-                options={services?.map((s) => ({ value: s.id, label: s.name })) ?? []}
+              <Controller
+                name="service_id"
+                control={control}
+                render={({ field }) => (
+                  <CustomSelect
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    options={services?.map((s) => ({ value: s.id, label: s.name })) ?? []}
+                  />
+                )}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Value Estimate (₹)</label>
-              <input className="form-input" type="number" value={form.value_estimate} onChange={(e) => setForm({ ...form, value_estimate: e.target.value })} />
+              <input className="form-input" type="number" {...register("value_estimate")} />
+              {errors.value_estimate && <div className="form-error">{errors.value_estimate.message}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Follow-up Date</label>
-              <CustomDatePicker value={form.next_followup_date} onChange={(v) => setForm({ ...form, next_followup_date: v })} />
+              <Controller
+                name="next_followup_date"
+                control={control}
+                render={({ field }) => <CustomDatePicker value={field.value ?? ""} onChange={field.onChange} />}
+              />
             </div>
             <div className="form-group full">
               <label className="form-label">Notes</label>
-              <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <textarea className="form-textarea" {...register("notes")} />
             </div>
           </div>
-          <CustomFieldsSection entityType="lead" values={form.custom_fields} onChange={(v) => setForm({ ...form, custom_fields: v })} />
+          <CustomFieldsSection entityType="lead" values={customFields} onChange={setCustomFields} />
           {editing && leadDetail && leadDetail.opportunities.length > 0 && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
               <div className="form-label" style={{ marginBottom: 8 }}>Linked Opportunities</div>
