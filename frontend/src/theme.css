@@ -107,7 +107,7 @@ html { color-scheme: light; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: "Bricolage Grotesque Variable", "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
 }
@@ -121,25 +121,32 @@ body {
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
-/* Single-family type system (Bricolage Grotesque — a variable font with a
-   distinctive grotesque personality at heading weights via its built-in
-   optical-size axis, while staying clean and readable at body sizes;
-   self-hosted via @fontsource so it actually loads). Hierarchy comes from
-   weight and tracking, not a second face — headings/numbers step up to
-   bold with tighter tracking, everything else stays regular/medium. */
+/* Two-family type system: Bricolage Grotesque (a display grotesque, kept
+   for its heading personality) on titles/numbers; IBM Plex Sans - drawn
+   for dense technical interfaces at small sizes, which a display face's
+   low-optical-size cut isn't - on body/table/form text, which is most of
+   what's actually on screen at 11-13px. Both self-hosted via @fontsource. */
 .section-title,
 .stat-value,
 .modal-title,
 .logo-name,
 .page-title,
-.card-title {
+.card-title,
+.marketing-hero-title,
+.login-brand-name {
+  font-family: "Bricolage Grotesque Variable", "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 750;
   letter-spacing: -0.02em;
 }
 
+/* IBM Plex Mono for anything tabular-numeric or identifier-like (invoice
+   numbers, API keys, audit-log entity IDs) - genuine tabular alignment
+   from a face built for it, which font-variant-numeric alone can't give
+   a face that wasn't designed with it. */
 .mono,
 td.mono,
 .stat-value[data-numeric] {
+  font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
