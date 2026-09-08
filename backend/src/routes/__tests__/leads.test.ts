@@ -30,6 +30,30 @@ describe("leads routes", () => {
     });
   });
 
+  describe("duplicates", () => {
+    it("flags an exact company match as confirmed and a near-miss spelling as possible", async () => {
+      const { agent } = await loginAs("admin");
+      await agent.post("/api/leads").send({
+        company: "Acme Corporation", contact_person: "Ann", email: "ann@acme.test",
+        industry: "E-commerce", source: "Website",
+      });
+      await agent.post("/api/leads").send({
+        company: "Acme Corporation", contact_person: "Bob", email: "bob@other.test",
+        industry: "E-commerce", source: "Website",
+      });
+      await agent.post("/api/leads").send({
+        company: "Acme Corp", contact_person: "Cy", email: "cy@third.test",
+        industry: "E-commerce", source: "Website",
+      });
+      const res = await agent.get("/api/leads/duplicates");
+      expect(res.status).toBe(200);
+      const confirmed = res.body.filter((p: { match_type: string }) => p.match_type === "confirmed");
+      const possible = res.body.filter((p: { match_type: string }) => p.match_type === "possible");
+      expect(confirmed.length).toBeGreaterThanOrEqual(1);
+      expect(possible.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   describe("validation / edge case", () => {
     it("requires lost_reason when setting status to Lost", async () => {
       const { agent } = await loginAs("sales");

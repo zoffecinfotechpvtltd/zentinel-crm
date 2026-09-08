@@ -86,20 +86,27 @@ router.get("/duplicates", requireRole("admin"), async (_req, res) => {
   const result = await pool.query(
     `select
        c1.id as id1, c1.company as company1, c1.gstin as gstin1, c1.created_at as created_at1,
-       c2.id as id2, c2.company as company2, c2.gstin as gstin2, c2.created_at as created_at2
+       c2.id as id2, c2.company as company2, c2.gstin as gstin2, c2.created_at as created_at2,
+       case
+         when c1.gstin is not null and c1.gstin = c2.gstin then 'confirmed'
+         when regexp_replace(lower(c1.company), '[^a-z0-9]', '', 'g') = regexp_replace(lower(c2.company), '[^a-z0-9]', '', 'g') then 'confirmed'
+         else 'possible'
+       end as match_type
      from clients c1
      join clients c2 on c1.id < c2.id
        and c1.deleted_at is null and c2.deleted_at is null
        and (
          (c1.gstin is not null and c1.gstin = c2.gstin)
          or regexp_replace(lower(c1.company), '[^a-z0-9]', '', 'g') = regexp_replace(lower(c2.company), '[^a-z0-9]', '', 'g')
+         or similarity(c1.company, c2.company) > 0.45
        )
-     order by c1.created_at desc`
+     order by match_type, c1.created_at desc`
   );
   res.json(
     result.rows.map((r) => ({
       client1: { id: r.id1, company: r.company1, gstin: r.gstin1, created_at: r.created_at1 },
       client2: { id: r.id2, company: r.company2, gstin: r.gstin2, created_at: r.created_at2 },
+      match_type: r.match_type,
     }))
   );
 });

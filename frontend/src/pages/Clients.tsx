@@ -47,7 +47,7 @@ type ClientDetail = Client & {
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 type Service = { id: string; name: string };
 type DuplicateClientSummary = { id: string; company: string; gstin: string | null; created_at: string };
-type DuplicatePair = { client1: DuplicateClientSummary; client2: DuplicateClientSummary };
+type DuplicatePair = { client1: DuplicateClientSummary; client2: DuplicateClientSummary; match_type: "confirmed" | "possible" };
 
 export function Clients() {
   const { user } = useAuth();
@@ -499,7 +499,18 @@ export function Clients() {
           {duplicates?.length === 0 && <div className="empty"><div className="empty-icon"><IconCheck size={26} /></div>No duplicates found.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {duplicates?.map((pair) => (
-              <div key={`${pair.client1.id}-${pair.client2.id}`} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center", padding: 12, borderRadius: 10, background: "var(--bg3)" }}>
+              <div key={`${pair.client1.id}-${pair.client2.id}`} style={{ display: "flex", flexDirection: "column", gap: 6, padding: 12, borderRadius: 10, background: "var(--bg3)" }}>
+                <span
+                  style={{
+                    alignSelf: "flex-start", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em",
+                    padding: "2px 8px", borderRadius: 999,
+                    color: pair.match_type === "confirmed" ? "var(--danger)" : "var(--warning)",
+                    background: pair.match_type === "confirmed" ? "var(--danger-soft)" : "var(--warning-soft)",
+                  }}
+                >
+                  {pair.match_type === "confirmed" ? "Confirmed duplicate" : "Possible match"}
+                </span>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{pair.client1.company}</div>
                   <div style={{ fontSize: 11.5, color: "var(--text2)" }}>{pair.client1.gstin ?? "no GSTIN"}</div>
@@ -518,6 +529,7 @@ export function Clients() {
                     onClick={() => mergeInto(pair.client2.id, pair.client1.id)}>
                     {mergingId === pair.client1.id ? "Merging…" : "Keep this one"}
                   </button>
+                </div>
                 </div>
               </div>
             ))}

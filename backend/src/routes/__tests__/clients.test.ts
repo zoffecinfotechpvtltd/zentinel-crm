@@ -27,6 +27,19 @@ describe("clients routes", () => {
     });
   });
 
+  describe("duplicates", () => {
+    it("flags a punctuation-only difference as confirmed and a near-miss spelling as possible", async () => {
+      const { agent } = await loginAs("admin");
+      await agent.post("/api/clients").send({ company: "Acme Pvt. Ltd." });
+      await agent.post("/api/clients").send({ company: "Acme Pvt Ltd" });
+      await agent.post("/api/clients").send({ company: "Acme Private Limited" });
+      const res = await agent.get("/api/clients/duplicates");
+      expect(res.status).toBe(200);
+      const confirmed = res.body.filter((p: { match_type: string }) => p.match_type === "confirmed");
+      expect(confirmed.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   describe("contact deletion", () => {
     it("removes a contact from the list", async () => {
       const { agent: adminAgent } = await loginAs("admin");

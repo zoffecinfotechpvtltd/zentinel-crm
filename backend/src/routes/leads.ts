@@ -172,21 +172,34 @@ router.get("/", async (req, res) => {
 // Pairs, not groups: if three leads share a company/email, this returns
 // three pairs (A-B, A-C, B-C). Merging A+B soft-deletes B, so a refetch
 // naturally drops any pair involving B — no separate grouping logic needed.
+//
+// Two tiers: "confirmed" (exact company or email match, as before) and
+// "possible" (pg_trgm trigram similarity on company name only, e.g.
+// "Acme Corp" vs "Acme Corporation") - exact match wasn't catching real
+// near-duplicates at all. 0.45 is a practical threshold: high enough to
+// skip coincidental short-word overlaps, low enough to catch the
+// punctuation/suffix variants that actually show up in this data.
 router.get("/duplicates", requireRole("admin"), async (_req, res) => {
   const result = await pool.query(
     `select
        l1.id as id1, l1.company as company1, l1.contact_person as contact_person1, l1.email as email1, l1.status as status1, l1.created_at as created_at1,
-       l2.id as id2, l2.company as company2, l2.contact_person as contact_person2, l2.email as email2, l2.status as status2, l2.created_at as created_at2
+       l2.id as id2, l2.company as company2, l2.contact_person as contact_person2, l2.email as email2, l2.status as status2, l2.created_at as created_at2,
+       case when lower(l1.company) = lower(l2.company) or lower(l1.email) = lower(l2.email) then 'confirmed' else 'possible' end as match_type
      from leads l1
      join leads l2 on l1.id < l2.id
        and l1.deleted_at is null and l2.deleted_at is null
-       and (lower(l1.company) = lower(l2.company) or lower(l1.email) = lower(l2.email))
-     order by l1.created_at desc`
+       and (
+         lower(l1.company) = lower(l2.company)
+         or lower(l1.email) = lower(l2.email)
+         or similarity(l1.company, l2.company) > 0.45
+       )
+     order by match_type, l1.created_at desc`
   );
   res.json(
     result.rows.map((r) => ({
       lead1: { id: r.id1, company: r.company1, contact_person: r.contact_person1, email: r.email1, status: r.status1, created_at: r.created_at1 },
       lead2: { id: r.id2, company: r.company2, contact_person: r.contact_person2, email: r.email2, status: r.status2, created_at: r.created_at2 },
+      match_type: r.match_type,
     }))
   );
 });

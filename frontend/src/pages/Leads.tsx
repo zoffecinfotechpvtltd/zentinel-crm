@@ -41,7 +41,7 @@ function scoreColor(score: number): string {
 }
 type LinkedOpportunity = { id: string; kind: string; company: string; stage: string; follow_up_date: string | null; lead_date: string | null; created_at: string };
 type DuplicateLeadSummary = { id: string; company: string; contact_person: string; email: string; status: string; created_at: string };
-type DuplicatePair = { lead1: DuplicateLeadSummary; lead2: DuplicateLeadSummary };
+type DuplicatePair = { lead1: DuplicateLeadSummary; lead2: DuplicateLeadSummary; match_type: "confirmed" | "possible" };
 type Service = { id: string; name: string };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
 
@@ -619,7 +619,18 @@ export function Leads() {
           {duplicates?.length === 0 && <div className="empty"><div className="empty-icon"><IconCheck size={26} /></div>No duplicates found.</div>}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {duplicates?.map((pair) => (
-              <div key={`${pair.lead1.id}-${pair.lead2.id}`} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center", padding: 12, borderRadius: 10, background: "var(--bg3)" }}>
+              <div key={`${pair.lead1.id}-${pair.lead2.id}`} style={{ display: "flex", flexDirection: "column", gap: 6, padding: 12, borderRadius: 10, background: "var(--bg3)" }}>
+                <span
+                  style={{
+                    alignSelf: "flex-start", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em",
+                    padding: "2px 8px", borderRadius: 999,
+                    color: pair.match_type === "confirmed" ? "var(--danger)" : "var(--warning)",
+                    background: pair.match_type === "confirmed" ? "var(--danger-soft)" : "var(--warning-soft)",
+                  }}
+                >
+                  {pair.match_type === "confirmed" ? "Confirmed duplicate" : "Possible match"}
+                </span>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{pair.lead1.company}</div>
                   <div style={{ fontSize: 11.5, color: "var(--text2)" }}>{pair.lead1.contact_person} · {pair.lead1.email}</div>
@@ -638,6 +649,7 @@ export function Leads() {
                     onClick={() => mergeInto(pair.lead2.id, pair.lead1.id)}>
                     {mergingId === pair.lead1.id ? "Merging…" : "Keep this one"}
                   </button>
+                </div>
                 </div>
               </div>
             ))}
