@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFetch } from "../lib/useFetch";
-import { api, ApiError, API_BASE } from "../lib/api";
+import { api, ApiError, API_BASE, downloadFile } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
@@ -193,7 +193,7 @@ export function Settings() {
         <p style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14 }}>
           Every record in the database, as a downloadable file. A restore replaces everything currently in the database.
         </p>
-        <a className="btn btn-ghost" href={`${API_BASE}/api/system/backup`}>Download backup now</a>
+        <button type="button" className="btn btn-ghost" onClick={() => downloadFile("/system/backup", `zentinel-backup-${new Date().toISOString().slice(0, 10)}.json`)}>Download backup now</button>
 
         <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--border)" }}>
           <div className="form-label" style={{ marginBottom: 8, color: "var(--danger)" }}>Restore from a backup file</div>

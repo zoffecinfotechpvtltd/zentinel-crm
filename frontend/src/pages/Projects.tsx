@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
-import { api, ApiError, API_BASE } from "../lib/api";
+import { api, ApiError, downloadFile } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { Modal } from "../components/Modal";
 import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
@@ -241,7 +241,16 @@ export function Projects() {
                   <td>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       {canEdit && <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}>Edit</button>}
-                      {p.due_date && <a className="icon-btn" href={`${API_BASE}/api/projects/${p.id}/due-date.ics`} title="Add due date to calendar"><IconCalendar size={13} /></a>}
+                      {p.due_date && (
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          title="Add due date to calendar"
+                          onClick={() => downloadFile(`/projects/${p.id}/due-date.ics`, `due-${p.name.replace(/[^a-z0-9]/gi, "-")}.ics`)}
+                        >
+                          <IconCalendar size={13} />
+                        </button>
+                      )}
                       {isAdminRole(user?.role) && <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} onClick={() => remove(p)}>Delete</button>}
                     </div>
                   </td>

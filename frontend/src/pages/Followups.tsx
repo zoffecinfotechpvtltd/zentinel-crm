@@ -2,7 +2,7 @@ import { useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useSearchParams } from "react-router-dom";
 import { useFetch } from "../lib/useFetch";
-import { api, API_BASE } from "../lib/api";
+import { api, downloadFile } from "../lib/api";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
 import { PageHeader } from "../components/PageHeader";
@@ -138,7 +138,16 @@ function SalesFollowups({ tab, setTab }: { tab: string; setTab: (t: string) => v
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                   {l.email && <a className="icon-btn" href={`mailto:${l.email}`} title={`Email ${l.contact_person}`}>@</a>}
                   {l.mobile && <a className="icon-btn" href={`https://wa.me/${l.mobile.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" title={`WhatsApp ${l.contact_person}`}>W</a>}
-                  {l.next_followup_date && <a className="icon-btn" href={`${API_BASE}/api/leads/${l.id}/followup.ics`} title="Add to calendar"><IconCalendar size={14} /></a>}
+                  {l.next_followup_date && (
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Add to calendar"
+                      onClick={() => downloadFile(`/leads/${l.id}/followup.ics`, `followup-${l.company.replace(/[^a-z0-9]/gi, "-")}.ics`)}
+                    >
+                      <IconCalendar size={14} />
+                    </button>
+                  )}
                   <button type="button" className="icon-btn" title="Mark done" onClick={() => markDone(l)}><IconCheck size={14} /></button>
                 </div>
               </div>
@@ -226,7 +235,14 @@ function FinanceFollowups({ tab, setTab }: { tab: string; setTab: (t: string) =>
                 />
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFollowup(inv, draftDates[inv.id] || null)}>Save</button>
                 {inv.next_followup_date && (
-                  <a className="icon-btn" href={`${API_BASE}/api/invoices/${inv.id}/followup.ics`} title="Add to calendar"><IconCalendar size={14} /></a>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Add to calendar"
+                    onClick={() => downloadFile(`/invoices/${inv.id}/followup.ics`, `payment-followup-${(inv.invoice_number ?? "draft").replace(/[^a-z0-9]/gi, "-")}.ics`)}
+                  >
+                    <IconCalendar size={14} />
+                  </button>
                 )}
               </div>
             </div>

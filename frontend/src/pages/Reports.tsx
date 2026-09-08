@@ -1,7 +1,7 @@
 import { useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useFetch } from "../lib/useFetch";
-import { API_BASE } from "../lib/api";
+import { downloadFile } from "../lib/api";
 import { formatMoney, formatMoneyExact, formatDate } from "../lib/format";
 import { Badge } from "../components/Badge";
 import { PageHeader } from "../components/PageHeader";
@@ -52,7 +52,7 @@ export function Reports() {
   const { data: opportunityPipeline } = useFetch<OpportunityPipelineReport>(`/reports/opportunity-pipeline?x${range}`, [tab, from, to]);
 
   function exportPending() {
-    window.open(`${API_BASE}/api/reports/payment-pending/export${statusFilter ? `?status=${statusFilter}` : ""}`, "_blank");
+    downloadFile(`/reports/payment-pending/export${statusFilter ? `?status=${statusFilter}` : ""}`, "payment-pending.xlsx");
   }
 
   return (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useFetch } from "../lib/useFetch";
-import { api, API_BASE } from "../lib/api";
+import { api, downloadFile } from "../lib/api";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useToast } from "./Toast";
 import { useConfirm } from "./ConfirmDialog";
@@ -184,13 +184,14 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg3)", borderRadius: 8, border: "1px solid var(--border)", flexWrap: "wrap" }}>
               <IconPaperclip size={14} style={{ color: "var(--text3)", flexShrink: 0 }} />
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                <a
-                  href={`${API_BASE}/api${base}/${entityId}/attachments/${a.id}/file`}
-                  style={{ fontSize: 13, color: "var(--text)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                <button
+                  type="button"
+                  onClick={() => downloadFile(`${base}/${entityId}/attachments/${a.id}/file`, a.filename)}
+                  style={{ fontSize: 13, color: "var(--text)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", font: "inherit" }}
                   title={a.filename}
                 >
                   {a.filename}
-                </a>
+                </button>
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 4 }}>
                   {canManage(a.uploaded_by) ? (
                     <CustomSelect
@@ -239,14 +240,15 @@ export function NotesAndFiles({ entityType, entityId }: { entityType: EntityType
               <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 10px 10px 34px" }}>
                 {!history && <div style={{ fontSize: 11, color: "var(--text3)" }}>Loading history…</div>}
                 {history?.map((v) => (
-                  <a
+                  <button
+                    type="button"
                     key={v.id}
-                    href={`${API_BASE}/api${base}/${entityId}/attachments/${v.id}/file`}
-                    style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "var(--text2)", textDecoration: "none" }}
+                    onClick={() => downloadFile(`${base}/${entityId}/attachments/${v.id}/file`, v.filename)}
+                    style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "var(--text2)", textDecoration: "none", background: "none", border: "none", padding: 0, width: "100%", cursor: "pointer", font: "inherit" }}
                   >
                     <span>v{v.version} - {v.filename} ({v.uploader_name ?? "Someone"})</span>
                     <span style={{ color: "var(--text3)" }}>{formatDateTime(v.created_at)}</span>
-                  </a>
+                  </button>
                 ))}
               </div>
             )}

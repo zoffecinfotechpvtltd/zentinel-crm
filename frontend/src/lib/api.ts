@@ -56,3 +56,30 @@ export const api = {
   // set the correct multipart boundary itself.
   postForm: <T>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
 };
+
+// A plain `<a href={crossOriginUrl} download="name">` doesn't work how it
+// looks like it should: per spec, browsers ignore the `download` attribute
+// entirely for cross-origin resources (a deliberate anti-spoofing
+// restriction) - production's frontend and backend are on different
+// origins, so every one of these was silently falling back to a
+// browser-generated name (a random UUID in Chrome) instead of the
+// server's actual Content-Disposition filename. Fetching the bytes
+// ourselves and downloading from a blob: URL (same-origin by definition)
+// is the standard, reliable fix - confirmed against a real cross-origin
+// download that was reproducing this exact bug.
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api${path}`, { credentials: "include" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

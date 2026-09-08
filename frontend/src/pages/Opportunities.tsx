@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
-import { api, API_BASE, ApiError } from "../lib/api";
+import { api, ApiError, downloadFile } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { StatCard } from "../components/StatCard";
 import { Modal } from "../components/Modal";
@@ -470,13 +470,14 @@ export function Opportunities() {
               <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 8 }}>
                 Download the template, fill in one row per opportunity, then upload it here to import many at once.
               </div>
-              <a
+              <button
+                type="button"
                 className="btn btn-ghost btn-sm"
-                href={`${API_BASE}/api/opportunities/import-template`}
+                onClick={() => downloadFile("/opportunities/import-template", "opportunities-import-template.xlsx")}
                 style={{ display: "inline-flex" }}
               >
                 <IconDownload size={13} /> Download Template
-              </a>
+              </button>
             </div>
             <div className="form-group">
               <label className="form-label">Filled-in Template (.xlsx)</label>
