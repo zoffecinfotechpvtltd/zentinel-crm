@@ -117,6 +117,13 @@ function SearchableSelect({
     setOpen(false);
   }
 
+  function commitCustomValue() {
+    const v = query.trim();
+    if (!v) return;
+    onChange(v);
+    setOpen(false);
+  }
+
   function onKeyDown(e: KeyboardEvent) {
     if (!open) {
       if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
@@ -134,6 +141,7 @@ function SearchableSelect({
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (filtered[highlight]) pick(filtered[highlight]);
+      else if (allowCustomValue) commitCustomValue();
       else close();
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -177,10 +185,18 @@ function SearchableSelect({
           onCloseAutoFocus={(e) => e.preventDefault()}
           style={{ width: "var(--radix-popover-trigger-width)" }}
         >
-          {filtered.length === 0 && (
-            <div className="custom-select-empty">
-              {allowCustomValue && query.trim() ? `Use "${query.trim()}"` : "No matches"}
+          {filtered.length === 0 && allowCustomValue && query.trim() && (
+            <div
+              role="option"
+              aria-selected={false}
+              className="custom-select-option custom-select-custom-value"
+              onMouseDown={(e) => { e.preventDefault(); commitCustomValue(); }}
+            >
+              Use &quot;{query.trim()}&quot;
             </div>
+          )}
+          {filtered.length === 0 && !(allowCustomValue && query.trim()) && (
+            <div className="custom-select-empty">No matches</div>
           )}
           {filtered.map((opt, i) => (
             <div

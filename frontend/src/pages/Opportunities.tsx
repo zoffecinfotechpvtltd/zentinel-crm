@@ -148,17 +148,17 @@ export function Opportunities() {
   async function save() {
     setSaving(true);
     setFieldErrors({});
-    const nullable = (v: string) => v || (editing ? null : undefined);
-    const payload: Record<string, unknown> = {
-      kind: form.kind, company: form.company, client_name: nullable(form.client_name),
-      contact: nullable(form.contact), opportunity_type_ids: form.opportunity_type_ids,
-      description: nullable(form.description), pdf_pg_url: nullable(form.pdf_pg_url),
-      stage: form.stage, lost_reason: form.stage === "Lost" ? nullable(form.lost_reason) : (editing ? null : undefined),
-      value: form.value ? Number(form.value) : (editing ? null : undefined),
-      follow_up_date: nullable(form.follow_up_date), lead_date: nullable(form.lead_date), remarks: nullable(form.remarks),
-      client_id: nullable(form.client_id), lead_id: nullable(form.lead_id), custom_fields: form.custom_fields,
-    };
     try {
+      const nullable = (v: string) => v || (editing ? null : undefined);
+      const payload: Record<string, unknown> = {
+        kind: form.kind, company: form.company, client_name: nullable(form.client_name),
+        contact: nullable(form.contact), opportunity_type_ids: form.opportunity_type_ids,
+        description: nullable(form.description), pdf_pg_url: nullable(form.pdf_pg_url),
+        stage: form.stage, lost_reason: form.stage === "Lost" ? nullable(form.lost_reason) : (editing ? null : undefined),
+        value: form.value ? Number(form.value) : (editing ? null : undefined),
+        follow_up_date: nullable(form.follow_up_date), lead_date: nullable(form.lead_date), remarks: nullable(form.remarks),
+        client_id: nullable(form.client_id), lead_id: nullable(form.lead_id), custom_fields: form.custom_fields,
+      };
       if (editing) {
         await api.patch(`/opportunities/${editing.id}`, payload);
         push("Opportunity updated", "success");
