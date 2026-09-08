@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { api, ApiError } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { Badge } from "../components/Badge";
@@ -7,56 +9,61 @@ import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { IconSettings, IconInbox } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
+import { customFieldFormSchema, emptyCustomFieldForm, ENTITY_TYPES as ENTITY_TYPE_VALUES, FIELD_TYPES as FIELD_TYPE_VALUES, type CustomFieldFormValues } from "../lib/schemas/customField";
 
 export type FieldDefinition = {
   id: string; entity_type: string; key: string; label: string; field_type: string;
   select_options: string[] | null; is_active: boolean;
 };
 
-const ENTITY_TYPES = [
-  { value: "lead", label: "Lead" },
-  { value: "opportunity", label: "Opportunity" },
-  { value: "client", label: "Client" },
-];
+const ENTITY_TYPES = ENTITY_TYPE_VALUES.map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }));
 const FIELD_TYPES = [
   { value: "text", label: "Text" },
   { value: "number", label: "Number" },
   { value: "date", label: "Date" },
   { value: "boolean", label: "Yes/No" },
   { value: "select", label: "Dropdown" },
-];
-
-const emptyForm = { entity_type: "lead", key: "", label: "", field_type: "text", select_options: "" };
+] satisfies { value: (typeof FIELD_TYPE_VALUES)[number]; label: string }[];
 
 export function CustomFields() {
   const queryClient = useQueryClient();
   const { data: fields } = useQuery({ queryKey: ["custom-fields"], queryFn: () => api.get<FieldDefinition[]>("/custom-fields") });
   const { push } = useToast();
   const confirm = useConfirm();
-  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [shaking, setShaking] = useState(false);
+  const {
+    register, handleSubmit, watch, setValue, reset,
+    formState: { errors },
+  } = useForm<CustomFieldFormValues>({ resolver: zodResolver(customFieldFormSchema), defaultValues: emptyCustomFieldForm });
 
   const createMutation = useMutation({
     mutationFn: (payload: { entity_type: string; key: string; label: string; field_type: string; select_options?: string[] }) =>
       api.post("/custom-fields", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom-fields"] });
-      setForm(emptyForm);
+      reset(emptyCustomFieldForm);
       push("Field added", "success");
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to add field"),
   });
 
-  function createField() {
-    setError(null);
-    createMutation.mutate({
-      entity_type: form.entity_type,
-      key: form.key,
-      label: form.label,
-      field_type: form.field_type,
-      select_options: form.field_type === "select" ? form.select_options.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
-    });
-  }
+  const createField = handleSubmit(
+    (values) => {
+      setError(null);
+      createMutation.mutate({
+        entity_type: values.entity_type,
+        key: values.key,
+        label: values.label,
+        field_type: values.field_type,
+        select_options: values.field_type === "select" ? (values.select_options ?? "").split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+      });
+    },
+    () => {
+      setShaking(true);
+      setTimeout(() => setShaking(false), 400);
+    }
+  );
 
   const toggleMutation = useMutation({
     mutationFn: (f: FieldDefinition) => api.patch(`/custom-fields/${f.id}`, { is_active: !f.is_active }),
@@ -122,31 +129,39 @@ export function CustomFields() {
       <div className="card">
         <div className="card-title">New Field</div>
         {error && <div className="banner banner-error">{error}</div>}
-        <div className="form-grid" style={{ marginBottom: 12 }}>
+        <div className={`form-grid${shaking ? " shake-on-invalid" : ""}`} style={{ marginBottom: 12 }}>
           <div className="form-group">
             <label className="form-label">Applies To</label>
-            <CustomSelect value={form.entity_type} onChange={(v) => setForm({ ...form, entity_type: v })} options={ENTITY_TYPES} />
+            <CustomSelect value={watch("entity_type")} onChange={(v) => setValue("entity_type", v as CustomFieldFormValues["entity_type"])} options={ENTITY_TYPES} />
           </div>
           <div className="form-group">
             <label className="form-label">Field Type</label>
-            <CustomSelect value={form.field_type} onChange={(v) => setForm({ ...form, field_type: v })} options={FIELD_TYPES} />
+            <CustomSelect value={watch("field_type")} onChange={(v) => setValue("field_type", v as CustomFieldFormValues["field_type"], { shouldValidate: true })} options={FIELD_TYPES} />
           </div>
           <div className="form-group">
             <label className="form-label">Label *</label>
-            <input className="form-input" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Renewal Month" />
+            <input className="form-input" {...register("label")} placeholder="Renewal Month" />
+            {errors.label && <div className="form-error">{errors.label.message}</div>}
           </div>
           <div className="form-group">
             <label className="form-label">Key * (lowercase, no spaces)</label>
-            <input className="form-input" value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value.toLowerCase().replace(/\s+/g, "_") })} placeholder="renewal_month" />
+            <input
+              className="form-input"
+              value={watch("key")}
+              onChange={(e) => setValue("key", e.target.value.toLowerCase().replace(/\s+/g, "_"), { shouldValidate: true })}
+              placeholder="renewal_month"
+            />
+            {errors.key && <div className="form-error">{errors.key.message}</div>}
           </div>
-          {form.field_type === "select" && (
+          {watch("field_type") === "select" && (
             <div className="form-group full">
               <label className="form-label">Options (comma-separated)</label>
-              <input className="form-input" value={form.select_options} onChange={(e) => setForm({ ...form, select_options: e.target.value })} placeholder="January, February, March…" />
+              <input className="form-input" {...register("select_options")} placeholder="January, February, March…" />
+              {errors.select_options && <div className="form-error">{errors.select_options.message}</div>}
             </div>
           )}
         </div>
-        <button type="button" className="btn btn-primary btn-sm" onClick={createField} disabled={!form.label || !form.key}>
+        <button type="button" className="btn btn-primary btn-sm" onClick={createField}>
           + Add Field
         </button>
       </div>
