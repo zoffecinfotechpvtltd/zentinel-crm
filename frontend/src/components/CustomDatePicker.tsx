@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
+import * as Popover from "@radix-ui/react-popover";
 import { IconCalendar, IconChevronLeft, IconChevronRight, IconX } from "./Icons";
-import { useFloatingPosition } from "../hooks/useFloatingPosition";
 
 interface CustomDatePickerProps {
   /** ISO date string, "yyyy-mm-dd", or "" for empty. */
@@ -32,35 +31,27 @@ function formatDisplay(iso: string): string {
   return `${d} ${MONTH_LABELS[m - 1].slice(0, 3)} ${y}`;
 }
 
+// Radix has no calendar/date-picker primitive to build on (that's genuine
+// app-specific UI, not something a headless-primitives library ships) -
+// but the floating panel itself is exactly what Radix Popover is for
+// (redesign spec, Component Library category), replacing the hand-rolled
+// useFloatingPosition hook and manual mousedown/Escape document
+// listeners with real scroll-aware positioning, focus-trapping, and
+// dismiss behavior.
 export function CustomDatePicker({ value, onChange, className = "", placeholder = "Select date…", disabled, min, max, ariaLabel }: CustomDatePickerProps) {
   const [open, setOpen] = useState(false);
   const parsed = value ? value.split("-").map(Number) : null;
   const today = new Date();
   const [viewYear, setViewYear] = useState(parsed ? parsed[0] : today.getFullYear());
   const [viewMonth, setViewMonth] = useState(parsed ? parsed[1] - 1 : today.getMonth());
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const rect = useFloatingPosition(triggerRef, open);
 
-  useEffect(() => {
-    if (!open) return;
+  function openPanel() {
+    if (disabled) return;
     const p = value ? value.split("-").map(Number) : null;
     setViewYear(p ? p[0] : today.getFullYear());
     setViewMonth(p ? p[1] - 1 : today.getMonth());
-    const onDocMouseDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", onDocMouseDown);
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocMouseDown);
-      document.removeEventListener("keydown", onKey);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    setOpen(true);
+  }
 
   const firstOfMonth = new Date(viewYear, viewMonth, 1);
   const startWeekday = firstOfMonth.getDay();
@@ -81,36 +72,38 @@ export function CustomDatePicker({ value, onChange, className = "", placeholder 
   }
 
   return (
-    <div
-      ref={triggerRef}
-      className={`custom-datepicker ${className}`}
-      data-open={open || undefined}
-      data-disabled={disabled || undefined}
-      role="button"
-      aria-label={ariaLabel ?? (value ? formatDisplay(value) : placeholder)}
-      aria-haspopup="dialog"
-      aria-expanded={open}
-      tabIndex={disabled ? -1 : 0}
-      onClick={() => !disabled && setOpen(true)}
-      onKeyDown={(e) => { if (!disabled && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setOpen(true); } }}
-    >
-      <IconCalendar size={15} className="custom-datepicker-icon" />
-      <span className={value ? "custom-datepicker-value" : "custom-datepicker-placeholder"}>
-        {value ? formatDisplay(value) : placeholder}
-      </span>
-      {value && !disabled && (
-        <button
-          type="button"
-          className="custom-datepicker-clear"
-          aria-label="Clear date"
-          onClick={(e) => { e.stopPropagation(); onChange(""); }}
+    <Popover.Root open={open} onOpenChange={(next) => (next ? openPanel() : setOpen(false))}>
+      <Popover.Anchor asChild>
+        <div
+          className={`custom-datepicker ${className}`}
+          data-open={open || undefined}
+          data-disabled={disabled || undefined}
+          role="button"
+          aria-label={ariaLabel ?? (value ? formatDisplay(value) : placeholder)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          tabIndex={disabled ? -1 : 0}
+          onClick={() => !disabled && openPanel()}
+          onKeyDown={(e) => { if (!disabled && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openPanel(); } }}
         >
-          <IconX size={12} />
-        </button>
-      )}
-
-      {open && rect && createPortal(
-        <div ref={panelRef} className="custom-datepicker-panel" style={{ top: rect.top, left: rect.left }}>
+          <IconCalendar size={15} className="custom-datepicker-icon" />
+          <span className={value ? "custom-datepicker-value" : "custom-datepicker-placeholder"}>
+            {value ? formatDisplay(value) : placeholder}
+          </span>
+          {value && !disabled && (
+            <button
+              type="button"
+              className="custom-datepicker-clear"
+              aria-label="Clear date"
+              onClick={(e) => { e.stopPropagation(); onChange(""); }}
+            >
+              <IconX size={12} />
+            </button>
+          )}
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content className="custom-datepicker-panel" sideOffset={4} onOpenAutoFocus={(e) => e.preventDefault()}>
           <div className="custom-datepicker-nav">
             <button type="button" className="custom-datepicker-navbtn" onClick={prevMonth} aria-label="Previous month"><IconChevronLeft size={15} /></button>
             <span className="custom-datepicker-title">{MONTH_LABELS[viewMonth]} {viewYear}</span>
@@ -144,9 +137,8 @@ export function CustomDatePicker({ value, onChange, className = "", placeholder 
               Today
             </button>
           </div>
-        </div>,
-        document.body,
-      )}
-    </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
