@@ -259,7 +259,7 @@ export function Projects() {
             </tbody>
           </table>
         </div>
-        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} loadedCount={projects.length} totalCount={total} />
       </div>
 
       {modalOpen && (

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { Modal } from "../components/Modal";
 import { InfiniteScrollSentinel } from "../components/InfiniteScrollSentinel";
@@ -17,6 +19,7 @@ import { IconClients, IconPlus, IconInbox, IconCheck } from "../components/Icons
 import { CustomSelect } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
 import { describeEvent } from "../lib/describeEvent";
+import { clientFormSchema, emptyClientForm, type ClientFormValues } from "../lib/schemas/client";
 
 type Client = {
   id: string; company: string; gstin: string | null; status: string; industry: string | null;
@@ -72,8 +75,12 @@ export function Clients() {
   const { data: allClients } = useFetch<ListResponse<Client>>(detailId ? "/clients?per_page=200" : "", [detailId]);
 
   const [addOpen, setAddOpen] = useState(false);
-  const [newCompany, setNewCompany] = useState("");
-  const [newGstin, setNewGstin] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addShaking, setAddShaking] = useState(false);
+  const {
+    register: registerClient, handleSubmit: handleClientSubmit, reset: resetClientForm,
+    formState: { errors: clientErrors, isSubmitting: isAddingClient },
+  } = useForm<ClientFormValues>({ resolver: zodResolver(clientFormSchema), defaultValues: emptyClientForm });
 
   const [contactForm, setContactForm] = useState({ name: "", email: "", mobile: "", designation: "" });
   const [contractForm, setContractForm] = useState({ service_id: "", value: "", start_date: "", end_date: "" });
@@ -98,17 +105,24 @@ export function Clients() {
 
   const canEdit = isAdminRole(user?.role);
 
-  async function createClient() {
-    try {
-      await api.post("/clients", { company: newCompany, gstin: newGstin || undefined });
-      setAddOpen(false);
-      setNewCompany(""); setNewGstin("");
-      push("Client added", "success");
-      reloadList();
-    } catch (err) {
-      push(err instanceof Error ? err.message : "Failed to add client", "error");
+  const createClient = handleClientSubmit(
+    async (values) => {
+      setAddError(null);
+      try {
+        await api.post("/clients", { company: values.company, gstin: values.gstin || undefined });
+        setAddOpen(false);
+        resetClientForm(emptyClientForm);
+        push("Client added", "success");
+        reloadList();
+      } catch (err) {
+        setAddError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to add client");
+      }
+    },
+    () => {
+      setAddShaking(true);
+      setTimeout(() => setAddShaking(false), 400);
     }
-  }
+  );
 
   async function removeClient(c: Client) {
     if (!(await confirm({ message: `Delete client "${c.company}"? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
@@ -209,7 +223,7 @@ export function Clients() {
         subtitle={!loading ? `${total} client${total === 1 ? "" : "s"} on file` : undefined}
         actions={canEdit && <>
           <button type="button" className="btn btn-ghost" onClick={() => setDuplicatesOpen(true)}>Duplicates</button>
-          <button type="button" className="btn btn-primary" onClick={() => setAddOpen(true)}><IconPlus size={14} /> Add Client</button>
+          <button type="button" className="btn btn-primary" onClick={() => { resetClientForm(emptyClientForm); setAddError(null); setAddOpen(true); }}><IconPlus size={14} /> Add Client</button>
         </>}
       />
 
@@ -259,17 +273,25 @@ export function Clients() {
             </tbody>
           </table>
         </div>
-        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} loadedCount={clients.length} totalCount={total} />
       </div>
 
       {addOpen && (
         <Modal title="Add New Client" onClose={() => setAddOpen(false)} footer={<>
           <button type="button" className="btn btn-ghost" onClick={() => setAddOpen(false)}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={createClient}>Save Client</button>
+          <button type="button" className="btn btn-primary" onClick={createClient} disabled={isAddingClient}>{isAddingClient ? "Saving…" : "Save Client"}</button>
         </>}>
-          <div className="form-grid">
-            <div className="form-group full"><label className="form-label">Company Name *</label><input className="form-input" value={newCompany} onChange={(e) => setNewCompany(e.target.value)} /></div>
-            <div className="form-group"><label className="form-label">GSTIN</label><input className="form-input" value={newGstin} onChange={(e) => setNewGstin(e.target.value)} /></div>
+          {addError && <div className="banner banner-error">{addError}</div>}
+          <div className={`form-grid${addShaking ? " shake-on-invalid" : ""}`}>
+            <div className="form-group full">
+              <label className="form-label">Company Name *</label>
+              <input className="form-input" {...registerClient("company")} />
+              {clientErrors.company && <div className="form-error">{clientErrors.company.message}</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">GSTIN</label>
+              <input className="form-input" {...registerClient("gstin")} />
+            </div>
           </div>
         </Modal>
       )}

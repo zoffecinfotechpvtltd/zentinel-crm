@@ -344,7 +344,7 @@ export function Opportunities() {
             </tbody>
           </table>
         </div>
-        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} loadedCount={opportunities.length} totalCount={total} />
       </div>
 
       {modalOpen && (

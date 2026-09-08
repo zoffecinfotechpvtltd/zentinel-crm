@@ -413,7 +413,7 @@ export function Leads() {
               </tbody>
             </table>
           </div>
-          <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
+          <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} loadedCount={leads.length} totalCount={total} />
         </div>
       )}
 

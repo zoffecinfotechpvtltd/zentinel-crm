@@ -246,7 +246,7 @@ export function Invoices() {
             </tbody>
           </table>
         </div>
-        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
+        <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} loadedCount={invoices.length} totalCount={total} />
       </div>
 
       {createOpen && (
