@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { CustomFieldsSection } from "../components/CustomFieldsSection";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
@@ -16,9 +18,7 @@ import { formatDate, formatMoney } from "../lib/format";
 import { IconOpportunities, IconPlus, IconInbox, IconUpload, IconDownload, IconCheck } from "../components/Icons";
 import { CustomSelect, type SelectOption } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
-
-const KINDS = ["service", "product"] as const;
-const STAGES = ["Open", "Proposal Sent", "Won", "Lost"] as const;
+import { opportunityFormSchema, emptyOpportunityForm, KINDS, STAGES, type OpportunityFormValues } from "../lib/schemas/opportunity";
 
 type OpportunityType = { id: string; name: string };
 type LinkedCompany = { id: string; company: string };
@@ -31,13 +31,6 @@ type Opportunity = {
 };
 type ImportResult = { imported: number; skipped: { row: number; reason: string }[]; duplicates: number };
 type CompanySearchResponse = { clients: LinkedCompany[]; leads: LinkedCompany[] };
-
-const emptyForm = {
-  kind: "service" as (typeof KINDS)[number], company: "", client_name: "", contact: "",
-  opportunity_type_ids: [] as string[], description: "", pdf_pg_url: "",
-  stage: "Open" as (typeof STAGES)[number], lost_reason: "", value: "", follow_up_date: "", lead_date: "", remarks: "",
-  client_id: "", lead_id: "", custom_fields: {} as Record<string, unknown>,
-};
 
 export function Opportunities() {
   const { user } = useAuth();
@@ -66,34 +59,49 @@ export function Opportunities() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Opportunity | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [shaking, setShaking] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
+  // Ancillary state not covered by opportunityFormSchema (see the schema
+  // file's comment) - the company-search linkage and the dynamic custom
+  // fields payload, both merged into the submit payload alongside the
+  // validated RHF fields.
+  const [linkedClientId, setLinkedClientId] = useState("");
+  const [linkedLeadId, setLinkedLeadId] = useState("");
+  const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
+
+  const {
+    register, handleSubmit, watch, setValue, getValues, reset,
+    formState: { errors, isSubmitting },
+  } = useForm<OpportunityFormValues>({ resolver: zodResolver(opportunityFormSchema), defaultValues: emptyOpportunityForm });
+
+  const stageValue = watch("stage");
+  const kindValue = watch("kind");
+  const typeIds = watch("opportunity_type_ids");
+  const companySelectValue = watch("company");
 
   const companyOptions: SelectOption[] = [
     ...(companies?.clients.map((c) => ({ value: `client:${c.id}`, label: `${c.company} - existing client` })) ?? []),
     ...(companies?.leads.map((l) => ({ value: `lead:${l.id}`, label: `${l.company} - existing lead` })) ?? []),
   ];
-  // Deliberately NOT a composite "client:<id>"/"lead:<id>" value here: that
-  // would make CustomSelect's closed-state display fall back to the picked
-  // option's full annotated label ("Acme Co — existing client") instead of
-  // the plain company name. Feeding it the plain company text keeps the
-  // input showing just the company, while handleCompanyChange below still
-  // reads the composite id off whichever option was actually clicked.
-  const companySelectValue = form.company;
 
   function handleCompanyChange(v: string) {
     if (v.startsWith("client:")) {
       const id = v.slice(7);
       const match = companies?.clients.find((c) => c.id === id);
-      setForm((f) => ({ ...f, company: match?.company ?? f.company, client_id: id, lead_id: "" }));
+      setValue("company", match?.company ?? getValues("company"), { shouldValidate: true });
+      setLinkedClientId(id);
+      setLinkedLeadId("");
     } else if (v.startsWith("lead:")) {
       const id = v.slice(5);
       const match = companies?.leads.find((l) => l.id === id);
-      setForm((f) => ({ ...f, company: match?.company ?? f.company, lead_id: id, client_id: "" }));
+      setValue("company", match?.company ?? getValues("company"), { shouldValidate: true });
+      setLinkedLeadId(id);
+      setLinkedClientId("");
     } else {
-      setForm((f) => ({ ...f, company: v, client_id: "", lead_id: "" }));
+      setValue("company", v, { shouldValidate: true });
+      setLinkedClientId("");
+      setLinkedLeadId("");
     }
   }
 
@@ -107,30 +115,31 @@ export function Opportunities() {
 
   function openAdd() {
     setEditing(null);
-    setForm(emptyForm);
-    setFieldErrors({});
+    reset(emptyOpportunityForm);
+    setLinkedClientId("");
+    setLinkedLeadId("");
+    setCustomFields({});
+    setSaveError(null);
     setModalOpen(true);
   }
   function openEdit(o: Opportunity) {
     setEditing(o);
-    setForm({
+    reset({
       kind: o.kind, company: o.company, client_name: o.client_name ?? "", contact: o.contact ?? "",
       opportunity_type_ids: o.opportunity_types.map((t) => t.id), description: o.description ?? "",
       pdf_pg_url: o.pdf_pg_url ?? "", stage: o.stage as (typeof STAGES)[number], lost_reason: o.lost_reason ?? "",
       value: o.value ?? "", follow_up_date: o.follow_up_date ?? "", lead_date: o.lead_date ?? "", remarks: o.remarks ?? "",
-      client_id: o.client_id ?? "", lead_id: o.lead_id ?? "", custom_fields: o.custom_fields ?? {},
     });
-    setFieldErrors({});
+    setLinkedClientId(o.client_id ?? "");
+    setLinkedLeadId(o.lead_id ?? "");
+    setCustomFields(o.custom_fields ?? {});
+    setSaveError(null);
     setModalOpen(true);
   }
 
   function toggleType(id: string) {
-    setForm((f) => ({
-      ...f,
-      opportunity_type_ids: f.opportunity_type_ids.includes(id)
-        ? f.opportunity_type_ids.filter((t) => t !== id)
-        : [...f.opportunity_type_ids, id],
-    }));
+    const current = getValues("opportunity_type_ids");
+    setValue("opportunity_type_ids", current.includes(id) ? current.filter((t) => t !== id) : [...current, id]);
   }
 
   async function addType() {
@@ -139,53 +148,45 @@ export function Opportunities() {
       const created = await api.post<OpportunityType>("/opportunities/types", { name: newTypeName.trim() });
       setNewTypeName("");
       reloadTypes();
-      setForm((f) => ({ ...f, opportunity_type_ids: [...f.opportunity_type_ids, created.id] }));
+      setValue("opportunity_type_ids", [...getValues("opportunity_type_ids"), created.id]);
     } catch (err) {
       push(err instanceof Error ? err.message : "Couldn't add type", "error");
     }
   }
 
-  async function save() {
-    setSaving(true);
-    setFieldErrors({});
-    try {
-      const nullable = (v: string) => v || (editing ? null : undefined);
-      const payload: Record<string, unknown> = {
-        kind: form.kind, company: form.company, client_name: nullable(form.client_name),
-        contact: nullable(form.contact), opportunity_type_ids: form.opportunity_type_ids,
-        description: nullable(form.description), pdf_pg_url: nullable(form.pdf_pg_url),
-        stage: form.stage, lost_reason: form.stage === "Lost" ? nullable(form.lost_reason) : (editing ? null : undefined),
-        value: form.value ? Number(form.value) : (editing ? null : undefined),
-        follow_up_date: nullable(form.follow_up_date), lead_date: nullable(form.lead_date), remarks: nullable(form.remarks),
-        client_id: nullable(form.client_id), lead_id: nullable(form.lead_id), custom_fields: form.custom_fields,
-      };
-      if (editing) {
-        await api.patch(`/opportunities/${editing.id}`, payload);
-        push("Opportunity updated", "success");
-      } else {
-        await api.post("/opportunities", payload);
-        push("Opportunity added", "success");
-      }
-      setModalOpen(false);
-      reload();
-      reloadPipelineValue();
-    } catch (err) {
-      if (err instanceof ApiError && err.body && typeof err.body === "object" && "details" in err.body) {
-        const details = (err.body as { details?: Record<string, string> | { fieldErrors?: Record<string, string[]> } }).details;
-        const fe: Record<string, string> = {};
-        if (details && "fieldErrors" in details && details.fieldErrors) {
-          for (const [k, v] of Object.entries(details.fieldErrors)) fe[k] = v[0];
-        } else if (details) {
-          for (const [k, v] of Object.entries(details)) if (typeof v === "string") fe[k] = v;
+  const onSave = handleSubmit(
+    async (values) => {
+      setSaveError(null);
+      try {
+        const nullable = (v: string | undefined) => v || (editing ? null : undefined);
+        const payload: Record<string, unknown> = {
+          kind: values.kind, company: values.company, client_name: nullable(values.client_name),
+          contact: nullable(values.contact), opportunity_type_ids: values.opportunity_type_ids,
+          description: nullable(values.description), pdf_pg_url: nullable(values.pdf_pg_url),
+          stage: values.stage, lost_reason: values.stage === "Lost" ? nullable(values.lost_reason) : (editing ? null : undefined),
+          value: values.value ? Number(values.value) : (editing ? null : undefined),
+          follow_up_date: nullable(values.follow_up_date), lead_date: nullable(values.lead_date), remarks: nullable(values.remarks),
+          client_id: nullable(linkedClientId), lead_id: nullable(linkedLeadId), custom_fields: customFields,
+        };
+        if (editing) {
+          await api.patch(`/opportunities/${editing.id}`, payload);
+          push("Opportunity updated", "success");
+        } else {
+          await api.post("/opportunities", payload);
+          push("Opportunity added", "success");
         }
-        setFieldErrors(fe);
-      } else {
-        push(err instanceof Error ? err.message : "Failed to save opportunity", "error");
+        setModalOpen(false);
+        reload();
+        reloadPipelineValue();
+      } catch (err) {
+        push(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to save opportunity", "error");
       }
-    } finally {
-      setSaving(false);
+    },
+    () => {
+      setShaking(true);
+      setTimeout(() => setShaking(false), 400);
     }
-  }
+  );
 
   async function remove(o: Opportunity) {
     if (!(await confirm({ message: `Delete opportunity "${o.company}"? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
@@ -353,15 +354,16 @@ export function Opportunities() {
           wide
           footer={<>
             <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Opportunity"}</button>
+            <button type="button" className="btn btn-primary" onClick={onSave} disabled={isSubmitting}>{isSubmitting ? "Saving…" : "Save Opportunity"}</button>
           </>}
         >
-          <div className="form-grid">
+          {saveError && <div className="banner banner-error">{saveError}</div>}
+          <div className={`form-grid${shaking ? " shake-on-invalid" : ""}`}>
             <div className="form-group">
               <label className="form-label">Kind *</label>
               <CustomSelect
-                value={form.kind}
-                onChange={(v) => setForm({ ...form, kind: v as (typeof KINDS)[number] })}
+                value={kindValue}
+                onChange={(v) => setValue("kind", v as (typeof KINDS)[number])}
                 options={[{ value: "service", label: "Service" }, { value: "product", label: "Product" }]}
               />
             </div>
@@ -375,55 +377,56 @@ export function Opportunities() {
                 placeholder="Type a company name, or pick an existing client/lead…"
                 options={companyOptions}
               />
-              {(form.client_id || form.lead_id) && (
-                <div style={{ fontSize: 11, color: "var(--success)" }}>Linked to an existing {form.client_id ? "client" : "lead"}</div>
+              {(linkedClientId || linkedLeadId) && (
+                <div style={{ fontSize: 11, color: "var(--success)" }}>Linked to an existing {linkedClientId ? "client" : "lead"}</div>
               )}
-              {fieldErrors.company && <div className="form-error">{fieldErrors.company}</div>}
+              {errors.company && <div className="form-error">{errors.company.message}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Client Name</label>
-              <input className="form-input" value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} />
+              <input className="form-input" {...register("client_name")} />
             </div>
             <div className="form-group">
               <label className="form-label">Contact</label>
-              <input className="form-input" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+              <input className="form-input" {...register("contact")} />
             </div>
             <div className="form-group">
               <label className="form-label">Stage</label>
               <CustomSelect
-                value={form.stage}
-                onChange={(v) => setForm({ ...form, stage: v as (typeof STAGES)[number] })}
+                value={stageValue}
+                onChange={(v) => setValue("stage", v as (typeof STAGES)[number], { shouldValidate: true })}
                 options={STAGES.map((s) => ({ value: s, label: s }))}
               />
             </div>
-            {form.stage === "Lost" && (
+            {stageValue === "Lost" && (
               <div className="form-group">
                 <label className="form-label">Lost Reason *</label>
-                <input className="form-input" value={form.lost_reason} onChange={(e) => setForm({ ...form, lost_reason: e.target.value })} />
-                {fieldErrors.lost_reason && <div className="form-error">{fieldErrors.lost_reason}</div>}
+                <input className="form-input" {...register("lost_reason")} />
+                {errors.lost_reason && <div className="form-error">{errors.lost_reason.message}</div>}
               </div>
             )}
             <div className="form-group">
               <label className="form-label">Value (₹)</label>
-              <input className="form-input" type="number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} />
+              <input className="form-input" type="number" {...register("value")} />
+              {errors.value && <div className="form-error">{errors.value.message}</div>}
             </div>
             <div className="form-group">
               <label className="form-label">Lead Date</label>
-              <CustomDatePicker value={form.lead_date} onChange={(v) => setForm({ ...form, lead_date: v })} placeholder="When this lead came in…" />
+              <CustomDatePicker value={watch("lead_date") ?? ""} onChange={(v) => setValue("lead_date", v)} placeholder="When this lead came in…" />
             </div>
             <div className="form-group">
               <label className="form-label">Follow-up Date</label>
-              <CustomDatePicker value={form.follow_up_date} onChange={(v) => setForm({ ...form, follow_up_date: v })} />
+              <CustomDatePicker value={watch("follow_up_date") ?? ""} onChange={(v) => setValue("follow_up_date", v)} />
             </div>
             <div className="form-group">
               <label className="form-label">PDF/PG &amp; URL</label>
-              <input className="form-input" value={form.pdf_pg_url} onChange={(e) => setForm({ ...form, pdf_pg_url: e.target.value })} />
+              <input className="form-input" {...register("pdf_pg_url")} />
             </div>
             <div className="form-group full">
               <label className="form-label">Opportunity Types</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "8px 0" }}>
                 {types?.map((t) => {
-                  const selected = form.opportunity_type_ids.includes(t.id);
+                  const selected = typeIds.includes(t.id);
                   return (
                     <button
                       key={t.id}
@@ -445,14 +448,14 @@ export function Opportunities() {
             </div>
             <div className="form-group full">
               <label className="form-label">Description</label>
-              <textarea className="form-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <textarea className="form-textarea" {...register("description")} />
             </div>
             <div className="form-group full">
               <label className="form-label">Remarks</label>
-              <textarea className="form-textarea" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
+              <textarea className="form-textarea" {...register("remarks")} />
             </div>
           </div>
-          <CustomFieldsSection entityType="opportunity" values={form.custom_fields} onChange={(v) => setForm({ ...form, custom_fields: v })} />
+          <CustomFieldsSection entityType="opportunity" values={customFields} onChange={setCustomFields} />
         </Modal>
       )}
 
