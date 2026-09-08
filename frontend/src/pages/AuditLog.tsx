@@ -58,11 +58,6 @@ export function AuditLog() {
           </table>
         </div>
         <InfiniteScrollSentinel onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} loadedCount={items.length} totalCount={total} />
-        {!loading && items.length > 0 && (
-          <div style={{ padding: "8px 14px", fontSize: 11.5, color: "var(--text3)", borderTop: "1px solid var(--border)" }}>
-            Showing {items.length} of {total}
-          </div>
-        )}
       </div>
     </div>
   );
