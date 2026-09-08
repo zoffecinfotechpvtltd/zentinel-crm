@@ -16,12 +16,20 @@ const ConfirmContext = createContext<ConfirmContextValue | null>(null);
 
 type PendingConfirm = ConfirmOptions & { resolve: (v: boolean) => void };
 
+// Matches Modal's own exit-animation approach: `visible` drives Radix's
+// open state (and the CSS animation keyed off data-state), while
+// `pending` - cleared EXIT_MS later - keeps the content mounted long
+// enough for that exit animation to actually play instead of vanishing
+// the instant Cancel/Confirm is clicked.
+const EXIT_MS = 160;
+
 // Replaces window.confirm() — a browser-chrome dialog that breaks the app's
 // own visual identity — with one rendered in the app's own design system.
 // Call sites keep the same "await confirm(...); if not, bail" shape they had
 // with window.confirm, just async.
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<PendingConfirm | null>(null);
+  const [visible, setVisible] = useState(false);
   const resolveRef = useRef<((v: boolean) => void) | null>(null);
 
   const confirmFn = useCallback<ConfirmContextValue>((opts) => {
@@ -29,13 +37,17 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     return new Promise<boolean>((resolve) => {
       resolveRef.current = resolve;
       setPending({ ...normalized, resolve });
+      setVisible(true);
     });
   }, []);
 
   function settle(result: boolean) {
-    resolveRef.current?.(result);
-    resolveRef.current = null;
-    setPending(null);
+    setVisible(false);
+    setTimeout(() => {
+      resolveRef.current?.(result);
+      resolveRef.current = null;
+      setPending(null);
+    }, EXIT_MS);
   }
 
   return (
@@ -49,7 +61,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           focus-trapping and correct ARIA role="alertdialog" come from
           Radix rather than the hand-rolled keydown listener this used to
           need. */}
-      <AlertDialog.Root open={!!pending} onOpenChange={(next) => { if (!next) settle(false); }}>
+      <AlertDialog.Root open={visible} onOpenChange={(next) => { if (!next) settle(false); }}>
         {pending && (
           <AlertDialog.Portal>
             <AlertDialog.Overlay className="modal-overlay" />
