@@ -173,8 +173,32 @@ td.mono,
 .sidebar {
   width: 232px; min-width: 232px; background: var(--primary-navy); border-right: 1px solid rgba(255,255,255,0.06);
   display: flex; flex-direction: column; height: 100vh; position: fixed; left: 0; top: 0;
-  overflow-y: auto; z-index: 100; transition: transform .2s var(--ease);
+  overflow-y: auto; z-index: 100; transition: transform .2s var(--ease), width .16s var(--ease), min-width .16s var(--ease);
 }
+/* Collapsed: icons only, no scroll needed since it's the same items at a
+   fixed 64px row height - labels/section-headers hide, Tooltip (Radix)
+   supplies the label back on hover/focus instead of a title attribute. */
+.sidebar.collapsed { width: 64px; min-width: 64px; overflow-x: hidden; }
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed .logo-name,
+.sidebar.collapsed .logo-sub,
+.sidebar.collapsed .nav-footer-profile > div,
+.sidebar.collapsed .nav-footer-logout-label { display: none; }
+.sidebar.collapsed .nav-item { justify-content: center; margin: 1px 8px; }
+.sidebar.collapsed .logo { display: flex; justify-content: center; padding: 18px 8px 16px; }
+.sidebar.collapsed .logo > div { gap: 0; }
+.sidebar-collapse-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 8px;
+  background: none; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius); color: #aab4c7;
+  padding: 7px; cursor: pointer; font-size: 12px; font-family: inherit; transition: background .12s, color .12s;
+}
+.sidebar-collapse-btn:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.tooltip-content {
+  background: var(--text); color: var(--bg); font-size: 12px; font-weight: 600; padding: 6px 10px;
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); z-index: 500; max-width: 220px;
+}
+.tooltip-arrow { fill: var(--text); }
 .logo { padding: 18px 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .logo-name { font-size: 14.5px; color: #fff; line-height: 1.2; }
 .logo-sub { font-size: 11px; color: #8896ae; margin-top: 2px; }
@@ -204,7 +228,8 @@ td.mono,
    wide child anywhere inside .main (like the kanban board) forces .main
    itself wider than the viewport, and the whole page scrolls horizontally
    instead of the kanban board's own overflow-x: auto containing it. */
-.main { margin-left: 232px; flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 100vh; }
+.main { margin-left: 232px; flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 100vh; transition: margin-left .16s var(--ease); }
+.main.sidebar-collapsed { margin-left: 64px; }
 .topbar {
   background: color-mix(in srgb, var(--bg2) 90%, transparent); backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border); padding: 0 20px; height: 56px; display: flex; align-items: center;
@@ -876,9 +901,12 @@ button.badge:hover { opacity: .8; }
 }
 
 @media (max-width: 760px) {
-  .sidebar { transform: translateX(-100%); box-shadow: var(--shadow-lg); }
+  .sidebar, .sidebar.collapsed { transform: translateX(-100%); box-shadow: var(--shadow-lg); width: 232px; min-width: 232px; }
   .sidebar.open { transform: translateX(0); }
-  .main { margin-left: 0; }
+  .sidebar.collapsed .nav-label, .sidebar.collapsed .nav-item span, .sidebar.collapsed .logo-name,
+  .sidebar.collapsed .logo-sub, .sidebar.collapsed .nav-footer-profile > div, .sidebar.collapsed .nav-footer-logout-label { display: revert; }
+  .main, .main.sidebar-collapsed { margin-left: 0; }
+  .sidebar-collapse-btn { display: none; }
   .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   .content { padding: 16px; }
   .topbar { padding: 0 12px; gap: 8px; }

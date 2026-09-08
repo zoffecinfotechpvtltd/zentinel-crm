@@ -6,12 +6,14 @@ import { api } from "../lib/api";
 import { Logo } from "./Logo";
 import { UserAvatar } from "./UserAvatar";
 import { CommandPalette } from "./CommandPalette";
+import { Tooltip, TooltipProvider } from "./Tooltip";
 import { useToast } from "./Toast";
 import { useIdleLogout } from "../lib/useIdleLogout";
 import {
   IconDashboard, IconLeads, IconClients, IconProjects, IconInvoices, IconFollowups,
   IconReports, IconBell, IconUsers, IconTemplate, IconSettings, IconSearch, IconSun,
   IconMoon, IconLogout, IconMenu, IconOpportunities, IconActivity, IconSparkle, IconKey,
+  IconChevronLeft, IconChevronRight,
 } from "./Icons";
 
 type NavItem = { to: string; label: string; icon: React.ReactNode; roles?: string[] };
@@ -45,6 +47,20 @@ const NAV: { section: string; items: NavItem[] }[] = [
 ];
 
 const THEME_KEY = "zoffec-theme";
+const SIDEBAR_COLLAPSED_KEY = "zoffec-sidebar-collapsed";
+
+function SidebarNavLink({
+  to, icon, label, collapsed, badge, onClick,
+}: { to: string; icon: React.ReactNode; label: string; collapsed: boolean; badge?: React.ReactNode; onClick?: () => void }) {
+  const link = (
+    <NavLink to={to} onClick={onClick} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+      {icon}
+      <span>{label}</span>
+      {badge}
+    </NavLink>
+  );
+  return collapsed ? <Tooltip label={label}>{link}</Tooltip> : link;
+}
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -60,6 +76,15 @@ export function Layout() {
   const [unread, setUnread] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1");
+
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
 
   useEffect(() => {
     document.body.classList.toggle("dark", theme === "dark");
@@ -111,72 +136,16 @@ export function Layout() {
 
 
   return (
+    <TooltipProvider>
     <div className="app-shell">
       <a href="#main-content" className="skip-link">Skip to main content</a>
-      {mobileNavOpen && <div className="sidebar-scrim" onClick={() => setMobileNavOpen(false)} />}
-      <div className={`sidebar${mobileNavOpen ? " open" : ""}`}>
-        <div className="logo">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div className="logo-mark"><Logo size={28} /></div>
-            <div>
-              <div className="logo-name">Zentinel</div>
-              <div className="logo-sub">Zoffec Infotech Pvt. Ltd.</div>
-            </div>
-          </div>
-        </div>
-        {NAV.map((group) => {
-          const items = group.items.filter((i) => !i.roles || (user && (i.roles.includes(user.role) || (user.role === "superadmin" && i.roles.includes("admin")))));
-          if (items.length === 0) return null;
-          return (
-            <div className="nav-section" key={group.section}>
-              <div className="nav-label">{group.section}</div>
-              {items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMobileNavOpen(false)}
-                  className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-                >
-                  {item.icon}
-                  {item.label}
-                  {item.to === "/notifications" && unread > 0 && <span className="nav-badge">{unread}</span>}
-                </NavLink>
-              ))}
-            </div>
-          );
-        })}
-        {isAdminRole(user?.role) && (
-          <div className="nav-section">
-            <div className="nav-label">Admin</div>
-            <NavLink to="/users" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconUsers />Users</NavLink>
-            <NavLink to="/templates" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconTemplate />Message Templates</NavLink>
-            <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Settings</NavLink>
-          </div>
-        )}
-        {user?.role === "superadmin" && (
-          <div className="nav-section">
-            <div className="nav-label">Superadmin</div>
-            <NavLink to="/automation-rules" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSparkle />Automation Rules</NavLink>
-            <NavLink to="/custom-fields" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconSettings />Custom Fields</NavLink>
-            <NavLink to="/api-keys" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconKey />API Keys</NavLink>
-            <NavLink to="/audit-log" className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}><IconFollowups />Audit Log</NavLink>
-          </div>
-        )}
-        <div className="nav-footer">
-          <NavLink to="/account" className="nav-footer-profile" onClick={() => setMobileNavOpen(false)}>
-            <UserAvatar user={user} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 550, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
-              <div style={{ fontSize: 11, color: "var(--text3)" }}>{user?.email}</div>
-            </div>
-          </NavLink>
-          <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={handleLogout}>
-            <IconLogout size={14} /> Log out
-          </button>
-        </div>
-      </div>
-
-      <div className="main">
+      {/* .sidebar is position:fixed - it's already out of normal document
+          flow, so rendering .main first here changes nothing visually but
+          puts the header search/icons before the sidebar's ~15 nav links
+          in keyboard Tab order, matching visual/reading order (Audit
+          6.2#5 - focus order used to visit the whole sidebar first despite
+          the header being first on screen). */}
+      <div className={`main${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
         <div className="topbar">
           <button type="button" className="icon-btn menu-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu"><IconMenu size={16} /></button>
           <div className="topbar-spacer" />
@@ -215,7 +184,73 @@ export function Layout() {
         </div>
       </div>
 
+      {mobileNavOpen && <div className="sidebar-scrim" onClick={() => setMobileNavOpen(false)} />}
+      <div className={`sidebar${mobileNavOpen ? " open" : ""}${sidebarCollapsed ? " collapsed" : ""}`}>
+        <div className="logo">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="logo-mark"><Logo size={28} /></div>
+            <div>
+              <div className="logo-name">Zentinel</div>
+              <div className="logo-sub">Zoffec Infotech Pvt. Ltd.</div>
+            </div>
+          </div>
+        </div>
+        {NAV.map((group) => {
+          const items = group.items.filter((i) => !i.roles || (user && (i.roles.includes(user.role) || (user.role === "superadmin" && i.roles.includes("admin")))));
+          if (items.length === 0) return null;
+          return (
+            <div className="nav-section" key={group.section}>
+              <div className="nav-label">{group.section}</div>
+              {items.map((item) => (
+                <SidebarNavLink
+                  key={item.to}
+                  to={item.to}
+                  icon={item.icon}
+                  label={item.label}
+                  collapsed={sidebarCollapsed}
+                  onClick={() => setMobileNavOpen(false)}
+                  badge={item.to === "/notifications" && unread > 0 ? <span className="nav-badge">{unread}</span> : undefined}
+                />
+              ))}
+            </div>
+          );
+        })}
+        {isAdminRole(user?.role) && (
+          <div className="nav-section">
+            <div className="nav-label">Admin</div>
+            <SidebarNavLink to="/users" icon={<IconUsers />} label="Users" collapsed={sidebarCollapsed} />
+            <SidebarNavLink to="/templates" icon={<IconTemplate />} label="Message Templates" collapsed={sidebarCollapsed} />
+            <SidebarNavLink to="/settings" icon={<IconSettings />} label="Settings" collapsed={sidebarCollapsed} />
+          </div>
+        )}
+        {user?.role === "superadmin" && (
+          <div className="nav-section">
+            <div className="nav-label">Superadmin</div>
+            <SidebarNavLink to="/automation-rules" icon={<IconSparkle />} label="Automation Rules" collapsed={sidebarCollapsed} />
+            <SidebarNavLink to="/custom-fields" icon={<IconSettings />} label="Custom Fields" collapsed={sidebarCollapsed} />
+            <SidebarNavLink to="/api-keys" icon={<IconKey />} label="API Keys" collapsed={sidebarCollapsed} />
+            <SidebarNavLink to="/audit-log" icon={<IconFollowups />} label="Audit Log" collapsed={sidebarCollapsed} />
+          </div>
+        )}
+        <div className="nav-footer">
+          <NavLink to="/account" className="nav-footer-profile" onClick={() => setMobileNavOpen(false)}>
+            <UserAvatar user={user} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 550, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
+              <div style={{ fontSize: 11, color: "var(--text3)" }}>{user?.email}</div>
+            </div>
+          </NavLink>
+          <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={handleLogout}>
+            <IconLogout size={14} /> <span className="nav-footer-logout-label">Log out</span>
+          </button>
+          <button type="button" className="sidebar-collapse-btn" onClick={toggleSidebarCollapsed} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+            {sidebarCollapsed ? <IconChevronRight size={14} /> : <><IconChevronLeft size={14} /> Collapse</>}
+          </button>
+        </div>
+      </div>
+
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
+    </TooltipProvider>
   );
 }
