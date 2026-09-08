@@ -1,0 +1,156 @@
+- generic:
+  - generic [aria-hidden]:
+    - generic:
+      - link:
+        - /url: "#main-content"
+        - text: Skip to main content
+      - generic:
+        - banner:
+          - button:
+            - generic: Search or jump to…
+            - generic: Ctrl K
+          - button
+          - button
+        - main:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic: Lead Management
+                  - generic: 0 leads in the pipeline
+              - generic:
+                - generic:
+                  - button: List
+                  - button: Board
+                - button: Duplicates
+                - button: Add Lead
+            - generic:
+              - textbox:
+                - /placeholder: Search company / contact…
+              - combobox:
+                - generic: All Status
+              - combobox:
+                - generic: All Services
+            - generic:
+              - generic:
+                - table:
+                  - rowgroup:
+                    - row:
+                      - columnheader:
+                        - checkbox
+                      - columnheader: Company
+                      - columnheader: Contact
+                      - columnheader: Service
+                      - columnheader: Source
+                      - columnheader: Score
+                      - columnheader: Status
+                      - columnheader: Follow-up
+                      - columnheader: Actions
+                  - rowgroup:
+                    - row:
+                      - cell:
+                        - generic: No leads match these filters yet.
+      - navigation:
+        - generic:
+          - generic:
+            - generic:
+              - generic: Zentinel
+              - generic: Zoffec Infotech Pvt. Ltd.
+        - generic:
+          - generic: Main
+          - link:
+            - /url: /dashboard
+            - generic: Dashboard
+          - link:
+            - /url: /leads
+            - generic: Leads
+          - link:
+            - /url: /opportunities
+            - generic: Opportunities
+          - link:
+            - /url: /clients
+            - generic: Clients
+          - link:
+            - /url: /projects
+            - generic: Projects
+        - generic:
+          - generic: Finance
+          - link:
+            - /url: /invoices
+            - generic: Invoices
+          - link:
+            - /url: /followups
+            - generic: Follow-ups
+        - generic:
+          - generic: Insights
+          - link:
+            - /url: /reports
+            - generic: Reports
+          - link:
+            - /url: /notifications
+            - generic: Notifications
+          - link:
+            - /url: /activity
+            - generic: Activity
+        - generic:
+          - generic: Admin
+          - link:
+            - /url: /users
+            - generic: Users
+          - link:
+            - /url: /templates
+            - generic: Message Templates
+          - link:
+            - /url: /settings
+            - generic: Settings
+        - generic:
+          - link:
+            - /url: /account
+            - generic: SA
+            - generic:
+              - generic: Sameer Ahmed
+              - generic: admin@zentinel.local
+          - button:
+            - generic: Log out
+          - button: Collapse
+  - dialog [ref=f7e5]:
+    - generic [ref=f7e6]:
+      - heading "Add New Lead" [level=2] [ref=f7e7]
+      - button "✕" [active] [ref=f7e8] [cursor=pointer]
+    - generic [ref=f7e10]:
+      - generic [ref=f7e11]:
+        - generic [ref=f7e12]: Company Name *
+        - textbox [ref=f7e13]
+      - generic [ref=f7e14]:
+        - generic [ref=f7e15]: Contact Person *
+        - textbox [ref=f7e16]
+      - generic [ref=f7e17]:
+        - generic [ref=f7e18]: Designation
+        - textbox [ref=f7e19]
+      - generic [ref=f7e20]:
+        - generic [ref=f7e21]: Email *
+        - textbox [ref=f7e22]
+      - generic [ref=f7e23]:
+        - generic [ref=f7e24]: Mobile
+        - textbox [ref=f7e25]
+      - generic [ref=f7e26]:
+        - generic [ref=f7e27]: Industry
+        - combobox [ref=f7e28] [cursor=pointer]
+      - generic [ref=f7e32]:
+        - generic [ref=f7e33]: Lead Source
+        - combobox [ref=f7e34] [cursor=pointer]
+      - generic [ref=f7e38]:
+        - generic [ref=f7e39]: Service Interested In
+        - combobox [ref=f7e40] [cursor=pointer]
+      - generic [ref=f7e44]:
+        - generic [ref=f7e45]: Value Estimate (₹)
+        - spinbutton [ref=f7e46]
+      - generic [ref=f7e47]:
+        - generic [ref=f7e48]: Follow-up Date
+        - button "Select date…" [ref=f7e49] [cursor=pointer]
+      - generic [ref=f7e53]:
+        - generic [ref=f7e54]: Notes
+        - textbox [ref=f7e55]
+    - generic [ref=f7e56]:
+      - button "Cancel" [ref=f7e57] [cursor=pointer]
+      - button "Save Lead" [ref=f7e58] [cursor=pointer]

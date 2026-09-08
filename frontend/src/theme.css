@@ -439,10 +439,21 @@ button.badge:hover { opacity: .8; }
 
 /* ----------------------------------------------------------------- modal */
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(2px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+/* Radix's Dialog.Portal renders Overlay and Content as siblings, not
+   parent/child - .modal used to rely entirely on being a flex child of
+   .modal-overlay for its centering, which silently stopped working the
+   moment this moved to Radix (caught live: the modal rendered
+   top-left-anchored and washed-out behind the overlay, not centered on
+   top of it - a real bug this session's earlier code-review-only pass
+   missed, only found once an actual backend existed to click through).
+   .modal now centers and stacks itself, independent of Overlay. */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(2px); z-index: 200; padding: 20px; }
 .modal-overlay[data-state="open"] { animation: fade-in .12s var(--ease); }
 .modal-overlay[data-state="closed"] { animation: fade-out .16s var(--ease) forwards; }
-.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-xl); width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; overscroll-behavior: contain; box-shadow: var(--shadow-lg); }
+.modal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 201;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-xl); width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; overscroll-behavior: contain; box-shadow: var(--shadow-lg);
+}
 .modal[data-state="open"] { animation: modal-in .16s var(--ease); }
 .modal[data-state="closed"] { animation: modal-out .16s var(--ease) forwards; }
 .modal.wide { width: 780px; }
@@ -453,8 +464,8 @@ button.badge:hover { opacity: .8; }
 .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; position: sticky; bottom: 0; background: var(--bg2); border-radius: 0 0 var(--radius-xl) var(--radius-xl); box-shadow: 0 -8px 12px -8px rgba(0,0,0,.18); }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes modal-in { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
-@keyframes modal-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(6px) scale(.98); } }
+@keyframes modal-in { from { opacity: 0; transform: translate(-50%, -50%) translateY(6px) scale(.98); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes modal-out { from { opacity: 1; transform: translate(-50%, -50%); } to { opacity: 0; transform: translate(-50%, -50%) translateY(6px) scale(.98); } }
 
 .confirm-dialog { width: 420px; }
 .confirm-dialog-body { padding: 22px 20px 6px; display: flex; gap: 14px; align-items: flex-start; }
