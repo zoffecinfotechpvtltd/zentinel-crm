@@ -55,14 +55,20 @@
   --teal-soft: rgba(20, 184, 166, 0.12);
   --orange: #f59e0b;
 
-  /* scale */
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* scale - bumped up a full step from the original (sm 4/8/12/16) for a
+     more modern, less dated feel: sharp small-radius corners on every
+     button/input/badge read flat and utilitarian rather than deliberate. */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
   --shadow-sm: 0 1px 2px rgba(11, 16, 32, 0.06);
   --shadow-md: 0 4px 16px rgba(11, 16, 32, 0.08);
   --shadow-lg: 0 12px 32px rgba(11, 16, 32, 0.16);
+  /* Colored "glow" shadow for the primary action - a plain dark shadow
+     under a blue button looks like generic depth, not a deliberate
+     brand accent. */
+  --shadow-accent: 0 4px 14px rgba(37, 99, 255, 0.32);
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
@@ -93,6 +99,7 @@ body.dark {
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-accent: 0 4px 16px rgba(37, 99, 255, 0.45);
 }
 
 * { box-sizing: border-box; }
@@ -109,6 +116,7 @@ body {
   color: var(--text);
   font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-optical-sizing: auto;
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   /* Toggling body.dark swapped every color token instantly - a deliberate
      180ms cross-fade instead of a hard cut. (prefers-reduced-motion's
@@ -275,30 +283,32 @@ td.mono,
 /* ---------------------------------------------------------------- buttons */
 
 .btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: var(--radius);
-  font-size: 13px; cursor: pointer; border: 1px solid transparent; font-weight: 600;
-  transition: background-color .12s var(--ease), border-color .12s var(--ease), color .12s var(--ease), transform .12s var(--ease);
+  display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--radius);
+  font-size: 13px; cursor: pointer; border: 1px solid transparent; font-weight: 700; letter-spacing: -.005em;
+  transition: background-color .12s var(--ease), border-color .12s var(--ease), color .12s var(--ease),
+    transform .12s var(--ease), box-shadow .16s var(--ease);
   font-family: inherit; white-space: nowrap; text-decoration: none;
 }
 .btn svg { flex-shrink: 0; }
-.btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
-.btn-primary:hover { background: var(--accent2); }
+.btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow-accent); }
+.btn-primary:hover { background: var(--accent2); box-shadow: 0 6px 20px rgba(37, 99, 255, 0.4); transform: translateY(-1px); }
 /* --accent2 flips lighter in dark mode (needed so links/icons stay readable
    on dark surfaces) — wrong direction for a hover background under white
    button text, so dark mode brightens the base blue instead of swapping to
    accent2 here specifically. */
 body.dark .btn-primary:hover { background: var(--accent); filter: brightness(1.18); }
 .btn-ghost { background: var(--bg2); border-color: var(--border2); color: var(--text2); }
-.btn-ghost:hover { background: var(--bg3); color: var(--text); border-color: var(--text3); }
-.btn-danger { background: var(--danger); color: #fff; }
-.btn-danger:hover { background: #dc2626; }
-.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-ghost:hover { background: var(--bg3); color: var(--text); border-color: var(--text3); transform: translateY(-1px); }
+.btn-danger { background: var(--danger); color: #fff; box-shadow: 0 4px 14px rgba(220, 38, 38, 0.32); }
+.btn-danger:hover { background: #dc2626; transform: translateY(-1px); }
+.btn-sm { padding: 7px 13px; font-size: 12px; }
 .btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
 /* .5 read too faint against the page background specifically on
    btn-ghost (its own background is already close to the page's) - .65
    keeps the disabled affordance without dropping below a readable
    minimum. */
 .btn:disabled { opacity: .65; cursor: not-allowed; }
+.btn:disabled:hover { transform: none; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .icon-btn {
   width: 30px; height: 30px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg2);
