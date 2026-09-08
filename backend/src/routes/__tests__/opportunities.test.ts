@@ -268,5 +268,22 @@ describe("opportunities routes", () => {
       const listRes = await agent.get("/api/opportunities");
       expect(listRes.body.total).toBe(1);
     });
+
+    it("collapses internal whitespace so a double-spaced company name still dedupes against the tidy one", async () => {
+      const { agent } = await loginAs("admin");
+      const base = `Whitespace   Test   Co ${Date.now()}`;
+      const tidy = base.replace(/\s+/g, " ");
+      const first = await agent.post("/api/opportunities/import").attach("file", await buildImportRow(base), "template.xlsx");
+      expect(first.status).toBe(200);
+      expect(first.body.imported).toBe(1);
+
+      const listRes = await agent.get(`/api/opportunities?search=${encodeURIComponent(tidy)}`);
+      expect(listRes.body.data[0].company).toBe(tidy);
+
+      const second = await agent.post("/api/opportunities/import").attach("file", await buildImportRow(tidy), "template.xlsx");
+      expect(second.status).toBe(200);
+      expect(second.body.imported).toBe(0);
+      expect(second.body.duplicates).toBe(1);
+    });
   });
 });

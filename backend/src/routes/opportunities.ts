@@ -318,6 +318,14 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
     return;
   }
 
+  // Collapses runs of internal whitespace (tabs, double spaces, a stray
+  // line break pasted from a spreadsheet cell) down to a single space, on
+  // top of trimming the ends - "Acme   Corp" and "Acme Corp" land as the
+  // same string, both in what gets stored and in the dedupe key below,
+  // instead of two rows that look identical in the sheet quietly becoming
+  // two different-looking company names in the database.
+  const norm = (v: string) => v.replace(/\s+/g, " ").trim();
+
   const workbook = new ExcelJS.Workbook();
   try {
     // exceljs's .d.ts predates the current @types/node Buffer<ArrayBufferLike>
@@ -366,7 +374,7 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
   for (let r = 2; r <= sheet.rowCount; r++) {
     const row = sheet.getRow(r);
     const kindRaw = row.getCell(1).text.trim().toLowerCase();
-    const company = row.getCell(2).text.trim();
+    const company = norm(row.getCell(2).text);
     if (!kindRaw && !company) continue; // blank row
 
     if (!KINDS.includes(kindRaw as (typeof KINDS)[number])) {
@@ -415,7 +423,7 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
     }
 
     try {
-      const typeNames = row.getCell(5).text.split(",").map((s) => s.trim()).filter(Boolean);
+      const typeNames = row.getCell(5).text.split(",").map((s) => norm(s)).filter(Boolean);
       const typeIds: string[] = [];
       for (const name of typeNames) {
         const key = name.toLowerCase();
@@ -438,9 +446,9 @@ router.post("/import", importUpload.single("file"), async (req, res) => {
          ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)
          returning id`,
         [
-          kindRaw, company, row.getCell(3).text.trim() || null, row.getCell(4).text.trim() || null,
-          row.getCell(6).text.trim() || null, row.getCell(7).text.trim() || null,
-          stageRaw, followUpRaw || null, leadDateRaw || null, row.getCell(10).text.trim() || null, value, req.user!.id,
+          kindRaw, company, norm(row.getCell(3).text) || null, norm(row.getCell(4).text) || null,
+          norm(row.getCell(6).text) || null, row.getCell(7).text.trim() || null,
+          stageRaw, followUpRaw || null, leadDateRaw || null, norm(row.getCell(10).text) || null, value, req.user!.id,
         ]
       );
 
