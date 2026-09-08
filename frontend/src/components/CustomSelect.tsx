@@ -47,9 +47,20 @@ export function CustomSelect({
     );
   }
 
+  // The sentinel only needs to stand in for "" when "" is itself one of
+  // the real options (an explicit "All ___" entry) - Select.Item forbids
+  // registering "" directly, so that case needs the swap. When "" is
+  // just "nothing picked yet" and isn't in `options` at all, passing it
+  // straight through lets Radix's OWN native "no selection" handling
+  // show Select.Value's placeholder - translating it to the sentinel
+  // here left Radix thinking a real (if unmatched) value was selected,
+  // which rendered the trigger completely blank instead of the
+  // placeholder text (caught live by axe-core on Automation Rules' status/
+  // notify pickers, which have no "Select…" option of their own).
+  const hasEmptyOption = options.some((o) => o.value === "");
   return (
     <Select.Root
-      value={value === "" ? EMPTY_SENTINEL : value}
+      value={value === "" ? (hasEmptyOption ? EMPTY_SENTINEL : "") : value}
       onValueChange={(v) => onChange(v === EMPTY_SENTINEL ? "" : v)}
       disabled={disabled}
     >

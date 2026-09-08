@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { api, ApiError } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { Badge } from "../components/Badge";
@@ -7,6 +9,7 @@ import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { IconSparkle, IconInbox } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
+import { automationRuleFormSchema, emptyAutomationRuleForm, ENTITY_TYPES as ENTITY_TYPE_VALUES, type AutomationRuleFormValues } from "../lib/schemas/automationRule";
 
 type Rule = {
   id: string; name: string; entity_type: string; trigger_status: string;
@@ -15,12 +18,7 @@ type Rule = {
 };
 type User = { id: string; name: string; role: string };
 
-const ENTITY_TYPES = [
-  { value: "lead", label: "Lead" },
-  { value: "opportunity", label: "Opportunity" },
-  { value: "invoice", label: "Invoice" },
-  { value: "project", label: "Project" },
-];
+const ENTITY_TYPES = ENTITY_TYPE_VALUES.map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }));
 const STATUS_OPTIONS: Record<string, string[]> = {
   lead: ["New", "Contacted", "Qualified", "Proposal Sent", "Negotiation", "Won", "Lost"],
   opportunity: ["Open", "Proposal Sent", "Won", "Lost"],
@@ -35,16 +33,18 @@ const ROLES = [
   { value: "superadmin", label: "Superadmin" },
 ];
 
-const emptyForm = { name: "", entity_type: "lead", trigger_status: "", notify_target: "", message_template: "{company} moved to {status}" };
-
 export function AutomationRules() {
   const queryClient = useQueryClient();
   const { data: rules } = useQuery({ queryKey: ["automation-rules"], queryFn: () => api.get<Rule[]>("/automation-rules") });
   const { data: users } = useQuery({ queryKey: ["users"], queryFn: () => api.get<User[]>("/users") });
   const { push } = useToast();
   const confirm = useConfirm();
-  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [shaking, setShaking] = useState(false);
+  const {
+    register, handleSubmit, watch, setValue, reset,
+    formState: { errors },
+  } = useForm<AutomationRuleFormValues>({ resolver: zodResolver(automationRuleFormSchema), defaultValues: emptyAutomationRuleForm });
 
   const notifyOptions = [
     ...ROLES.map((r) => ({ value: `role:${r.value}`, label: `Role - ${r.label}` })),
@@ -56,28 +56,30 @@ export function AutomationRules() {
       api.post("/automation-rules", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["automation-rules"] });
-      setForm(emptyForm);
+      reset(emptyAutomationRuleForm);
       push("Rule created", "success");
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to create rule"),
   });
 
-  function createRule() {
-    setError(null);
-    if (!form.notify_target) {
-      setError("Pick who gets notified");
-      return;
+  const createRule = handleSubmit(
+    (values) => {
+      setError(null);
+      const [kind, value] = values.notify_target.split(":");
+      createMutation.mutate({
+        name: values.name,
+        entity_type: values.entity_type,
+        trigger_status: values.trigger_status,
+        notify_role: kind === "role" ? value : undefined,
+        notify_user_id: kind === "user" ? value : undefined,
+        message_template: values.message_template,
+      });
+    },
+    () => {
+      setShaking(true);
+      setTimeout(() => setShaking(false), 400);
     }
-    const [kind, value] = form.notify_target.split(":");
-    createMutation.mutate({
-      name: form.name,
-      entity_type: form.entity_type,
-      trigger_status: form.trigger_status,
-      notify_role: kind === "role" ? value : undefined,
-      notify_user_id: kind === "user" ? value : undefined,
-      message_template: form.message_template,
-    });
-  }
+  );
 
   const toggleMutation = useMutation({
     mutationFn: (r: Rule) => api.patch(`/automation-rules/${r.id}`, { is_active: !r.is_active }),
@@ -145,43 +147,50 @@ export function AutomationRules() {
       <div className="card">
         <div className="card-title">New Rule</div>
         {error && <div className="banner banner-error">{error}</div>}
-        <div className="form-grid" style={{ marginBottom: 12 }}>
+        <div className={`form-grid${shaking ? " shake-on-invalid" : ""}`} style={{ marginBottom: 12 }}>
           <div className="form-group full">
             <label className="form-label">Rule Name *</label>
-            <input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Notify Finance when a lead is Won" />
+            <input className="form-input" {...register("name")} placeholder="Notify Finance when a lead is Won" />
+            {errors.name && <div className="form-error">{errors.name.message}</div>}
           </div>
           <div className="form-group">
             <label className="form-label">When this record type…</label>
             <CustomSelect
-              value={form.entity_type}
-              onChange={(v) => setForm({ ...form, entity_type: v, trigger_status: "" })}
+              ariaLabel="When this record type…"
+              value={watch("entity_type")}
+              onChange={(v) => { setValue("entity_type", v as AutomationRuleFormValues["entity_type"]); setValue("trigger_status", ""); }}
               options={ENTITY_TYPES}
             />
           </div>
           <div className="form-group">
             <label className="form-label">…reaches this status</label>
             <CustomSelect
-              value={form.trigger_status}
-              onChange={(v) => setForm({ ...form, trigger_status: v })}
+              ariaLabel="…reaches this status"
+              value={watch("trigger_status")}
+              onChange={(v) => setValue("trigger_status", v, { shouldValidate: true })}
               placeholder="Select status…"
-              options={(STATUS_OPTIONS[form.entity_type] ?? []).map((s) => ({ value: s, label: s }))}
+              options={(STATUS_OPTIONS[watch("entity_type")] ?? []).map((s) => ({ value: s, label: s }))}
             />
+            {errors.trigger_status && <div className="form-error">{errors.trigger_status.message}</div>}
           </div>
           <div className="form-group full">
             <label className="form-label">Notify</label>
             <CustomSelect
-              value={form.notify_target}
-              onChange={(v) => setForm({ ...form, notify_target: v })}
+              ariaLabel="Notify"
+              value={watch("notify_target")}
+              onChange={(v) => setValue("notify_target", v, { shouldValidate: true })}
               placeholder="Select a role or person…"
               options={notifyOptions}
             />
+            {errors.notify_target && <div className="form-error">{errors.notify_target.message}</div>}
           </div>
           <div className="form-group full">
-            <label className="form-label">Message ({"{company}"} and {"{status}"} get filled in)</label>
-            <input className="form-input" value={form.message_template} onChange={(e) => setForm({ ...form, message_template: e.target.value })} />
+            <label className="form-label" htmlFor="rule-message-template">Message ({"{company}"} and {"{status}"} get filled in)</label>
+            <input id="rule-message-template" className="form-input" {...register("message_template")} />
+            {errors.message_template && <div className="form-error">{errors.message_template.message}</div>}
           </div>
         </div>
-        <button type="button" className="btn btn-primary btn-sm" onClick={createRule} disabled={!form.name || !form.trigger_status || !form.notify_target}>
+        <button type="button" className="btn btn-primary btn-sm" onClick={createRule}>
           + Create Rule
         </button>
       </div>
