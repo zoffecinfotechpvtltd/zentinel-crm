@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import { useFetch, useInfiniteFetch } from "../lib/useFetch";
 import { api, ApiError, downloadFile } from "../lib/api";
@@ -15,8 +17,7 @@ import { formatDate } from "../lib/format";
 import { IconProjects, IconPlus, IconInbox, IconCalendar } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
-
-const STATUSES = ["Not Started", "In Progress", "Awaiting Client", "Completed", "On Hold"];
+import { projectFormSchema, emptyProjectForm, STATUSES, type ProjectFormValues } from "../lib/schemas/project";
 
 type Project = {
   id: string; name: string; client_id: string; status: string; progress: number;
@@ -31,8 +32,6 @@ type Client = { id: string; company: string };
 type Assignable = { id: string; name: string; role: string };
 type LinkedOpportunity = { id: string; kind: string; company: string; stage: string };
 type ListResponse<T> = { data: T[]; total: number; page: number; per_page: number };
-
-const emptyForm = { name: "", client_id: "", opportunity_id: "", assigned_to: "", start_date: "", due_date: "", status: "Not Started", progress: "0", remarks: "" };
 
 export function Projects() {
   const { user } = useAuth();
@@ -54,10 +53,15 @@ export function Projects() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
-  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [shaking, setShaking] = useState(false);
+  const {
+    register, handleSubmit, watch, setValue, reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ProjectFormValues>({ resolver: zodResolver(projectFormSchema), defaultValues: emptyProjectForm });
 
-  const activeClientId = editing ? editing.client_id : form.client_id;
+  const formClientId = watch("client_id");
+  const activeClientId = editing ? editing.client_id : formClientId;
   const { data: clientOpportunities } = useFetch<ListResponse<LinkedOpportunity>>(
     activeClientId ? `/opportunities?client_id=${activeClientId}&per_page=100` : "",
     [activeClientId]
@@ -136,43 +140,49 @@ export function Projects() {
 
   function openAdd() {
     setEditing(null);
-    setForm(emptyForm);
+    reset(emptyProjectForm);
     setError(null);
     setModalOpen(true);
   }
   function openEdit(p: Project) {
     setEditing(p);
-    setForm({
+    reset({
       name: p.name, client_id: p.client_id, opportunity_id: p.opportunity_id ?? "", assigned_to: p.assigned_to ?? "", start_date: "", due_date: p.due_date ?? "",
-      status: p.status, progress: String(p.progress), remarks: "",
+      status: p.status as (typeof STATUSES)[number], progress: String(p.progress), remarks: "",
     });
     setError(null);
     setModalOpen(true);
   }
 
-  async function save() {
-    setError(null);
-    const payload = {
-      name: form.name, client_id: form.client_id || undefined, opportunity_id: form.opportunity_id || (editing ? null : undefined),
-      assigned_to: form.assigned_to || (editing ? null : undefined),
-      start_date: form.start_date || undefined, due_date: form.due_date || (editing ? null : undefined),
-      status: form.status, progress: Number(form.progress), remarks: form.remarks || undefined,
-    };
-    try {
-      if (editing) {
-        const { client_id: _client_id, ...rest } = payload;
-        await api.patch(`/projects/${editing.id}`, rest);
-        push("Project updated", "success");
-      } else {
-        await api.post("/projects", payload);
-        push("Project created", "success");
+  const save = handleSubmit(
+    async (values) => {
+      setError(null);
+      const payload = {
+        name: values.name, client_id: values.client_id || undefined, opportunity_id: values.opportunity_id || (editing ? null : undefined),
+        assigned_to: values.assigned_to || (editing ? null : undefined),
+        start_date: values.start_date || undefined, due_date: values.due_date || (editing ? null : undefined),
+        status: values.status, progress: Number(values.progress), remarks: values.remarks || undefined,
+      };
+      try {
+        if (editing) {
+          const { client_id: _client_id, ...rest } = payload;
+          await api.patch(`/projects/${editing.id}`, rest);
+          push("Project updated", "success");
+        } else {
+          await api.post("/projects", payload);
+          push("Project created", "success");
+        }
+        setModalOpen(false);
+        reload();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Failed to save");
       }
-      setModalOpen(false);
-      reload();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save");
+    },
+    () => {
+      setShaking(true);
+      setTimeout(() => setShaking(false), 400);
     }
-  }
+  );
 
   async function remove(p: Project) {
     if (!(await confirm({ message: `Delete project "${p.name}"? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
@@ -265,28 +275,33 @@ export function Projects() {
       {modalOpen && (
         <Modal title={editing ? "Edit Project" : "Add New Project"} onClose={() => setModalOpen(false)} wide={!!editing} footer={<>
           <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={save}>Save Project</button>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={isSubmitting}>{isSubmitting ? "Saving…" : "Save Project"}</button>
         </>}>
           {error && <div className="banner banner-error">{error}</div>}
-          <div className="form-grid">
-            <div className="form-group full"><label className="form-label">Project Name *</label><input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className={`form-grid${shaking ? " shake-on-invalid" : ""}`}>
+            <div className="form-group full">
+              <label className="form-label">Project Name *</label>
+              <input className="form-input" {...register("name")} />
+              {errors.name && <div className="form-error">{errors.name.message}</div>}
+            </div>
             {!editing && (
               <div className="form-group full">
                 <label className="form-label">Client *</label>
                 <CustomSelect
-                  value={form.client_id}
-                  onChange={(v) => setForm({ ...form, client_id: v, opportunity_id: "" })}
+                  value={formClientId}
+                  onChange={(v) => { setValue("client_id", v, { shouldValidate: true }); setValue("opportunity_id", ""); }}
                   placeholder="Select client…"
                   options={clientsResp?.data.map((c) => ({ value: c.id, label: c.company })) ?? []}
                 />
+                {errors.client_id && <div className="form-error">{errors.client_id.message}</div>}
               </div>
             )}
             {activeClientId && (clientOpportunities?.data.length ?? 0) > 0 && (
               <div className="form-group full">
                 <label className="form-label">Link to Opportunity</label>
                 <CustomSelect
-                  value={form.opportunity_id}
-                  onChange={(v) => setForm({ ...form, opportunity_id: v })}
+                  value={watch("opportunity_id")}
+                  onChange={(v) => setValue("opportunity_id", v)}
                   placeholder="Not linked to an opportunity"
                   options={clientOpportunities?.data.map((o) => ({ value: o.id, label: `${o.kind} - ${o.company} (${o.stage})` })) ?? []}
                 />
@@ -295,8 +310,8 @@ export function Projects() {
             <div className="form-group">
               <label className="form-label">Assigned To</label>
               <CustomSelect
-                value={form.assigned_to}
-                onChange={(v) => setForm({ ...form, assigned_to: v })}
+                value={watch("assigned_to")}
+                onChange={(v) => setValue("assigned_to", v)}
                 placeholder="Unassigned"
                 options={assignable?.map((u) => ({ value: u.id, label: `${u.name} (${u.role})` })) ?? []}
               />
@@ -304,15 +319,29 @@ export function Projects() {
             <div className="form-group">
               <label className="form-label">Status</label>
               <CustomSelect
-                value={form.status}
-                onChange={(v) => setForm({ ...form, status: v })}
+                value={watch("status")}
+                onChange={(v) => setValue("status", v as (typeof STATUSES)[number])}
                 options={STATUSES.map((s) => ({ value: s, label: s }))}
               />
             </div>
-            <div className="form-group"><label className="form-label">Start Date</label><CustomDatePicker value={form.start_date} onChange={(v) => setForm({ ...form, start_date: v })} /></div>
-            <div className="form-group"><label className="form-label">Due Date</label><CustomDatePicker value={form.due_date} onChange={(v) => setForm({ ...form, due_date: v })} /></div>
-            <div className="form-group"><label className="form-label">Progress (%)</label><input className="form-input" type="number" min={0} max={100} value={form.progress} onChange={(e) => setForm({ ...form, progress: e.target.value })} /></div>
-            <div className="form-group full"><label className="form-label">Remarks</label><textarea className="form-textarea" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} /></div>
+            <div className="form-group">
+              <label className="form-label">Start Date</label>
+              <CustomDatePicker value={watch("start_date") ?? ""} onChange={(v) => setValue("start_date", v, { shouldValidate: true })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Due Date</label>
+              <CustomDatePicker value={watch("due_date") ?? ""} onChange={(v) => setValue("due_date", v, { shouldValidate: true })} />
+              {errors.due_date && <div className="form-error">{errors.due_date.message}</div>}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Progress (%)</label>
+              <input className="form-input" type="number" min={0} max={100} {...register("progress")} />
+              {errors.progress && <div className="form-error">{errors.progress.message}</div>}
+            </div>
+            <div className="form-group full">
+              <label className="form-label">Remarks</label>
+              <textarea className="form-textarea" {...register("remarks")} />
+            </div>
           </div>
           {editing && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
