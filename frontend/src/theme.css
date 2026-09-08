@@ -823,15 +823,27 @@ button.badge:hover { opacity: .8; }
 
 /* ----------------------------------------------------------------- toast */
 
-.toast-stack { position: fixed; bottom: 20px; right: 20px; z-index: 400; display: flex; flex-direction: column; gap: 8px; max-width: 340px; }
+.toast-stack { position: fixed; bottom: 20px; right: 20px; z-index: 400; display: flex; flex-direction: column; gap: 8px; max-width: 340px; list-style: none; margin: 0; padding: 0; outline: none; }
 .toast {
   background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
   box-shadow: var(--shadow-lg); display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--text);
+  list-style: none;
 }
 .toast.success { border-left: 3px solid var(--success); }
 .toast.error { border-left: 3px solid var(--danger); }
 .toast.info { border-left: 3px solid var(--info); }
 .toast-close { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; padding: 0; line-height: 1; }
+/* Enter/exit + swipe-to-dismiss, keyed off Radix's own data-state/
+   data-swipe attributes (see the comment in Toast.tsx for why this is
+   CSS and not Motion). */
+.toast[data-state="open"] { animation: toast-in .18s var(--ease); }
+.toast[data-state="closed"] { animation: toast-out .15s var(--ease) forwards; }
+.toast[data-swipe="move"] { transform: translateX(var(--radix-toast-swipe-move-x)); }
+.toast[data-swipe="cancel"] { transform: translateX(0); transition: transform .15s var(--ease); }
+.toast[data-swipe="end"] { animation: toast-swipe-out .15s var(--ease) forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.96); } }
+@keyframes toast-swipe-out { from { transform: translateX(var(--radix-toast-swipe-end-x)); opacity: 1; } to { transform: translateX(150%); opacity: 0; } }
 
 /* ---------------------------------------------------------- command palette */
 
