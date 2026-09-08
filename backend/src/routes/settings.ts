@@ -58,7 +58,12 @@ const smtpConfigSchema = z.object({
   host: z.string().min(1),
   port: z.number().int().positive(),
   user: z.string().min(1),
-  pass: z.string().min(1),
+  // Optional so re-saving host/port/user/from doesn't force re-entering the
+  // password every time - the UI's own "unchanged - enter to update"
+  // placeholder promises exactly that, but until this fix the backend
+  // still required pass unconditionally, so an intentionally-blank pass
+  // silently failed validation instead of actually leaving it unchanged.
+  pass: z.string().optional(),
   from: z.string().min(1),
 });
 
@@ -68,12 +73,22 @@ router.put("/smtp", async (req, res) => {
     res.status(400).json({ error: "invalid_input", details: parsed.error.flatten() });
     return;
   }
+  let pass = parsed.data.pass;
+  if (!pass) {
+    const existing = await pool.query(`select value from settings where key = 'smtp_config'`);
+    pass = existing.rows[0]?.value?.pass;
+    if (!pass) {
+      res.status(400).json({ error: "invalid_input", details: { fieldErrors: { pass: ["Password is required"] } } });
+      return;
+    }
+  }
+  const toStore = { ...parsed.data, pass };
   await pool.query(
     `insert into settings (key, value, updated_by, updated_at) values ('smtp_config', $1, $2, now())
      on conflict (key) do update set value = $1, updated_by = $2, updated_at = now()`,
-    [JSON.stringify(parsed.data), req.user!.id]
+    [JSON.stringify(toStore), req.user!.id]
   );
-  const { pass: _pass, ...safe } = parsed.data;
+  const { pass: _pass, ...safe } = toStore;
   res.json(safe);
 });
 

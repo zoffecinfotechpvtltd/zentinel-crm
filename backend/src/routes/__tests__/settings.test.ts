@@ -33,6 +33,18 @@ describe("settings routes", () => {
       expect(getRes.body.pass).toBeUndefined();
       expect(getRes.body.host).toBe("smtp.test");
     });
+
+    it("re-saving SMTP config with pass omitted keeps the existing password rather than requiring it every time", async () => {
+      const { agent } = await loginAs("admin");
+      await agent.put("/api/settings/smtp").send({ host: "smtp.test", port: 587, user: "u", pass: "secret", from: "noreply@test.local" });
+
+      const putRes = await agent.put("/api/settings/smtp").send({ host: "smtp.updated", port: 465, user: "u2", from: "noreply2@test.local" });
+      expect(putRes.status).toBe(200);
+      expect(putRes.body.host).toBe("smtp.updated");
+
+      const testRes = await agent.post("/api/settings/smtp/test").send({ to: "someone@test.local" });
+      expect(testRes.body.error).not.toBe("smtp_not_configured");
+    });
   });
 
   describe("validation / edge case", () => {
@@ -41,6 +53,13 @@ describe("settings routes", () => {
       const res = await agent.get("/api/settings/smtp");
       expect(res.status).toBe(200);
       expect(res.body).toBeNull();
+    });
+
+    it("PUT /smtp with no pass and nothing previously saved requires a password", async () => {
+      const { agent } = await loginAs("admin");
+      const res = await agent.put("/api/settings/smtp").send({ host: "smtp.test", port: 587, user: "u", from: "noreply@test.local" });
+      expect(res.status).toBe(400);
+      expect(res.body.details.fieldErrors.pass[0]).toBe("Password is required");
     });
 
     it("smtp/test fails with smtp_not_configured before any SMTP config is saved", async () => {

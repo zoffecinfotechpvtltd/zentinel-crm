@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useFetch } from "../lib/useFetch";
 import { api, ApiError, API_BASE, downloadFile } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { IconSettings, IconEye, IconEyeOff } from "../components/Icons";
+import { buildSmtpFormSchema, emptySmtpForm, type SmtpFormValues } from "../lib/schemas/smtp";
 
 const RESTORE_CONFIRM_PHRASE = "REPLACE ALL DATA";
 
@@ -15,7 +18,7 @@ type IntegrationsConfig = { lead_webhook_secret: string | null; outbound_webhook
 export function Settings() {
   const { push } = useToast();
   const confirm = useConfirm();
-  const { data, reload } = useFetch<SmtpConfig | null>("/settings/smtp");
+  const { data, loading: smtpLoading, reload } = useFetch<SmtpConfig | null>("/settings/smtp");
   const { data: serverInfo } = useFetch<ServerInfo>("/system/server-info");
   const { data: integrations, reload: reloadIntegrations } = useFetch<IntegrationsConfig>("/settings/integrations");
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -23,9 +26,9 @@ export function Settings() {
   const [regenerating, setRegenerating] = useState(false);
   const [secretRevealed, setSecretRevealed] = useState(false);
   const [smtpPassRevealed, setSmtpPassRevealed] = useState(false);
-  const [form, setForm] = useState({ host: "", port: "587", user: "", pass: "", from: "" });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shaking, setShaking] = useState(false);
   const [testTo, setTestTo] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,11 +37,15 @@ export function Settings() {
   const [restoreConfirmText, setRestoreConfirmText] = useState("");
   const [restoring, setRestoring] = useState(false);
 
+  const {
+    register, handleSubmit, reset, formState: { errors, isSubmitting },
+  } = useForm<SmtpFormValues>({ resolver: zodResolver(buildSmtpFormSchema(!smtpLoading && !data)), defaultValues: emptySmtpForm });
+
   useEffect(() => {
     if (data) {
-      setForm({ host: data.host, port: String(data.port), user: data.user, pass: "", from: data.from });
+      reset({ host: data.host, port: String(data.port), user: data.user, pass: "", from: data.from });
     }
-  }, [data]);
+  }, [data, reset]);
 
   useEffect(() => {
     if (integrations) setWebhookUrl(integrations.outbound_webhook_url ?? "");
@@ -67,20 +74,23 @@ export function Settings() {
     }
   }
 
-  async function save() {
-    setError(null);
-    setSaved(false);
-    setBusy(true);
-    try {
-      await api.put("/settings/smtp", { ...form, port: Number(form.port) });
-      setSaved(true);
-      reload();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save");
-    } finally {
-      setBusy(false);
+  const save = handleSubmit(
+    async (values) => {
+      setError(null);
+      setSaved(false);
+      try {
+        await api.put("/settings/smtp", { ...values, pass: values.pass || undefined, port: Number(values.port) });
+        setSaved(true);
+        reload();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Failed to save");
+      }
+    },
+    () => {
+      setShaking(true);
+      setTimeout(() => setShaking(false), 400);
     }
-  }
+  );
 
   async function restoreFromBackup() {
     if (!restoreFile || restoreConfirmText !== RESTORE_CONFIRM_PHRASE) return;
@@ -126,18 +136,21 @@ export function Settings() {
         </p>
         {error && <div className="banner banner-error">{error}</div>}
         {saved && <div className="banner banner-info">Saved.</div>}
-        <div className="form-grid" style={{ marginBottom: 16 }}>
+        <div className={`form-grid${shaking ? " shake-on-invalid" : ""}`} style={{ marginBottom: 16 }}>
           <div className="form-group">
             <label className="form-label">SMTP Host</label>
-            <input className="form-input" value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="smtp.gmail.com" />
+            <input className="form-input" {...register("host")} placeholder="smtp.gmail.com" />
+            {errors.host && <div className="form-error">{errors.host.message}</div>}
           </div>
           <div className="form-group">
             <label className="form-label">Port</label>
-            <input className="form-input" type="number" value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value })} />
+            <input className="form-input" type="number" {...register("port")} />
+            {errors.port && <div className="form-error">{errors.port.message}</div>}
           </div>
           <div className="form-group">
             <label className="form-label">Username</label>
-            <input className="form-input" value={form.user} onChange={(e) => setForm({ ...form, user: e.target.value })} />
+            <input className="form-input" {...register("user")} />
+            {errors.user && <div className="form-error">{errors.user.message}</div>}
           </div>
           <div className="form-group">
             <label className="form-label">Password / App key</label>
@@ -145,8 +158,7 @@ export function Settings() {
               <input
                 className="form-input"
                 type={smtpPassRevealed ? "text" : "password"}
-                value={form.pass}
-                onChange={(e) => setForm({ ...form, pass: e.target.value })}
+                {...register("pass")}
                 placeholder={data ? "unchanged - enter to update" : ""}
                 autoComplete="off"
                 spellCheck={false}
@@ -155,13 +167,15 @@ export function Settings() {
                 {smtpPassRevealed ? <IconEyeOff size={13} /> : <IconEye size={13} />}
               </button>
             </div>
+            {errors.pass && <div className="form-error">{errors.pass.message}</div>}
           </div>
           <div className="form-group full">
             <label className="form-label">"From" address</label>
-            <input className="form-input" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} placeholder="Zentinel <no-reply@yourcompany.com>" />
+            <input className="form-input" {...register("from")} placeholder="Zentinel <no-reply@yourcompany.com>" />
+            {errors.from && <div className="form-error">{errors.from.message}</div>}
           </div>
         </div>
-        <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>Save</button>
+        <button type="button" className="btn btn-primary" onClick={save} disabled={isSubmitting}>{isSubmitting ? "Saving…" : "Save"}</button>
 
         <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
           <div className="form-group" style={{ marginBottom: 10 }}>
