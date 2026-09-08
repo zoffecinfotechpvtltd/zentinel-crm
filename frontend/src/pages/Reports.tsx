@@ -1,11 +1,12 @@
 import { useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useFetch } from "../lib/useFetch";
 import { downloadFile } from "../lib/api";
 import { formatMoney, formatMoneyExact, formatDate } from "../lib/format";
 import { Badge } from "../components/Badge";
 import { PageHeader } from "../components/PageHeader";
-import { IconReports } from "../components/Icons";
+import { IconReports, IconInbox } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
 import { CustomDatePicker } from "../components/CustomDatePicker";
 
@@ -37,6 +38,43 @@ type OpportunityPipelineReport = {
   open_by_rep: { assigned_to: string | null; rep_name: string; total: number; count: number }[];
 };
 
+// Same stage/status -> hex map Dashboard.tsx's funnel chart uses, kept in
+// sync by hand for now (see the "Full color hex-value cross-check" note -
+// no shared chart-palette module exists yet) so a lead's status reads as
+// the same color on both screens.
+const STAGE_COLORS: Record<string, string> = {
+  New: "#06b6d4", Contacted: "#94a3b8", Qualified: "#7c3aed", "Proposal Sent": "#b45309",
+  Negotiation: "#f59e0b", Won: "#16a34a", Lost: "#dc2626",
+};
+const INVOICE_STATUS_COLORS: Record<string, string> = {
+  Overdue: "#dc2626", Sent: "#2563ff", Partial: "#f59e0b", Draft: "#94a3b8", Final: "#6366f1", Paid: "#16a34a", Cancelled: "#94a3b8",
+};
+
+function ChartEmpty({ children }: { children: React.ReactNode }) {
+  return <div className="empty"><div className="empty-icon"><IconInbox size={26} /></div>{children}</div>;
+}
+
+function monthLabel(m: string) {
+  return new Date(m).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+}
+
+// One tooltip/axis look shared by every bar chart on this page, so the
+// five tabs read as one report suite rather than five one-off charts.
+function moneyChart(data: { label: string; value: number }[], barColor: string | ((label: string) => string)) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data}>
+        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => formatMoney(v)} />
+        <Tooltip formatter={(v) => formatMoney(Number(v))} contentStyle={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+          {data.map((d) => <Cell key={d.label} fill={typeof barColor === "function" ? barColor(d.label) : barColor} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function Reports() {
   const [tab, setTab] = useState("conversion");
   const [from, setFrom] = useState("");
@@ -54,6 +92,10 @@ export function Reports() {
   function exportPending() {
     downloadFile(`/reports/payment-pending/export${statusFilter ? `?status=${statusFilter}` : ""}`, "payment-pending.xlsx");
   }
+
+  const pendingByStatus = Object.entries(
+    (pending?.data ?? []).reduce<Record<string, number>>((acc, r) => { acc[r.status] = (acc[r.status] ?? 0) + Number(r.balance); return acc; }, {})
+  ).map(([label, value]) => ({ label, value }));
 
   return (
     <div>
@@ -81,6 +123,22 @@ export function Reports() {
           </div>
           <div className="card">
             <div className="card-title">Funnel by Stage</div>
+            <div className="chart-wrap">
+              {conversion.funnel.some((f) => Number(f.count) > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={conversion.funnel.map((f) => ({ label: f.status, value: Number(f.count) }))}>
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={false} tickLine={false} width={30} allowDecimals={false} />
+                    <Tooltip contentStyle={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="value" name="Leads" radius={[4, 4, 0, 0]}>
+                      {conversion.funnel.map((f) => <Cell key={f.status} fill={STAGE_COLORS[f.status] ?? "#94a3b8"} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ChartEmpty>No leads in this range</ChartEmpty>
+              )}
+            </div>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Stage</th><th>Count</th><th>Pipeline Value</th></tr></thead>
@@ -104,6 +162,16 @@ export function Reports() {
             <div className="report-stat"><div className="report-stat-val" style={{ color: "var(--success)" }}>{formatMoney(revenue.fy_actual)}</div><div className="report-stat-label">FY Actual</div></div>
             <div className="report-stat"><div className="report-stat-val" style={{ color: "var(--accent)" }}>{revenue.fy_target ? formatMoney(revenue.fy_target.amount) : "not set"}</div><div className="report-stat-label">FY Target</div></div>
             <div className="report-stat"><div className="report-stat-val" style={{ color: "var(--info)" }}>{revenue.fy_target ? `${Math.round((revenue.fy_actual / revenue.fy_target.amount) * 100)}%` : "-"}</div><div className="report-stat-label">of Target</div></div>
+          </div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-title">Monthly Trend</div>
+            <div className="chart-wrap">
+              {revenue.monthly_trend.some((m) => Number(m.total) > 0) ? (
+                moneyChart(revenue.monthly_trend.map((m) => ({ label: monthLabel(m.month), value: Number(m.total) })), "#2563ff")
+              ) : (
+                <ChartEmpty>No payments recorded yet</ChartEmpty>
+              )}
+            </div>
           </div>
           <div className="grid2">
             <div className="card">
@@ -141,6 +209,16 @@ export function Reports() {
             />
             <button type="button" className="btn btn-ghost" onClick={exportPending}>⭳ Export Excel</button>
           </div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-title">Balance Outstanding by Status</div>
+            <div className="chart-wrap">
+              {pendingByStatus.length > 0 ? (
+                moneyChart(pendingByStatus, (label) => INVOICE_STATUS_COLORS[label] ?? "#94a3b8")
+              ) : (
+                <ChartEmpty>Nothing pending</ChartEmpty>
+              )}
+            </div>
+          </div>
           <div className="card" style={{ padding: 0 }}>
             <div className="table-wrap">
               <table>
@@ -163,6 +241,13 @@ export function Reports() {
         <div className="grid2">
           <div className="card">
             <div className="card-title">Revenue by Service</div>
+            <div className="chart-wrap">
+              {service.revenue_by_service.some((s) => Number(s.revenue) > 0) ? (
+                moneyChart(service.revenue_by_service.map((s) => ({ label: s.name, value: Number(s.revenue) })), "#2563ff")
+              ) : (
+                <ChartEmpty>No revenue yet</ChartEmpty>
+              )}
+            </div>
             <div className="table-wrap">
               <table><thead><tr><th>Service</th><th>Revenue</th></tr></thead>
                 <tbody>{service.revenue_by_service.map((s) => <tr key={s.service_id}><td>{s.name}</td><td className="mono">{formatMoney(s.revenue)}</td></tr>)}</tbody>
@@ -171,6 +256,20 @@ export function Reports() {
           </div>
           <div className="card">
             <div className="card-title">Lead Volume by Service</div>
+            <div className="chart-wrap">
+              {service.lead_volume_by_service.some((s) => Number(s.lead_count) > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={service.lead_volume_by_service.map((s) => ({ label: s.name, value: Number(s.lead_count) }))}>
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={false} tickLine={false} width={30} allowDecimals={false} />
+                    <Tooltip contentStyle={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="value" name="Leads" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ChartEmpty>No leads yet</ChartEmpty>
+              )}
+            </div>
             <div className="table-wrap">
               <table><thead><tr><th>Service</th><th>Leads</th></tr></thead>
                 <tbody>{service.lead_volume_by_service.map((s) => <tr key={s.service_id}><td>{s.name}</td><td>{s.lead_count}</td></tr>)}</tbody>
@@ -186,6 +285,13 @@ export function Reports() {
         <div className="grid2">
           <div className="card">
             <div className="card-title">Won Value by Month</div>
+            <div className="chart-wrap">
+              {opportunityPipeline.won_by_month.some((m) => Number(m.total) > 0) ? (
+                moneyChart(opportunityPipeline.won_by_month.map((m) => ({ label: monthLabel(m.month), value: Number(m.total) })), "#16a34a")
+              ) : (
+                <ChartEmpty>No Won opportunities in this range</ChartEmpty>
+              )}
+            </div>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Month</th><th>Won Value</th></tr></thead>
@@ -200,6 +306,13 @@ export function Reports() {
           </div>
           <div className="card">
             <div className="card-title">Open Pipeline by Rep</div>
+            <div className="chart-wrap">
+              {opportunityPipeline.open_by_rep.some((r) => r.total > 0) ? (
+                moneyChart(opportunityPipeline.open_by_rep.map((r) => ({ label: r.rep_name, value: r.total })), "#f59e0b")
+              ) : (
+                <ChartEmpty>No open opportunities</ChartEmpty>
+              )}
+            </div>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Rep</th><th>Open Deals</th><th>Pipeline Value</th></tr></thead>
