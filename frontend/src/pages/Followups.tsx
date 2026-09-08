@@ -73,10 +73,23 @@ export function Followups() {
   );
 }
 
+function useFollowupTabCounts(base: "/leads" | "/invoices") {
+  // One cheap (per_page=1, just reading `total`) request per bucket, so
+  // every tab can show its own count at once instead of only whichever
+  // one happens to be active - the active tab's full useFetch below
+  // covers that tab already, this is purely for the four tab labels.
+  const today = useFetch<ListResponse<unknown>>(`${base}?followup=today&per_page=1`);
+  const upcoming = useFetch<ListResponse<unknown>>(`${base}?followup=upcoming&per_page=1`);
+  const overdue = useFetch<ListResponse<unknown>>(`${base}?followup=overdue&per_page=1`);
+  const all = useFetch<ListResponse<unknown>>(`${base}?followup=all&per_page=1`);
+  return { today: today.data?.total, upcoming: upcoming.data?.total, overdue: overdue.data?.total, all: all.data?.total };
+}
+
 function SalesFollowups({ tab, setTab }: { tab: string; setTab: (t: string) => void }) {
   const { push } = useToast();
   const { data, loading, error, reload } = useFetch<ListResponse<Lead>>(`/leads?followup=${tab}&per_page=50`, [tab]);
   const { data: templates } = useFetch<Template[]>("/message-templates");
+  const tabCounts = useFollowupTabCounts("/leads");
 
   // WhatsApp templates open wa.me with the message pre-filled — one click
   // instead of copy, switch apps, paste. This is a deep link into the
@@ -113,7 +126,9 @@ function SalesFollowups({ tab, setTab }: { tab: string; setTab: (t: string) => v
     <Tabs.Root value={tab} onValueChange={setTab}>
       <Tabs.List className="tab-bar">
         {TABS.map((t) => (
-          <Tabs.Trigger key={t.key} value={t.key} className="tab">{t.label}</Tabs.Trigger>
+          <Tabs.Trigger key={t.key} value={t.key} className="tab">
+            {t.label}{tabCounts[t.key as keyof typeof tabCounts] != null && ` (${tabCounts[t.key as keyof typeof tabCounts]})`}
+          </Tabs.Trigger>
         ))}
       </Tabs.List>
       <Tabs.Content value={tab} className="grid2">
@@ -185,6 +200,7 @@ function FinanceFollowups({ tab, setTab }: { tab: string; setTab: (t: string) =>
   const { data, loading, error, reload } = useFetch<ListResponse<Invoice>>(`/invoices?followup=${tab}&per_page=50`, [tab]);
   const { data: clientsResp } = useFetch<ListResponse<Client>>("/clients?per_page=200");
   const [draftDates, setDraftDates] = useState<Record<string, string>>({});
+  const tabCounts = useFollowupTabCounts("/invoices");
 
   const clientName = (id: string) => clientsResp?.data.find((c) => c.id === id)?.company ?? "-";
 
@@ -202,7 +218,9 @@ function FinanceFollowups({ tab, setTab }: { tab: string; setTab: (t: string) =>
     <Tabs.Root value={tab} onValueChange={setTab}>
       <Tabs.List className="tab-bar">
         {TABS.map((t) => (
-          <Tabs.Trigger key={t.key} value={t.key} className="tab">{t.label}</Tabs.Trigger>
+          <Tabs.Trigger key={t.key} value={t.key} className="tab">
+            {t.label}{tabCounts[t.key as keyof typeof tabCounts] != null && ` (${tabCounts[t.key as keyof typeof tabCounts]})`}
+          </Tabs.Trigger>
         ))}
       </Tabs.List>
       <Tabs.Content value={tab}>
