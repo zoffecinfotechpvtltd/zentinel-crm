@@ -516,10 +516,16 @@ button.badge:hover { opacity: .8; }
   padding: 7px 10px; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
+/* Manual highlight/selected classes (the searchable/Popover-based variant,
+   which tracks its own highlight index) */
 .custom-select-option.is-highlighted { background: var(--bg3); }
 .custom-select-option.is-selected { color: var(--accent2); font-weight: 600; background: var(--accent-soft); }
 .custom-select-option.is-disabled { color: var(--text3); cursor: not-allowed; opacity: .6; }
 .custom-select-option.is-disabled.is-highlighted { background: none; }
+/* Radix Select.Item's own state attributes (the plain dropdown variant) */
+.custom-select-option[data-highlighted] { background: var(--bg3); outline: none; }
+.custom-select-option[data-state="checked"] { color: var(--accent2); font-weight: 600; background: var(--accent-soft); }
+.custom-select-option[data-disabled] { color: var(--text3); cursor: not-allowed; opacity: .6; }
 .custom-select-empty { padding: 10px; font-size: 12.5px; color: var(--text3); }
 
 .custom-datepicker {

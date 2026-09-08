@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useRef, useState, type KeyboardEvent } from "react";
+import * as Select from "@radix-ui/react-select";
+import * as Popover from "@radix-ui/react-popover";
 import { IconChevronDown } from "./Icons";
-import { useFloatingPosition } from "../hooks/useFloatingPosition";
 
 export interface SelectOption {
   value: string;
@@ -24,50 +24,89 @@ interface CustomSelectProps {
   ariaLabel?: string;
 }
 
+// Built on Radix Select (redesign spec, Component Library category) for
+// the plain dropdown case - real combobox/listbox ARIA, keyboard nav
+// (typeahead, Home/End), and scroll-aware Popper positioning as
+// maintained behavior, instead of the hand-rolled version this used to
+// be. Radix's Select.Item forbids an empty-string value (it's reserved
+// internally to mean "no selection"), but several call sites across the
+// app use "" as a real, selectable "All ___" option - translated to/from
+// a sentinel at this boundary rather than touching any of those call
+// sites.
+const EMPTY_SENTINEL = "__empty__";
+
 export function CustomSelect({
   value, onChange, options, placeholder = "Select…", className = "", disabled, searchable, allowCustomValue, ariaLabel,
 }: CustomSelectProps) {
+  if (searchable) {
+    return (
+      <SearchableSelect
+        value={value} onChange={onChange} options={options} placeholder={placeholder}
+        className={className} disabled={disabled} allowCustomValue={allowCustomValue} ariaLabel={ariaLabel}
+      />
+    );
+  }
+
+  return (
+    <Select.Root
+      value={value === "" ? EMPTY_SENTINEL : value}
+      onValueChange={(v) => onChange(v === EMPTY_SENTINEL ? "" : v)}
+      disabled={disabled}
+    >
+      <Select.Trigger className={`custom-select ${className}`} aria-label={ariaLabel}>
+        <Select.Value className="custom-select-value" placeholder={<span className="custom-select-placeholder">{placeholder}</span>} />
+        <Select.Icon>
+          <IconChevronDown size={14} className="custom-select-chevron" />
+        </Select.Icon>
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Content className="custom-select-menu" position="popper" sideOffset={4} style={{ width: "var(--radix-select-trigger-width)" }}>
+          <Select.Viewport>
+            {options.length === 0 && <div className="custom-select-empty">No matches</div>}
+            {options.map((opt) => (
+              <Select.Item key={opt.value} value={opt.value === "" ? EMPTY_SENTINEL : opt.value} disabled={opt.disabled} className="custom-select-option">
+                <Select.ItemText>{opt.label}</Select.ItemText>
+              </Select.Item>
+            ))}
+          </Select.Viewport>
+        </Select.Content>
+      </Select.Portal>
+    </Select.Root>
+  );
+}
+
+// The searchable/allowCustomValue variant needs free-text filtering and
+// custom keyboard nav that Radix's Select can't do (it's a strict
+// listbox, no text input inside the trigger) - so this stays hand-rolled,
+// but on Radix Popover instead of the old custom-hook+manual-portal
+// positioning, which is what actually fixes the audit's "detached
+// autocomplete popover doesn't reposition on scroll" finding (Add
+// Opportunity's company autocomplete) - Popover.Content's Popper-based
+// positioning is scroll/resize-aware by default.
+function SearchableSelect({
+  value, onChange, options, placeholder, className, disabled, allowCustomValue, ariaLabel,
+}: {
+  value: string; onChange: (v: string) => void; options: SelectOption[]; placeholder?: string;
+  className?: string; disabled?: boolean; allowCustomValue?: boolean; ariaLabel?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
-  const triggerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const rect = useFloatingPosition(triggerRef, open);
 
   const selected = options.find((o) => o.value === value);
-  const filtered = searchable && query
-    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
-    : options;
-
-  useEffect(() => {
-    if (!open) return;
-    const onDocMouseDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
-      close();
-    };
-    document.addEventListener("mousedown", onDocMouseDown);
-    return () => document.removeEventListener("mousedown", onDocMouseDown);
-    // `close()` reads `query`/`selected` from this render's closure — without
-    // `query` here the listener attached on open freezes to the EMPTY query
-    // captured at open-time, so typed free text never commits on outside
-    // click (only Enter/picking an option would). Re-subscribing per
-    // keystroke is cheap; correctness here matters more.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, query]);
+  const filtered = query ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase())) : options;
 
   function openMenu() {
     if (disabled) return;
     setQuery("");
     setHighlight(Math.max(0, filtered.findIndex((o) => o.value === value)));
     setOpen(true);
-    if (searchable) setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   function close() {
     setOpen(false);
-    if (searchable && allowCustomValue && query.trim() && query !== selected?.label) {
+    if (allowCustomValue && query.trim() && query !== selected?.label) {
       onChange(query.trim());
     }
   }
@@ -78,7 +117,7 @@ export function CustomSelect({
     setOpen(false);
   }
 
-  function onKeyDown(e: React.KeyboardEvent) {
+  function onKeyDown(e: KeyboardEvent) {
     if (!open) {
       if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
         e.preventDefault();
@@ -102,49 +141,41 @@ export function CustomSelect({
     }
   }
 
-  const displayLabel = searchable && open ? query : (selected?.label ?? (allowCustomValue ? value : ""));
+  const displayLabel = open ? query : (selected?.label ?? (allowCustomValue ? value : ""));
 
   return (
-    <div
-      ref={triggerRef}
-      className={`custom-select ${className}`}
-      data-open={open || undefined}
-      data-disabled={disabled || undefined}
-      role="combobox"
-      aria-expanded={open}
-      aria-label={ariaLabel}
-      tabIndex={searchable ? -1 : disabled ? -1 : 0}
-      onKeyDown={onKeyDown}
-      onClick={() => (open ? undefined : openMenu())}
-    >
-      {searchable ? (
-        <input
-          ref={inputRef}
-          className="custom-select-input"
-          value={displayLabel}
-          placeholder={placeholder}
-          disabled={disabled}
-          onFocus={openMenu}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (!open) setOpen(true);
-            setHighlight(0);
-          }}
-          onKeyDown={onKeyDown}
-        />
-      ) : (
-        <span className={selected ? "custom-select-value" : "custom-select-placeholder"}>
-          {selected ? selected.label : placeholder}
-        </span>
-      )}
-      <IconChevronDown size={14} className="custom-select-chevron" />
-
-      {open && rect && createPortal(
-        <div
-          ref={menuRef}
+    <Popover.Root open={open} onOpenChange={(next) => { if (!next) close(); }}>
+      <Popover.Anchor asChild>
+        <div className={`custom-select ${className}`} data-open={open || undefined} data-disabled={disabled || undefined}>
+          <input
+            ref={inputRef}
+            className="custom-select-input"
+            value={displayLabel}
+            placeholder={placeholder}
+            disabled={disabled}
+            aria-label={ariaLabel}
+            role="combobox"
+            aria-expanded={open}
+            aria-autocomplete="list"
+            onFocus={openMenu}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (!open) setOpen(true);
+              setHighlight(0);
+            }}
+            onKeyDown={onKeyDown}
+          />
+          <IconChevronDown size={14} className="custom-select-chevron" />
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content
           className="custom-select-menu"
           role="listbox"
-          style={{ top: rect.top, left: rect.left, width: rect.width }}
+          sideOffset={4}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          style={{ width: "var(--radix-popover-trigger-width)" }}
         >
           {filtered.length === 0 && (
             <div className="custom-select-empty">
@@ -164,9 +195,8 @@ export function CustomSelect({
               {opt.label}
             </div>
           ))}
-        </div>,
-        document.body,
-      )}
-    </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
