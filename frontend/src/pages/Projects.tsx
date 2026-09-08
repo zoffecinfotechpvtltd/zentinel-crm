@@ -300,7 +300,7 @@ export function Projects() {
               <div className="form-group full">
                 <label className="form-label">Link to Opportunity</label>
                 <CustomSelect
-                  value={watch("opportunity_id")}
+                  value={watch("opportunity_id") ?? ""}
                   onChange={(v) => setValue("opportunity_id", v)}
                   placeholder="Not linked to an opportunity"
                   options={clientOpportunities?.data.map((o) => ({ value: o.id, label: `${o.kind} - ${o.company} (${o.stage})` })) ?? []}
@@ -310,7 +310,7 @@ export function Projects() {
             <div className="form-group">
               <label className="form-label">Assigned To</label>
               <CustomSelect
-                value={watch("assigned_to")}
+                value={watch("assigned_to") ?? ""}
                 onChange={(v) => setValue("assigned_to", v)}
                 placeholder="Unassigned"
                 options={assignable?.map((u) => ({ value: u.id, label: `${u.name} (${u.role})` })) ?? []}
