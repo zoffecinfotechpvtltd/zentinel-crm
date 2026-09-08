@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as Tabs from "@radix-ui/react-tabs";
 import { useFetch } from "../lib/useFetch";
 import { API_BASE } from "../lib/api";
 import { formatMoney, formatMoneyExact, formatDate } from "../lib/format";
@@ -57,9 +58,10 @@ export function Reports() {
   return (
     <div>
       <PageHeader icon={<IconReports size={19} />} title="Reports & Analytics" subtitle="Pipeline, revenue, and payment visibility across the company" />
-      <div className="tab-bar">
-        {TABS.map((t) => <button type="button" key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
-      </div>
+      <Tabs.Root value={tab} onValueChange={setTab}>
+      <Tabs.List className="tab-bar">
+        {TABS.map((t) => <Tabs.Trigger key={t.key} value={t.key} className="tab">{t.label}</Tabs.Trigger>)}
+      </Tabs.List>
 
       {(tab === "conversion" || tab === "revenue" || tab === "service" || tab === "opportunity") && (
         <div className="filter-bar">
@@ -68,6 +70,7 @@ export function Reports() {
         </div>
       )}
 
+      <Tabs.Content value="conversion">
       {tab === "conversion" && conversion && (
         <div>
           <div className="stat-grid">
@@ -91,7 +94,9 @@ export function Reports() {
           </div>
         </div>
       )}
+      </Tabs.Content>
 
+      <Tabs.Content value="revenue">
       {tab === "revenue" && revenue && (
         <div>
           <div className="stat-grid">
@@ -122,7 +127,9 @@ export function Reports() {
           </div>
         </div>
       )}
+      </Tabs.Content>
 
+      <Tabs.Content value="payment">
       {tab === "payment" && (
         <div>
           <div className="filter-bar">
@@ -149,7 +156,9 @@ export function Reports() {
           </div>
         </div>
       )}
+      </Tabs.Content>
 
+      <Tabs.Content value="service">
       {tab === "service" && service && (
         <div className="grid2">
           <div className="card">
@@ -170,7 +179,9 @@ export function Reports() {
           </div>
         </div>
       )}
+      </Tabs.Content>
 
+      <Tabs.Content value="opportunity">
       {tab === "opportunity" && opportunityPipeline && (
         <div className="grid2">
           <div className="card">
@@ -203,6 +214,8 @@ export function Reports() {
           </div>
         </div>
       )}
+      </Tabs.Content>
+      </Tabs.Root>
     </div>
   );
 }

@@ -614,7 +614,8 @@ button.badge:hover { opacity: .8; }
 
 .tab-bar { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); width: fit-content; }
 .tab { padding: 9px 4px; margin-right: 22px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text3); transition: color .12s; border: none; border-bottom: 2px solid transparent; background: none; font-family: inherit; }
-.tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+.tab.active, .tab[data-state="active"] { color: var(--accent2); border-bottom-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .report-stat { background: var(--bg2); border: 1px solid var(--border); box-shadow: var(--shadow-sm); border-radius: var(--radius-lg); padding: 14px 16px; text-align: center; }
 .report-stat-val { font-size: 22px; font-weight: 700; }

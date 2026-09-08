@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as Tabs from "@radix-ui/react-tabs";
 import { useSearchParams } from "react-router-dom";
 import { useFetch } from "../lib/useFetch";
 import { api, API_BASE } from "../lib/api";
@@ -109,13 +110,13 @@ function SalesFollowups({ tab, setTab }: { tab: string; setTab: (t: string) => v
   }
 
   return (
-    <>
-      <div className="tab-bar">
+    <Tabs.Root value={tab} onValueChange={setTab}>
+      <Tabs.List className="tab-bar">
         {TABS.map((t) => (
-          <button type="button" key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>
+          <Tabs.Trigger key={t.key} value={t.key} className="tab">{t.label}</Tabs.Trigger>
         ))}
-      </div>
-      <div className="grid2">
+      </Tabs.List>
+      <Tabs.Content value={tab} className="grid2">
         <div>
           {loading && <div className="card"><div className="empty">Loading…</div></div>}
           {error && !loading && (
@@ -165,8 +166,8 @@ function SalesFollowups({ tab, setTab }: { tab: string; setTab: (t: string) => v
             ))}
           </div>
         </div>
-      </div>
-    </>
+      </Tabs.Content>
+    </Tabs.Root>
   );
 }
 
@@ -189,12 +190,13 @@ function FinanceFollowups({ tab, setTab }: { tab: string; setTab: (t: string) =>
   }
 
   return (
-    <>
-      <div className="tab-bar">
+    <Tabs.Root value={tab} onValueChange={setTab}>
+      <Tabs.List className="tab-bar">
         {TABS.map((t) => (
-          <button type="button" key={t.key} className={`tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>{t.label}</button>
+          <Tabs.Trigger key={t.key} value={t.key} className="tab">{t.label}</Tabs.Trigger>
         ))}
-      </div>
+      </Tabs.List>
+      <Tabs.Content value={tab}>
       {loading && <div className="card"><div className="empty">Loading…</div></div>}
       {error && !loading && (
         <div className="banner banner-error" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -231,6 +233,7 @@ function FinanceFollowups({ tab, setTab }: { tab: string; setTab: (t: string) =>
           </div>
         ))}
       </div>
-    </>
+      </Tabs.Content>
+    </Tabs.Root>
   );
 }
