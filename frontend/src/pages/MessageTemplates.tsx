@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useFetch } from "../lib/useFetch";
 import { api, ApiError } from "../lib/api";
 import { Modal } from "../components/Modal";
@@ -7,10 +9,10 @@ import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/ConfirmDialog";
 import { IconTemplate, IconPlus, IconTrash } from "../components/Icons";
 import { CustomSelect } from "../components/CustomSelect";
+import { messageTemplateFormSchema, emptyMessageTemplateForm, CATEGORIES, type MessageTemplateFormValues } from "../lib/schemas/messageTemplate";
 
 type Template = { id: string; name: string; channel: string; subject: string | null; body: string; category: string };
 
-const CATEGORIES = ["proposal_followup", "payment_reminder", "checkin"];
 const CATEGORY_LABELS: Record<string, string> = {
   proposal_followup: "Proposal Follow-up",
   payment_reminder: "Payment Reminder",
@@ -18,50 +20,58 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 const categoryLabel = (c: string) => CATEGORY_LABELS[c] ?? c;
 
-const emptyForm = { name: "", channel: "email", subject: "", body: "", category: "proposal_followup" };
-
 export function MessageTemplates() {
   const { data, reload } = useFetch<Template[]>("/message-templates");
   const { push } = useToast();
   const confirm = useConfirm();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [shaking, setShaking] = useState(false);
+  const {
+    register, handleSubmit, watch, setValue, reset,
+    formState: { errors, isSubmitting },
+  } = useForm<MessageTemplateFormValues>({ resolver: zodResolver(messageTemplateFormSchema), defaultValues: emptyMessageTemplateForm });
 
   function openAdd() {
     setEditingId(null);
-    setForm(emptyForm);
+    reset(emptyMessageTemplateForm);
     setError(null);
     setModalOpen(true);
   }
 
   function openEdit(t: Template) {
     setEditingId(t.id);
-    setForm({ name: t.name, channel: t.channel, subject: t.subject ?? "", body: t.body, category: t.category });
+    reset({ name: t.name, channel: t.channel as MessageTemplateFormValues["channel"], subject: t.subject ?? "", body: t.body, category: t.category as MessageTemplateFormValues["category"] });
     setError(null);
     setModalOpen(true);
   }
 
-  async function save() {
-    setError(null);
-    try {
-      const payload = { ...form, subject: form.subject || undefined };
-      if (editingId) {
-        await api.patch(`/message-templates/${editingId}`, payload);
-        push("Template updated", "success");
-      } else {
-        await api.post("/message-templates", payload);
-        push("Template added", "success");
+  const save = handleSubmit(
+    async (values) => {
+      setError(null);
+      try {
+        const payload = { ...values, subject: values.subject || undefined };
+        if (editingId) {
+          await api.patch(`/message-templates/${editingId}`, payload);
+          push("Template updated", "success");
+        } else {
+          await api.post("/message-templates", payload);
+          push("Template added", "success");
+        }
+        setModalOpen(false);
+        reset(emptyMessageTemplateForm);
+        setEditingId(null);
+        reload();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Failed to save template");
       }
-      setModalOpen(false);
-      setForm(emptyForm);
-      setEditingId(null);
-      reload();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save template");
+    },
+    () => {
+      setShaking(true);
+      setTimeout(() => setShaking(false), 400);
     }
-  }
+  );
 
   async function removeTemplate(t: Template) {
     if (!(await confirm({ message: `Delete template "${t.name}"? This can't be undone.`, confirmLabel: "Delete", danger: true }))) return;
@@ -101,33 +111,43 @@ export function MessageTemplates() {
       {modalOpen && (
         <Modal title={editingId ? "Edit Template" : "Add Template"} onClose={() => setModalOpen(false)} footer={<>
           <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={save}>{editingId ? "Save Changes" : "Save"}</button>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={isSubmitting}>{isSubmitting ? "Saving…" : editingId ? "Save Changes" : "Save"}</button>
         </>}>
           {error && <div className="banner banner-error">{error}</div>}
-          <div className="form-grid">
-            <div className="form-group full"><label className="form-label">Name *</label><input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className={`form-grid${shaking ? " shake-on-invalid" : ""}`}>
+            <div className="form-group full">
+              <label className="form-label">Name *</label>
+              <input className="form-input" {...register("name")} />
+              {errors.name && <div className="form-error">{errors.name.message}</div>}
+            </div>
             <div className="form-group">
               <label className="form-label">Channel</label>
               <CustomSelect
-                value={form.channel}
-                onChange={(v) => setForm({ ...form, channel: v })}
+                ariaLabel="Channel"
+                value={watch("channel")}
+                onChange={(v) => setValue("channel", v as MessageTemplateFormValues["channel"])}
                 options={[{ value: "email", label: "Email" }, { value: "whatsapp", label: "WhatsApp" }]}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Category</label>
               <CustomSelect
-                value={form.category}
-                onChange={(v) => setForm({ ...form, category: v })}
+                ariaLabel="Category"
+                value={watch("category")}
+                onChange={(v) => setValue("category", v as MessageTemplateFormValues["category"])}
                 options={CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }))}
               />
             </div>
-            {form.channel === "email" && (
-              <div className="form-group full"><label className="form-label">Subject</label><input className="form-input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></div>
+            {watch("channel") === "email" && (
+              <div className="form-group full">
+                <label className="form-label">Subject</label>
+                <input className="form-input" {...register("subject")} />
+              </div>
             )}
             <div className="form-group full">
               <label className="form-label">Body * - use {"{{name}}"}, {"{{service}}"}, {"{{amount}}"}, {"{{date}}"}</label>
-              <textarea className="form-textarea" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+              <textarea className="form-textarea" {...register("body")} />
+              {errors.body && <div className="form-error">{errors.body.message}</div>}
             </div>
           </div>
         </Modal>
