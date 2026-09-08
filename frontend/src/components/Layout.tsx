@@ -146,7 +146,7 @@ export function Layout() {
           6.2#5 - focus order used to visit the whole sidebar first despite
           the header being first on screen). */}
       <div className={`main${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-        <div className="topbar">
+        <header className="topbar">
           <button type="button" className="icon-btn menu-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu"><IconMenu size={16} /></button>
           <div className="topbar-spacer" />
           <div
@@ -178,14 +178,14 @@ export function Layout() {
             <IconBell size={16} />
             {unread > 0 && <span className="nav-badge">{unread}</span>}
           </button>
-        </div>
-        <div className="content" id="main-content" tabIndex={-1}>
+        </header>
+        <main className="content" id="main-content" tabIndex={-1}>
           <Outlet />
-        </div>
+        </main>
       </div>
 
       {mobileNavOpen && <div className="sidebar-scrim" onClick={() => setMobileNavOpen(false)} />}
-      <div className={`sidebar${mobileNavOpen ? " open" : ""}${sidebarCollapsed ? " collapsed" : ""}`}>
+      <nav aria-label="Main" className={`sidebar${mobileNavOpen ? " open" : ""}${sidebarCollapsed ? " collapsed" : ""}`}>
         <div className="logo">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className="logo-mark"><Logo size={28} /></div>
@@ -234,10 +234,10 @@ export function Layout() {
         )}
         <div className="nav-footer">
           <NavLink to="/account" className="nav-footer-profile" onClick={() => setMobileNavOpen(false)}>
-            <UserAvatar user={user} />
+            <UserAvatar user={user} onDark />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 550, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name}</div>
-              <div style={{ fontSize: 11, color: "var(--text3)" }}>{user?.email}</div>
+              <div style={{ fontSize: 11, color: "#aab4c7" }}>{user?.email}</div>
             </div>
           </NavLink>
           <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={handleLogout}>
@@ -247,7 +247,7 @@ export function Layout() {
             {sidebarCollapsed ? <IconChevronRight size={14} /> : <><IconChevronLeft size={14} /> Collapse</>}
           </button>
         </div>
-      </div>
+      </nav>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>

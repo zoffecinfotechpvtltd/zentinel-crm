@@ -355,7 +355,7 @@ export function Leads() {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 32 }}><input type="checkbox" checked={leads.length > 0 && leads.every((l) => selected.has(l.id))} onChange={toggleSelectAll} /></th>
+                  <th style={{ width: 32 }}><input type="checkbox" aria-label="Select all leads" checked={leads.length > 0 && leads.every((l) => selected.has(l.id))} onChange={toggleSelectAll} /></th>
                   <th>Company</th><th>Contact</th><th>Service</th><th>Source</th><th title="Stage progress + deal size + source quality + how recently touched">Score</th><th>Status</th><th>Follow-up</th><th className="col-sticky-right">Actions</th>
                 </tr>
               </thead>
@@ -371,7 +371,7 @@ export function Leads() {
                 )}
                 {leads.map((l) => (
                   <tr key={l.id} className={selected.has(l.id) ? "row-selected" : undefined}>
-                    <td><input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} /></td>
+                    <td><input type="checkbox" aria-label={`Select ${l.company}`} checked={selected.has(l.id)} onChange={() => toggleSelect(l.id)} /></td>
                     <td>
                       <div style={{ fontWeight: 550, color: "var(--text)" }}>{l.company}</div>
                       <div style={{ fontSize: 11, color: "var(--text3)" }}>{l.industry ?? "-"}</div>

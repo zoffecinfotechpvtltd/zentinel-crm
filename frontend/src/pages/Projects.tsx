@@ -322,7 +322,7 @@ export function Projects() {
                 {tasks?.length === 0 && <div style={{ fontSize: 12, color: "var(--text3)" }}>No tasks yet</div>}
                 {tasks?.map((t) => (
                   <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 8, background: "var(--bg3)" }}>
-                    <input type="checkbox" checked={t.is_done} onChange={() => toggleTask(t)} />
+                    <input type="checkbox" aria-label={`Mark "${t.title}" ${t.is_done ? "not done" : "done"}`} checked={t.is_done} onChange={() => toggleTask(t)} />
                     <span style={{ flex: 1, fontSize: 13, textDecoration: t.is_done ? "line-through" : "none", color: t.is_done ? "var(--text3)" : "var(--text)" }}>
                       {t.title}
                     </span>

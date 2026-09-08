@@ -5,6 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:db": "node scripts/dev-db.mjs",
     "build": "tsc -p tsconfig.json",
     "start": "node-pg-migrate up && node dist/index.js",
     "migrate": "node-pg-migrate",
