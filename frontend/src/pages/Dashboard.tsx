@@ -58,31 +58,31 @@ export function Dashboard() {
       <PageHeader icon={<IconDashboard size={19} />} title="Dashboard" subtitle={`${greeting}, ${user?.name?.split(" ")[0] ?? ""} - here's where things stand`} />
       {isAdminRole(user?.role) && <OnboardingChecklist hasLeads={s.total_leads > 0} hasClients={s.active_clients > 0} />}
       <div className="stat-grid">
-        <StatCard label={isSales ? "Your Leads" : "Total Leads"} value={String(s.total_leads)} color="var(--accent)"
+        <StatCard index={0} label={isSales ? "Your Leads" : "Total Leads"} value={String(s.total_leads)} color="var(--accent)"
           change={s.new_leads_change_pct != null ? `${s.new_leads_change_pct >= 0 ? "+" : ""}${s.new_leads_change_pct.toFixed(0)}% vs last month` : `${s.new_leads_this_month} this month`}
           changeUp={s.new_leads_change_pct == null || s.new_leads_change_pct >= 0} />
         {isSales ? (
-          <StatCard label="Proposals Sent" value={String(s.proposals_sent)} color="var(--purple)" />
+          <StatCard index={1} label="Proposals Sent" value={String(s.proposals_sent)} color="var(--purple)" />
         ) : (
           <>
-            <StatCard label="Active Clients" value={String(s.active_clients)} color="var(--success)" />
-            <StatCard label="Proposals Sent" value={String(s.proposals_sent)} color="var(--purple)" />
-            <StatCard label="Projects Active" value={String(s.projects_active)} color="var(--info)" />
+            <StatCard index={1} label="Active Clients" value={String(s.active_clients)} color="var(--success)" />
+            <StatCard index={2} label="Proposals Sent" value={String(s.proposals_sent)} color="var(--purple)" />
+            <StatCard index={3} label="Projects Active" value={String(s.projects_active)} color="var(--info)" />
           </>
         )}
       </div>
       <div className="stat-grid">
         {!isSales && (
           <>
-            <StatCard label="Pending Payments" value={formatMoney(s.pending_payments_amount)} color="var(--warning)"
+            <StatCard index={4} label="Pending Payments" value={formatMoney(s.pending_payments_amount)} color="var(--warning)"
               change={`${s.pending_payments_count} invoice(s) pending`} changeUp={false} />
-            <StatCard label="Revenue This Month" value={formatMoney(s.revenue_this_month)} color="var(--success)"
+            <StatCard index={5} label="Revenue This Month" value={formatMoney(s.revenue_this_month)} color="var(--success)"
               change={s.revenue_change_pct != null ? `${s.revenue_change_pct >= 0 ? "+" : ""}${s.revenue_change_pct.toFixed(0)}% vs last month` : "no data last month"}
               changeUp={s.revenue_change_pct == null || s.revenue_change_pct >= 0} />
           </>
         )}
-        <StatCard label="Follow-ups Today" value={String(s.followups_today)} color="var(--orange)" />
-        <StatCard label="Conversion Rate" value={`${s.conversion_rate_pct}%`} color="var(--accent)" />
+        <StatCard index={isSales ? 2 : 6} label="Follow-ups Today" value={String(s.followups_today)} color="var(--orange)" />
+        <StatCard index={isSales ? 3 : 7} label="Conversion Rate" value={`${s.conversion_rate_pct}%`} color="var(--accent)" />
       </div>
 
       <div className="grid2">
@@ -93,10 +93,16 @@ export function Dashboard() {
               {revenue?.monthly_trend.some((m) => Number(m.total) > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={revenue.monthly_trend.map((m) => ({ month: new Date(m.month).toLocaleDateString("en-IN", { month: "short", year: "2-digit" }), total: Number(m.total) }))}>
+                    <defs>
+                      <linearGradient id="dashboard-revenue-fill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2563ff" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#2563ff" stopOpacity={0.55} />
+                      </linearGradient>
+                    </defs>
                     <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "var(--text3)" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => formatMoney(v)} />
                     <Tooltip formatter={(v) => formatMoney(Number(v))} contentStyle={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="total" name="Revenue" fill="#2563ff" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="total" name="Revenue" fill="url(#dashboard-revenue-fill)" radius={[4, 4, 0, 0]} animationDuration={500} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : revenue && (
