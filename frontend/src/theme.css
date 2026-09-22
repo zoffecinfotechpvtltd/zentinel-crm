@@ -775,23 +775,24 @@ button.badge:hover { opacity: .8; }
 
 /* -------------------------------------------------------------- marketing */
 
-/* A real scrolling page now (not the old single-viewport lock) — nav stays
-   fixed-height, hero fills the first screen, and features/roles/stats/
-   footer flow underneath it as ordinary sections. */
-.marketing { min-height: 100dvh; width: 100%; background: var(--bg); display: flex; flex-direction: column; }
+/* Locked to exactly one viewport, no page scroll (a deliberate call, not an
+   accident) — nav and footer are fixed-height flex items, the hero absorbs
+   whatever space is left via flex:1, and the feature strip below it takes
+   the place the old scrollable features/roles/CTA sections used to occupy,
+   compressed into one row instead of three separate screens. */
+.marketing { height: 100dvh; width: 100vw; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
 .marketing-nav {
   flex: 0 0 auto;
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px;
   padding: 14px clamp(20px, 4vw, 56px);
-  position: sticky; top: 0; z-index: 50; border-bottom: 1px solid var(--border);
-  background: var(--bg); backdrop-filter: blur(8px);
+  z-index: 50; border-bottom: 1px solid var(--border);
 }
 .marketing-nav-brand { display: flex; align-items: center; gap: 10px; justify-self: start; }
 .marketing-nav > .btn { justify-self: end; }
 
 .marketing-hero {
   position: relative; overflow: hidden; background: var(--primary-navy);
-  flex: 0 0 auto; min-height: min(92vh, 760px);
+  flex: 1 1 auto; min-height: 0;
   padding: clamp(16px, 4vh, 48px) clamp(20px, 4vw, 56px);
   display: flex; justify-content: center; align-items: center;
 }

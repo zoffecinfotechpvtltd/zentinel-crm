@@ -1,4 +1,5 @@
 import { Link, Navigate } from "react-router-dom";
+import { motion } from "motion/react";
 import { useAuth } from "../context/AuthContext";
 import { Logo } from "../components/Logo";
 import {
@@ -40,9 +41,15 @@ export function Marketing() {
       </nav>
 
       <header className="marketing-hero">
+        <div className="marketing-hero-glow" />
         <div className="marketing-hero-watermark"><Logo size={460} /></div>
         <div className="marketing-hero-inner">
-          <div className="marketing-hero-copy">
+          <motion.div
+            className="marketing-hero-copy"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          >
             <span className="login-brand-tag" style={{ color: "var(--indigo)" }}>Intelligent. Protected. Connected.</span>
             <h1 className="marketing-hero-title">Every lead, client, and invoice - tracked in one place.</h1>
             <p className="marketing-hero-sub">
@@ -59,9 +66,14 @@ export function Marketing() {
                 <span className="hero-role-chip" key={r.name}>{r.name}</span>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          <div className="marketing-hero-visual">
+          <motion.div
+            className="marketing-hero-visual"
+            initial={{ opacity: 0, y: 32, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+          >
             <div className="hero-preview-card">
               <div className="hero-preview-topbar">
                 <span className="hero-preview-dot" />
@@ -108,7 +120,7 @@ export function Marketing() {
             <div className="hero-preview-floater hero-preview-floater-2">
               <IconFollowups size={13} /> 3 follow-ups due today
             </div>
-          </div>
+          </motion.div>
         </div>
       </header>
 

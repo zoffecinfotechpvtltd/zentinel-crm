@@ -23,17 +23,27 @@ and Dashboard (`frontend/src/pages/Dashboard.tsx`), backed by a documented desig
 
 ## Landing page (`Marketing.tsx`)
 
-Replace the current single-viewport strip layout with a real scrolling marketing page:
+**Correction (post-review):** the original draft of this section proposed replacing the
+single-viewport layout with a multi-section scrolling page. That contradicted DESIGN.md's
+own documented rule — "Marketing is locked to exactly one viewport (100dvh, no scroll —
+see Marketing.tsx)" — which predates this redesign and was never meant to change. After
+seeing a screenshot of the in-progress scrolling build, the correct call was made: keep
+the single 100dvh/100vw viewport, no page scroll, ever.
 
-1. **Hero** — keep the Z-mark watermark + split copy/preview-card structure. Add: animated
-   gradient glow behind the navy panel, entrance animation on load (`motion.div` fade/slide).
-2. **Feature grid** — replace the flat icon strip (`marketing-strip`) with a bento-style
-   asymmetric grid: 2 large feature tiles + 4 small ones, scroll-reveal via `useInView`.
-3. **Role breakdown** — 4 role cards (Sales/Finance/Ops/Admin), hover-lift, icon + scope list
-   (reuses `ROLES` data already in the file, currently just chips in the hero).
-4. **Stats strip** — animated count-up numbers (illustrative: leads tracked, invoices raised,
-   clients managed, follow-ups automated).
-5. **Footer** — expand from the current one-liner to brand mark + a couple of internal links.
+Final scope, implemented:
+
+1. **Hero** — kept the existing Z-mark watermark + split copy/preview-card structure as-is
+   (content, layout, role chips, preview card all unchanged). Added: a third animated
+   radial-gradient glow layer (`.marketing-hero-glow`, `@keyframes marketing-glow-drift`,
+   16s drift) behind the navy panel, plus `motion.div` entrance animation (fade/slide) on
+   the hero copy and hero visual on load.
+2. **Feature strip** — left as the existing compact `marketing-strip` row, unchanged (no
+   bento grid — that would have forced scroll).
+
+Explicitly NOT implemented (would have broken the no-scroll constraint): bento-style
+feature grid, role-breakdown cards, animated stats strip, expanded footer. These remain
+good ideas for a *separate* page (e.g. an internal "About/Help" page) but do not belong
+on the single-viewport marketing landing page.
 
 ## Login (`AuthBrandPanel.tsx` / `Login.tsx`)
 
