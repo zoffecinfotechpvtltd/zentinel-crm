@@ -19,7 +19,12 @@ pool.on("connect", (client) => {
   });
 });
 
+// Don't process.exit() here - pg already discards the broken client from
+// the pool on its own, and Neon/serverless Postgres closes idle connections
+// routinely, so this fires under normal operation. Exiting the process on a
+// long-running server just restarts under an orchestrator, but on Vercel it
+// kills the whole serverless function invocation (FUNCTION_INVOCATION_FAILED
+// for whatever request happened to be sharing that instance).
 pool.on("error", (err) => {
   console.error("Unexpected error on idle Postgres client", err);
-  process.exit(1);
 });
