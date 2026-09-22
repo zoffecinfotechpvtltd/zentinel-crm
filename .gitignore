@@ -8,3 +8,5 @@ build/
 .claude/worktrees/
 backend/uploads/
 .playwright-mcp/
+.vercel
+.env*
