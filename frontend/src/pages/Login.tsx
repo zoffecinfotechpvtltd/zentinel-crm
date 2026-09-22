@@ -1,8 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion } from "motion/react";
 import { useAuth } from "../context/AuthContext";
 import { api, ApiError } from "../lib/api";
 import { AuthBrandPanel } from "../components/AuthBrandPanel";
+
+// Shared entrance for the form card across all three login states (sign-in,
+// 2FA, forgot-password) — a quiet fade/rise, not a bounce; matches the
+// login-brand panel's restraint.
+const cardMotion = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const },
+};
 
 export function Login() {
   const { login, verifyTwoFactor } = useAuth();
@@ -80,7 +90,7 @@ export function Login() {
       <div className="login-shell">
         <AuthBrandPanel headline="Forgot your password? Happens to the best of us." />
         <div className="login-form-panel">
-          <div className="login-card">
+          <motion.div className="login-card" {...cardMotion}>
             <div className="login-card-head">
               <div className="login-card-title">Reset your password</div>
             </div>
@@ -101,7 +111,7 @@ export function Login() {
             <button type="button" className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10 }} onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(""); }}>
               Back to sign in
             </button>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -112,7 +122,7 @@ export function Login() {
       <div className="login-shell">
         <AuthBrandPanel headline="One more step. Confirm it's really you." />
         <div className="login-form-panel">
-          <div className="login-card">
+          <motion.div className="login-card" {...cardMotion}>
             <div className="login-card-head">
               <div className="login-card-title">Two-step verification</div>
             </div>
@@ -132,7 +142,7 @@ export function Login() {
                 Back
               </button>
             </form>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -142,13 +152,22 @@ export function Login() {
     <div className="login-shell">
       <AuthBrandPanel headline="Every lead, client, and invoice - tracked in one place." />
       <div className="login-form-panel">
-        <div className="login-card">
+        <motion.div className="login-card" {...cardMotion}>
           <div className="login-card-head">
             <div className="login-card-title">Sign in</div>
             <div className="login-card-sub">Welcome back - enter your details to continue.</div>
           </div>
           <form onSubmit={onSubmit}>
-            {error && <div className="banner banner-error">{error}</div>}
+            {error && (
+              <motion.div
+                className="banner banner-error"
+                initial={{ x: 0 }}
+                animate={{ x: [0, -6, 6, -4, 4, 0] }}
+                transition={{ duration: 0.4 }}
+              >
+                {error}
+              </motion.div>
+            )}
             <div className="form-group" style={{ marginBottom: 14 }}>
               <label className="form-label">Email</label>
               <input className="form-input" type="email" autoComplete="username" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
@@ -170,7 +189,7 @@ export function Login() {
               {submitting ? "Signing in…" : "Sign in"}
             </button>
           </form>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

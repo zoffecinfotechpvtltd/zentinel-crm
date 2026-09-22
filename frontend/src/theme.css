@@ -722,11 +722,24 @@ button.badge:hover { opacity: .8; }
   content: ""; position: absolute; width: 640px; height: 640px; border-radius: 50%;
   background: radial-gradient(circle, rgba(37, 99, 255, 0.32), transparent 65%);
   bottom: -320px; right: -220px; pointer-events: none;
+  animation: login-glow-drift-a 14s ease-in-out infinite;
 }
 .login-brand::after {
   content: ""; position: absolute; width: 420px; height: 420px; border-radius: 50%;
   background: radial-gradient(circle, rgba(99, 102, 241, 0.28), transparent 70%);
   top: -160px; left: -140px; pointer-events: none;
+  animation: login-glow-drift-b 18s ease-in-out infinite;
+}
+@keyframes login-glow-drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-30px, -20px) scale(1.08); }
+}
+@keyframes login-glow-drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(24px, 16px) scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-brand::before, .login-brand::after { animation: none; }
 }
 .login-brand-watermark {
   position: absolute; top: 50%; right: -60px; transform: translateY(-50%) rotate(-8deg);
@@ -762,24 +775,23 @@ button.badge:hover { opacity: .8; }
 
 /* -------------------------------------------------------------- marketing */
 
-/* Locked to exactly one viewport, no page scroll (a deliberate call, not an
-   accident) — nav and footer are fixed-height flex items, the hero absorbs
-   whatever space is left via flex:1, and the feature strip below it takes
-   the place the old scrollable features/roles/CTA sections used to occupy,
-   compressed into one row instead of three separate screens. */
-.marketing { height: 100dvh; width: 100vw; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
+/* A real scrolling page now (not the old single-viewport lock) — nav stays
+   fixed-height, hero fills the first screen, and features/roles/stats/
+   footer flow underneath it as ordinary sections. */
+.marketing { min-height: 100dvh; width: 100%; background: var(--bg); display: flex; flex-direction: column; }
 .marketing-nav {
   flex: 0 0 auto;
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px;
   padding: 14px clamp(20px, 4vw, 56px);
-  z-index: 50; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50; border-bottom: 1px solid var(--border);
+  background: var(--bg); backdrop-filter: blur(8px);
 }
 .marketing-nav-brand { display: flex; align-items: center; gap: 10px; justify-self: start; }
 .marketing-nav > .btn { justify-self: end; }
 
 .marketing-hero {
   position: relative; overflow: hidden; background: var(--primary-navy);
-  flex: 1 1 auto; min-height: 0;
+  flex: 0 0 auto; min-height: min(92vh, 760px);
   padding: clamp(16px, 4vh, 48px) clamp(20px, 4vw, 56px);
   display: flex; justify-content: center; align-items: center;
 }
@@ -792,6 +804,20 @@ button.badge:hover { opacity: .8; }
   content: ""; position: absolute; width: 480px; height: 480px; border-radius: 50%;
   background: radial-gradient(circle, rgba(99, 102, 241, 0.26), transparent 70%);
   bottom: -280px; left: -160px; pointer-events: none;
+}
+/* Third, animated glow layer — drifts slowly behind the hero content so the
+   navy panel doesn't sit static; the two ::before/::after radials above stay
+   as fixed brand-color anchors, this one adds motion on top of them. */
+.marketing-hero-glow {
+  position: absolute; inset: -10%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(480px 480px at 25% 30%, rgba(37, 99, 255, 0.22), transparent 60%),
+    radial-gradient(420px 420px at 75% 70%, rgba(99, 102, 241, 0.18), transparent 60%);
+  animation: marketing-glow-drift 16s ease-in-out infinite;
+}
+@keyframes marketing-glow-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(3%, -4%) scale(1.08); }
 }
 .marketing-hero-watermark {
   position: absolute; top: 50%; right: -80px; transform: translateY(-50%) rotate(-8deg);
